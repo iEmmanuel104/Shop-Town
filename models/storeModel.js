@@ -22,12 +22,13 @@ module.exports = (sequelize, DataTypes) => {
         scopes: {
             includeProducts: {
                 include: [{
-                    model: sequelize.models.Product,
+                    model: 'Product',
                     as: 'products'
                 }]
             }
         }
     });
+
 
     const Brand = sequelize.define("Brand", {
         id: {
@@ -54,6 +55,7 @@ module.exports = (sequelize, DataTypes) => {
         tableName: 'Brand',
         timestamps: true,
     });
+
 
     const Product = sequelize.define("Product", {
         id: {
@@ -83,6 +85,32 @@ module.exports = (sequelize, DataTypes) => {
     }, {
         tableName: 'Product',
         timestamps: true,
+        scopes: {
+            includeCategory: {
+                include: [{
+                    model: 'Category',
+                    as: 'category'
+                }]
+            },
+            includeBrand: {
+                include: [{
+                    model: 'Brand',
+                    as: 'brand'
+                }]
+            },
+            includeOrders: {
+                include: [{
+                    model: 'Order',
+                    as: 'orders'
+                }]
+            },
+            includeReviews: {
+                include: [{
+                    model: 'Review',
+                    as: 'reviews'
+                }]
+            }
+        }
     });
 
 
@@ -91,10 +119,6 @@ module.exports = (sequelize, DataTypes) => {
         Category.hasMany(models.Product, {
             foreignKey: 'categoryId',
             as: 'products'
-        });
-        Category.hasMany(models.Brand, {
-            foreignKey: 'categoryId',
-            as: 'brands'
         });
         Category.hasOne(models.Content, {
             foreignKey: 'refId',
@@ -107,9 +131,9 @@ module.exports = (sequelize, DataTypes) => {
             foreignKey: 'brandId',
             as: 'products'
         });
-        Brand.belongsTo(models.Category, {
-            foreignKey: 'categoryId',
-            as: 'category'
+        Brand.belongsTo(models.User, {
+            foreignKey: 'userId',
+            as: 'user'
         });
         Brand.hasOne(models.Content, {
             foreignKey: 'refId',

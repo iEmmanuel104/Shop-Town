@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const { secret2, secret1 } = require('./configs')
 module.exports  = function (roles) {
     return function (req, res, next) {
         try {
@@ -8,7 +9,7 @@ module.exports  = function (roles) {
                 return res.status(401).json({ message: "Access denied" });
             }
             const token = authHeader.split(" ")[1];
-                const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_JWT_SECRET);
+                const decoded = jwt.verify(token, secret2);
                 console.log('auhorisation passed');
                 // const decoded = jwt.verify(token, "secret2");
                 if (!allowed_user.includes(decoded.role)) {

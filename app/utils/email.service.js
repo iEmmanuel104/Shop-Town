@@ -1,15 +1,15 @@
 require('dotenv').config();
 const sendGridMail = require('@sendgrid/mail')
 const CustomError =  require('./customErrors')
-const nodemailer = require("nodemailer"), 
-config = process.env
+const nodemailer = require("nodemailer") 
+const { SENDGRID_API_KEY, EMAIL_HOST_ADDRESS, OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET, OAUTH_REFRESH_TOKEN, OAUTH_ACCESS_TOKEN } = require('./configs')
 
 const createSendGridEmail = () => {
-    sendGridMail.setApiKey(config.SENDGRID_API_KEY)
+    sendGridMail.setApiKey(SENDGRID_API_KEY)
 
     const sendEmail = async (options) => {
         const mailOptions = {
-            // from: options.from ? options.from : `Royalti.io <${config.EMAIL_HOST_ADDRESS}>`,
+            // from: options.from ? options.from : `Royalti.io <${EMAIL_HOST_ADDRESS}>`,
             from: options.from ? options.from : 'EZcart <hello@EZcart.com>',
             to: options.email,
             subject: options.subject,
@@ -42,16 +42,17 @@ const createNodemailerEmail = () => {
         secure: true,
         auth: {
             type: "OAuth2",
-            user: config.EMAIL_HOST_ADDRESS,
-            clientId: config.OAUTH_CLIENT_ID,
-            clientSecret: config.OAUTH_CLIENT_SECRET,
-            refreshToken: config.OAUTH_REFRESH_TOKEN,
-            accessToken: config.OAUTH_ACCESS_TOKEN,
+            user: EMAIL_HOST_ADDRESS,
+            clientId: OAUTH_CLIENT_ID,
+            clientSecret: OAUTH_CLIENT_SECRET,
+            refreshToken: OAUTH_REFRESH_TOKEN,
+            accessToken: OAUTH_ACCESS_TOKEN,
         },
     })
     const sendEmail = async (options) => {
+        console.log("mail options:", options)
         const mailOptions = {
-            from: options.from ? options.from : `EZCART <${config.EMAIL_HOST_ADDRESS}>`,
+            from: options.from ? options.from : `EZCART <${EMAIL_HOST_ADDRESS}>`,
             to: options.email,
             subject: options.subject,
             text: options.message,
@@ -71,12 +72,12 @@ const createNodemailerEmail = () => {
 }
 
 let sendEmail
-if (env === 'production') {
+if (process.env === 'production') {
     sendEmail = createSendGridEmail()
 }
 else {
     sendEmail = createNodemailerEmail()
 }
 
-export default sendEmail
+module.exports = sendEmail
 // ru ? LA *% t0No : qO$#

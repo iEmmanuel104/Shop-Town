@@ -1,56 +1,57 @@
 const jwt = require("jsonwebtoken");
 const { v4: uuidv4 } = require('uuid');
+const asyncWrapper = require("../middlewares/async");
+const { User } = require("../../models");
+const { BadRequestError } = require("./customErrors");
+const {refreshTokenExpiry,accessTokenExpiry,mywebsite,secret1,secret2} = require('./configs')
 
-const refreshTokenExpiry = parseInt(process.env.REFRESH_TOKEN_EXPIRY);
-const accessTokenExpiry = parseInt(process.env.ACCESS_TOKEN_EXPIRY);
-const adminRefreshTokenExpiry = parseInt(process.env.ADMIN_REFRESH_TOKEN_EXPIRY);
-const adminAccessTokenExpiry = parseInt(process.env.ADMIN_ACCESS_TOKEN_EXPIRY);
-const mywebsite = process.env.MY_WEBSITE;
-const secret = process.env.REFRESH_TOKEN_JWT_SECRET
-const secret2 = process.env.ACCESS_TOKEN_JWT_SECRET
-const adminsecret = process.env.ADMIN_REFRESH_TOKEN_JWT_SECRET
-const adminsecret2 = process.env.ADMIN_ACCESS_TOKEN_JWT_SECRET
+const issueToken = async (userid) => {
+    try {
+        const this_user = await User.findByPk(userid)
+        if (!this_user) return next(new BadRequestError('Invalid user'))
+        const payload = {
+            id: this_user.id,
+            fullName: this_user.fullName,
+            email: this_user.email,
+            role: this_user.role,
+            isActivated: this_user.isActivated,
+            vendorMode: this_user.vendorMode
+        }
+        payload.website = mywebsite;
+        payload.jti = uuidv4();
 
-const authService = () => {
-  const issue_RefreshToken = payload => {
-    payload.website = mywebsite;
-    payload.jti = uuidv4();
-    return jwt.sign(payload, secret, { expiresIn: refreshTokenExpiry, algorithm: 'HS256' });
-  };
-  const verify_RefreshToken = (token, cb) => jwt.verify(token, secret, { algorithms: ['HS256'] }, cb);
+        console.log("payload", payload)
 
-  const issue_AccessToken = payload => {
-    payload.website = mywebsite;
-    payload.jti = uuidv4();
-    return jwt.sign(payload, secret2, { expiresIn: accessTokenExpiry, algorithm: 'HS256' });
-  };
-  const verify_AccessToken = (token, cb) => jwt.verify(token, secret2, { algorithms: ['HS256'] }, cb);
+        const access_token = jwt.sign(payload, secret2, { expiresIn: accessTokenExpiry, algorithm: 'HS256' });
+        const refresh_token = jwt.sign(payload, secret1, { expiresIn: refreshTokenExpiry, algorithm: 'HS256' });
+        console.log("access_token", access_token)
+        return { access_token, refresh_token }
+    } catch (error) {
+        throw new Error(error);
 
-  const issue_AdminRefreshToken = payload => {
-    payload.website = mywebsite;
-    payload.jti = uuidv4();
-    return jwt.sign(payload, adminsecret, { expiresIn: adminRefreshTokenExpiry, algorithm: 'HS256' });
-  };
-  const verify_AdminRefreshToken = (token, cb) => jwt.verify(token, adminsecret, { algorithms: ['HS256'] }, cb);
-
-  const issue_AdminAccessToken = payload => {
-    payload.website = mywebsite;
-    payload.jti = uuidv4();
-    return jwt.sign(payload, adminsecret2, { expiresIn: adminAccessTokenExpiry, algorithm: 'HS256' });
-  };
-  const verify_AdminAccessToken = (token, cb) => jwt.verify(token, adminsecret2, { algorithms: ['HS256'] }, cb);
-
-  return {
-    issue_RefreshToken,
-    verify_RefreshToken,
-    issue_AccessToken,
-    verify_AccessToken,
-    issue_AdminRefreshToken,
-    verify_AdminRefreshToken,
-    issue_AdminAccessToken,
-    verify_AdminAccessToken
-  };
+    }
 };
 
+const decodeJWT = async (token, type) => {
+    try {
+        let secret, expiry
+        switch (type) {
+            case 'refresh':
+                secret = secret1
+                break
+            default:
+                secret = secret2
+        }
 
-module.exports = authService;
+        const decoded = jwt.verify(token, secret)
+        return decoded
+    } catch (error) {
+        throw new Error(error);
+    }
+}
+
+
+module.exports = {
+    issueToken,
+    decodeJWT
+};

@@ -13,11 +13,14 @@ const errorMiddleware = require('./app/middlewares/error-handler.js');
 const cookieParser = require('cookie-parser');
 const passport = require('passport');
 const session = require('express-session');
-const SequelizeStore = require('connect-session-sequelize')(session.Store); 
-const sessionStore = new SequelizeStore({ db: db.sequelize });
+const SequelizeStore = require('connect-session-sequelize')(session.Store);
 
 require('dotenv').config();
-require('./app/utils/passport.configs')(passport);
+
+// app.use((req, res, next) => {
+//   console.log('Request from origin:', req.headers.origin)
+//   next()
+// })
 
 let whitelist = ['https://royalti.io']
 
@@ -33,6 +36,7 @@ var corsOptions = {
     credentials: true // enable set cookie
 }
 
+
 app.use(cors(corsOptions));
 // app.use(cors());
 app.use(morgan('dev'));
@@ -47,6 +51,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.urlencoded({ limit: '1000000mb', extended: true }))
 app.use(express.json({ limit: '1000000mb', extended: true }))
 app.use(cookieParser())
+const sessionStore = new SequelizeStore({ db: sequelize });
 app.use(
     session({
         secret: process.env.SESSION_SECRET || 'secret',
@@ -55,51 +60,6 @@ app.use(
         saveUninitialized: false,
     })
 );
-
-app.use(passport.initialize());
-app.use(passport.session());
-
-// log the request session
-let count = 1;
-
-showlogs = (req, res, next) => {
-    console.log("\n==============================")
-    console.log(`------------>  ${count++}`)
-
-    console.log(`\n req.session.passport -------> `)
-    console.log(req.session.passport)
-
-    console.log(`\n req.user -------> `)
-    console.log(req.user)
-
-    console.log("\n Session and Cookie")
-    console.log(`req.session.id -------> ${req.session.id}`)
-    console.log(`req.session.cookie -------> `)
-    console.log(req.session.cookie)
-
-    console.log("===========================================\n")
-    next();
-}
-
-app.use(showlogs);
-
-const env = process.env.NODE_ENV;
-// Test the db connection
-db.sequelize
-    .authenticate()
-    .then(() => {
-        console.log('postgres connection has been established successfully. -- ' + env);
-    })
-    .catch((err) => {
-        console.error('Unable to connect to the database:', err);
-        if (err.name === 'SequelizeConnectionError' || err.name === 'SequelizeConnectionRefusedError') {
-            console.error('The database is disconnected. Please check the connection and try again.');
-        } else {
-            console.error('An error occured while connecting to the database:', err);
-        }
-    });
-
-
 // simple route
 app.get("/", (req, res) => {
     res.json({ message: "Welcome to EZCART API." });
@@ -109,14 +69,18 @@ app.get("/", (req, res) => {
 const auth = require('./app/routes/authRoutes'),
     brand = require('./app/routes/brandRoutes'),
     category = require('./app/routes/categoryRoutes'),
-    product = require('./app/routes/productRoutes');
-    // order = require('./app/routes/orderRoutes');
-    
+    product = require('./app/routes/productRoutes'),
+    order = require('./app/routes/orderRoutes');
+
+
+
 app.use('/auth', auth);
 app.use('/brand', brand);
 app.use('/category', category);
 app.use('/product', product);
-// app.use('/order', order);
+app.use('/order', order);
+
+
 
 app.use(notFoundMiddleware);
 app.use(errorMiddleware);
@@ -126,22 +90,3 @@ app.use((req, res, next) => {
         message: `Can't find ${req.originalUrl} on this server!`,
     });
 });
-
-let PORT = process.env.PORT;
-let drop;
-
-if (env === 'test') {
-    PORT = process.env.TEST_PORT
-    // drop = { force: true };
-};
-
-// sdding {force: true} will drop the table if it already exists
-db.sequelize.sync(drop).then(() => {
-    console.log('Dropped all tables: All models were synchronized successfully');
-    app.listen(PORT, () => {
-        console.log(`Server is running on port ${PORT}........`);
-    }
-    );
-});
-
-module.exports = app;

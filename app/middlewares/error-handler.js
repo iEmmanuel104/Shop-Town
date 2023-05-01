@@ -28,16 +28,15 @@ const errorHandler = (err, req, res, next) => {
   }
   // Handle Sequelize errors
   if (err.name === 'SequelizeUniqueConstraintError') {
-    customError.msg = `Duplicate value entered for ${err.fields.join(
-      ', '
-    )} field, please choose another value`;
+    customError.msg = `Duplicate value entered for ${Object.keys(err.fields || {}).join(', ')}, please choose another value`;
     customError.statusCode = 400;
   } else if (err.name === 'SequelizeValidationError') {
     customError.msg = err.errors.map((e) => e.message).join(', ');
     customError.statusCode = 400;
-  } else if (err.name === 'SequelizeDatabaseError') {
-    customError.msg = 'Database error';
-    customError.statusCode = 500;
+  }
+  if (err.name === 'SequelizeDatabaseError') {
+    customError.msg = err.message;
+    customError.statusCode = 400;
   }
   // Handle Multer errors
   if (err.code === 'LIMIT_FILE_SIZE') {

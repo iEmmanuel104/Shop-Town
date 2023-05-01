@@ -41,10 +41,25 @@ module.exports = (sequelize, DataTypes) => {
         role: {
             type: DataTypes.ENUM(["super_admin", "admin", "vendor", "guest"]),
             defaultValue: "guest",
-            allowNull: false
+            allowNull: false,
+            validate: {
+                isIn: {
+                    args: [["super_admin", "admin", "vendor", "guest"]],
+                    msg: "invalid Role input: Please select correct option"
+                }
+            }
         },
         address: { type: DataTypes.STRING },
-        phone: { type: DataTypes.STRING },
+        phone: { 
+            type: DataTypes.STRING,
+            unique: true,
+            validate: {
+                notNull: {
+                    msg: "Please enter a valid Phone number"
+                }
+            },
+            allowNull: false,
+         },
         status: {
             type: DataTypes.ENUM(["ACTIVE", "INACTIVE"]),
             defaultValue: "INACTIVE",
@@ -52,7 +67,21 @@ module.exports = (sequelize, DataTypes) => {
         },
         terms: {
             type: DataTypes.ENUM(["on", "off"]),
-            defaultValue: "off"
+            defaultValue: "off",
+            validate: {
+                isIn: {
+                    args: [["on", "off"]],
+                    msg: "invalid Terms inout: Please select correct option"
+                }
+            }
+        },
+        googleId: {
+            type: DataTypes.STRING,
+            allowNull: true
+        },
+        facebookId: {
+            type: DataTypes.STRING,
+            allowNull: true
         },
         vendorMode: {
             type: DataTypes.BOOLEAN,
@@ -91,13 +120,13 @@ module.exports = (sequelize, DataTypes) => {
         //     }
         // ],
 
-        hooks: {
-            afterCreate(user, options) {
-                user.createPassword({
-                    password: user.password
-                });
-            },
-        },
+        // hooks: {
+        //     afterCreate(user, options) {
+        //         user.createPassword({
+        //             password: user.password
+        //         });
+        //     },
+        // },
     });
 
     //  ======  Password Model  ====== //
@@ -146,11 +175,39 @@ module.exports = (sequelize, DataTypes) => {
         verificationCode: { type: DataTypes.STRING }, // for email verification
     }, {
         tableName: 'Token',
-        // timestamps: false,
-        hooks: {
-        }
-                
+        // timestamps: false,                
     });
+
+    const BlacklistedTokens = sequelize.define("BlacklistedTokens", {
+        id: {
+            type: DataTypes.UUID,
+            defaultValue: DataTypes.UUIDV4,
+            primaryKey: true
+        },
+        token: { type: DataTypes.TEXT, allowNull: false },
+        expiry: { 
+            type: DataTypes.DATE,
+            defaultValue: Date.now() + (24 * 60 * 60 * 1000) // 24 hours in milliseconds
+        },
+    }, {
+        tableName: 'BlacklistedTokens',
+        timestamps: false,
+        hooks: {
+            beforeFind: async (options) => {
+                const now = new Date();
+                options.where = {
+                    ...options.where,
+                    expiry: { [Op.lt]: now }
+                };
+                const expiredTokens = await BlacklistedTokens.findAll(options);
+                if (expiredTokens.length > 0) {
+                    await BlacklistedTokens.destroy({ where: { id: expiredTokens.map(token => token.id) } });
+                }
+            }
+        },        
+    });
+
+
 
     //  =========== ASSOCIATIONS =========== //
 
@@ -172,6 +229,10 @@ module.exports = (sequelize, DataTypes) => {
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
         }); 
+        User.hasOne(models.Brand, {
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE'
+        });
 
     };
 
@@ -193,7 +254,7 @@ module.exports = (sequelize, DataTypes) => {
         });
     };
 
-    return { User, Password, Token}
+    return { User, Password, Token, BlacklistedTokens }
 };
 
 

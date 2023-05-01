@@ -4,7 +4,6 @@ const asyncWrapper = require('../middlewares/async')
 const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/customErrors');
 const Op = require("sequelize").Op;
 const path = require('path');
-const { sendEmail } = require('../utils/email.service');
 
 const createCategory = asyncWrapper(async (req, res, next) => {
     const { name, description } = req.body;
