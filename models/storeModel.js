@@ -46,6 +46,14 @@ module.exports = (sequelize, DataTypes) => {
             defaultValue: {},
             allowNull: false
         },
+        userId: {
+            type: DataTypes.UUID,
+            allowNull: false,
+            references: {
+                model: 'User',
+                key: 'id'
+            }
+        },
         isDisabled: {
             type: DataTypes.BOOLEAN,
             defaultValue: false,

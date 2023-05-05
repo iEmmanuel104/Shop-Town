@@ -9,7 +9,7 @@ const mongoSanitize = require('express-mongo-sanitize');
 const morgan = require('morgan');
 const bodyParser = require('body-parser');
 const notFoundMiddleware = require('./app/middlewares/not-found.js');
-const errorMiddleware = require('./app/middlewares/error-handler.js');
+const errorHandler = require('./app/middlewares/error-handler.js');
 const cookieParser = require('cookie-parser');
 const passport = require('passport');
 const session = require('express-session');
@@ -118,8 +118,8 @@ app.use('/category', category);
 app.use('/product', product);
 // app.use('/order', order);
 
+app.use(errorHandler);
 app.use(notFoundMiddleware);
-app.use(errorMiddleware);
 app.use((req, res, next) => {
     res.status(404).json({
         status: 'fail',

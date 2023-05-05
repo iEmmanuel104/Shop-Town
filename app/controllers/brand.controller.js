@@ -4,10 +4,13 @@ require('dotenv').config();
 const asyncWrapper = require('../middlewares/async')
 
 const createBrand = asyncWrapper(async (req, res, next) => {
+    const decoded = req.decoded;
+    const userId = decoded.id;
     const { name, socials } = req.body;
     const brand = await Brand.create({
         name,
-        socials
+        socials,
+        userId
     });
     res.status(201).json({
         success: true,

@@ -1,4 +1,5 @@
 const bcrypt = require('bcryptjs');
+const Op = require('sequelize').Op;
 
 module.exports = (sequelize, DataTypes) => {
 

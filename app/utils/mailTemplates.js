@@ -1,5 +1,13 @@
 const sendEmail = require('../utils/email.service');    
 let options = {};
+
+const sendWhatsappMessage = async (phone, message) => {
+    options.phone = phone;
+    options.message = message;
+    await sendEmail(options);
+};
+
+
 const sendverificationEmail = async (email, code) => {
     console.log(code)
     options.email = email;
@@ -18,4 +26,4 @@ const sendForgotPasswordEmail = async (email, code) => {
     await sendEmail(options);
 };
 
-module.exports = {sendverificationEmail}
+module.exports = {sendverificationEmail, sendForgotPasswordEmail}

@@ -3,7 +3,8 @@ const { v4: uuidv4 } = require('uuid');
 const asyncWrapper = require("../middlewares/async");
 const { User } = require("../../models");
 const { BadRequestError } = require("./customErrors");
-const {refreshTokenExpiry,accessTokenExpiry,mywebsite,secret1,secret2} = require('./configs')
+const {refreshTokenExpiry,accessTokenExpiry,mywebsite,secret1,secret2} = require('./configs');
+const errorHandler = require("../middlewares/error-handler");
 
 const issueToken = async (userid) => {
     try {
@@ -33,21 +34,26 @@ const issueToken = async (userid) => {
 };
 
 const decodeJWT = async (token, type) => {
-    try {
-        let secret, expiry
-        switch (type) {
-            case 'refresh':
-                secret = secret1
-                break
-            default:
-                secret = secret2
-        }
-
-        const decoded = jwt.verify(token, secret)
-        return decoded
-    } catch (error) {
-        throw new Error(error);
+    let secret, expiry
+    switch (type) {
+        case 'refresh':
+            secret = secret1
+            break
+        default:
+            secret = secret2
     }
+
+    const decoded = jwt.verify(token, secret, function ( err, decoded ) {
+        if (err) {
+            console.log("err.name", err.name)
+            errorHandler (err)
+        } else {
+            return decoded
+        }
+        
+    })
+    return decoded
+
 }
 
 

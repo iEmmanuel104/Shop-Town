@@ -1,5 +1,6 @@
 const express = require('express')
 const router = express.Router()
+const {basicAuth} = require('../middlewares/authWares')
 
 const {
     createBrand,
@@ -9,10 +10,10 @@ const {
     deleteBrand,
 } = require('../controllers/brand.controller');
 
-router.post('/create', createBrand);
-router.get('/get', getBrands);
-router.get('/get/:id', getBrand);
-router.put('/update/:id', updateBrand);
-router.delete('/delete/:id', deleteBrand);
+router.post('/create', basicAuth, createBrand);
+router.get('/get', basicAuth, getBrands);
+router.get('/get/:id', basicAuth, getBrand);
+router.put('/update/:id', basicAuth, updateBrand);
+router.delete('/delete/:id', basicAuth, deleteBrand);
 
 module.exports = router

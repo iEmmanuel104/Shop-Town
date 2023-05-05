@@ -6,12 +6,10 @@ const asyncWrapper = require('../middlewares/async');
 const { generateCode } = require('../utils/StringGenerator');
 const { sendverificationEmail, sendForgotPasswordEmail } = require('../utils/mailTemplates');
 const { issueToken, decodeJWT } = require('../utils/auth.service');
-const { getGoogleAuthUrl, getGoogleUser } = require('../utils/google.service');
-
 
 const SignUp = asyncWrapper(async (req, res, next) => {
     const {  email, firstName, lastName, phone, password } = req.body;
-    if ( !email | !firstName | !lastName | !terms)  return next(new BadRequestError('Please fill all required fields'));
+    if ( !email | !firstName | !lastName )  return next(new BadRequestError('Please fill all required fields'));
 
     const user = await User.create({
         email,
@@ -25,38 +23,32 @@ const SignUp = asyncWrapper(async (req, res, next) => {
     if (!user) return next(new BadRequestError('User not created'));
 
     let code = await generateCode()
-    console.log('verifycode', code)
 
-    await Token.create({ userId: user.id, verificationcode: code })    
-    console.log(user.email)
+    await Token.create({ userId: user.id, verificationCode: code })    
 
     await Password.create({ id: user.id, password: password })
 
     await sendverificationEmail(user.email, code)
 
-    
     const {access_token} = await issueToken(user.id)
-    console.log('access_token', access_token)
 
     res.status(201).json({
         success: true,
         message: 'User created successfully, check your email for verification code',
         access_token
     });
-});
+}); 
 
 const verifyEmail = asyncWrapper(async (req, res, next) => {
-    const { code } = req.body
-    const autho = req.headers.authorization
+    const { code } = req.body 
 
-    if (!autho) return next(new BadRequestError('Invalid authorization'))
+    const decoded = req.decoded
+    if (decoded.isActivated) return next(new BadRequestError('User already verified'))
 
-    const authtoken = autho.split(' ')[1]
-    const decoded = decodeJWT(authtoken)
-
+    // console.log('decoded', decoded)
     const userId = decoded.id
 
-    const token = await Token.findOne({ where: { verificationcode: code } })
+    const token = await Token.findOne({ where: { verificationCode: code } })
 
     if (!token) return next(new BadRequestError('Invalid verification code'))
 
@@ -77,7 +69,12 @@ const verifyEmail = asyncWrapper(async (req, res, next) => {
 });
 
 const resendVerificationCode = asyncWrapper(async (req, res, next) => {
-    const { userId } = req.body
+    // const { userId } = req.body
+    const decoded = req.decoded
+    console.log('decoded', decoded)
+    const userId = decoded.id
+    
+    if (decoded.isActivated) return next(new BadRequestError('User already verified'))
 
     const user = await User.findByPk(userId)
 
@@ -86,8 +83,8 @@ const resendVerificationCode = asyncWrapper(async (req, res, next) => {
     let code = await generateCode()
     console.log('verifycode', code)
 
-    await Token.create({ userId: user.id, verificationcode: code })
-    await sendverificationEmail(user, code)
+    await Token.create({ userId: user.id, verificationCode: code })
+    await sendverificationEmail(user.email, code)
     console.log('verification email sent')
 
     res.status(200).json({
@@ -97,7 +94,9 @@ const resendVerificationCode = asyncWrapper(async (req, res, next) => {
 });
 
 const profileOnboarding = asyncWrapper(async (req, res, next) => {
-    const { userId, location } = req.body
+    const { location } = req.body
+    const decoded = req.decoded
+    const userId = decoded.id
     const user = await User.findByPk(userId)
 
     if (!user) return next(new BadRequestError('Invalid user'))
@@ -126,6 +125,8 @@ const forgotPassword = asyncWrapper(async (req, res, next) => {
 
     let code = await generateCode()
     console.log('verifycode', code)
+
+    await Token.create({ userId: user.id, verificationCode: code })
     await sendForgotPasswordEmail (user.email, code)
 
     const { access_token } = await issueToken(user.id)
@@ -139,11 +140,11 @@ const forgotPassword = asyncWrapper(async (req, res, next) => {
 
 const resetPassword = asyncWrapper(async (req, res, next) => {
     const { password } = req.body
-    const autho = req.headers.authorization
-    if (!autho) return next(new BadRequestError('Invalid authorization'))
-    const authtoken = autho.split(' ')[1]
 
-    const decoded = decodeJWT(authtoken)
+    const authHeader = req.headers.authorization
+    const token = authHeader.split(' ')[1]
+
+    const decoded = req.decoded
     const userId = decoded.id
     
     const user = await User.findByPk(userId)
@@ -156,7 +157,7 @@ const resetPassword = asyncWrapper(async (req, res, next) => {
     await haspassword.save()
     
     // blacklist token
-    await BlacklistedTokens.create({ token: authtoken })
+    await BlacklistedTokens.create({ token })
 
     res.status(200).json({
         success: true,

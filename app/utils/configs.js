@@ -1,8 +1,8 @@
 require('dotenv').config();
 
 // Jwt configs
-const refreshTokenExpiry = process.env.REFRESH_TOKEN_EXPIRY || '30d',
-    accessTokenExpiry = process.env.ACCESS_TOKEN_EXPIRY || '20d',
+const refreshTokenExpiry = parseInt(process.env.REFRESH_TOKEN_EXPIRY) || '30d',
+    accessTokenExpiry = parseInt(process.env.ACCESS_TOKEN_EXPIRY) || '20d',
     mywebsite = process.env.MY_WEBSITE || 'http://localhost:3000',
     secret1 = process.env.REFRESH_TOKEN_JWT_SECRET,
     secret2 = process.env.ACCESS_TOKEN_JWT_SECRET

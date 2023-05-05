@@ -1,6 +1,7 @@
 const express = require('express')
 const router = express.Router()
 const passport = require('passport')
+const {basicAuth} = require('../middlewares/authWares')
 
 const {
     SignUp,
@@ -28,12 +29,12 @@ const {
 // };
 
 router.post('/signup', SignUp);
-router.post('/verify', verifyEmail);
-router.post('/resend', resendVerificationCode);
+router.post('/verify', basicAuth, verifyEmail);
+router.post('/resend', basicAuth, resendVerificationCode);
 router.post('/signin', signIn);
 router.post('/forgot', forgotPassword);
-router.post('/reset', resetPassword);
-router.post('/profile', profileOnboarding);
+router.post('/reset', basicAuth, resetPassword);
+router.post('/setlocation', basicAuth, profileOnboarding);
 router.get('/user', getloggedInUser);
 router.post('/refresh', getNewAccessToken);
 // router.post('/google/callback', googleCallback);
