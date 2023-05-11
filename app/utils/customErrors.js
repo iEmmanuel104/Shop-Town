@@ -95,6 +95,20 @@ class BadGatewayError extends CustomAPIError {
   }
 }
 
+class TokenExpiredError extends CustomAPIError {
+  constructor(message) {
+    super(message);
+    this.statusCode = 401;
+  }
+}
+
+class JsonWebTokenError extends CustomAPIError {
+  constructor(message) {
+    super(message);
+    this.statusCode = 401;
+  }
+}
+
 
 
 
@@ -110,5 +124,7 @@ module.exports = {
   UnprocessableEntityError,
   TooManyRequestsError,
   GatewayTimeoutError,
-  BadGatewayError
+  BadGatewayError,
+  TokenExpiredError,
+  JsonWebTokenError
 }

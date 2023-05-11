@@ -41,11 +41,12 @@ app.use(xss());
 app.use(mongoSanitize());
 // app.use(csrf({ cookie: true}));
 app.use(express.json());
+app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+
 // Express body parser
-app.use(express.urlencoded({ limit: '1000000mb', extended: true }))
-app.use(express.json({ limit: '1000000mb', extended: true }))
+app.use(express.urlencoded({ extended: true }))
+app.use(express.json({ extended: true }))
 app.use(cookieParser())
 app.use(
     session({
@@ -53,6 +54,9 @@ app.use(
         store: sessionStore,
         resave: false,
         saveUninitialized: false,
+        cookie: {
+            maxAge: 1000 * 60 * 60 * 24 * 7 // 1 week
+        }
     })
 );
 
@@ -64,13 +68,13 @@ let count = 1;
 
 showlogs = (req, res, next) => {
     console.log("\n==============================")
-    console.log(`------------>  ${count++}`)
+    // console.log(`------------>  ${count++}`)
 
-    console.log(`\n req.session.passport -------> `)
-    console.log(req.session.passport)
+    // console.log(`\n req.session.passport -------> `)
+    // console.log(req.session.passport)
 
-    console.log(`\n req.user -------> `)
-    console.log(req.user)
+    // console.log(`\n req.user -------> `)
+    // console.log(req.body)
 
     console.log("\n Session and Cookie")
     console.log(`req.session.id -------> ${req.session.id}`)
@@ -82,6 +86,9 @@ showlogs = (req, res, next) => {
 }
 
 app.use(showlogs);
+
+// serve public files
+app.use(express.static('public'));
 
 const env = process.env.NODE_ENV;
 // Test the db connection
@@ -132,11 +139,11 @@ let drop;
 
 if (env === 'test') {
     PORT = process.env.TEST_PORT
-    // drop = { force: true };
+    drop = { force: true };
 };
 
 // sdding {force: true} will drop the table if it already exists
-db.sequelize.sync(drop).then(() => {
+db.sequelize.sync().then(() => {
     console.log('Dropped all tables: All models were synchronized successfully');
     app.listen(PORT, () => {
         console.log(`Server is running on port ${PORT}........`);

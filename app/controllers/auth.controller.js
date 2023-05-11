@@ -1,5 +1,7 @@
-const { User, Token, Password, BlacklistedTokens } = require ('../../models');
+const { User, Token, Password, BlacklistedTokens, Brand } = require ('../../models');
 const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/customErrors');
+const { uploadSingleFile } = require('../utils/imageupload.service');
+const { LOGO } = require('../utils/configs');
 
 require('dotenv').config();
 const asyncWrapper = require('../middlewares/async');
@@ -100,6 +102,14 @@ const profileOnboarding = asyncWrapper(async (req, res, next) => {
     const user = await User.findByPk(userId)
 
     if (!user) return next(new BadRequestError('Invalid user'))
+
+    // check if the user has a facebook or google id and add a phone number field 
+    if (user.facebookId || user.googleId) {
+        console.log('user has facebook or google id')
+        user.phone = req.body.phone
+        await user.save()
+    }
+
     user.address = location
     
     await user.save()
@@ -183,6 +193,11 @@ const signIn = asyncWrapper(async (req, res, next) => {
     if (!passwordInstance.isValidPassword(password)) {
         return next(new BadRequestError('Invalid password'));
     }
+
+    // set user active
+    user.status = "ACTIVE"
+    await user.save()
+
     const { access_token, refresh_token } = await issueToken(user.id)
 
     res.status(200).json({
@@ -195,20 +210,16 @@ const signIn = asyncWrapper(async (req, res, next) => {
 });
 
 const getloggedInUser = asyncWrapper(async (req, res, next) => {
-    const autho = req.headers.authorization
 
-    if (!autho) return next(new BadRequestError('Invalid authorization'))
-    const authtoken = autho.split(' ')[1]
-    // check if token is blacklisted    
-    const isBlacklisted = await BlacklistedTokens.findOne({ where: { token: authtoken } })
-
-    if (isBlacklisted) return next(new BadRequestError('Invalid authorization'))
-
-    const decoded = decodeJWT(authtoken)
+    const decoded = req.decoded
 
     const userId = decoded.id
 
-    const user = await User.findByPk(userId)
+    const user = await User.findByPk(userId, {
+        attributes: {
+            exclude: ['password', 'facebookId', 'googleId', 'isActivated', 'terms']
+        }
+    })
     if (!user) return next(new BadRequestError('Invalid user'))
 
     res.status(200).json({
@@ -219,9 +230,16 @@ const getloggedInUser = asyncWrapper(async (req, res, next) => {
 });
 
 const getNewAccessToken = asyncWrapper(async (req, res, next) => {
-    const { refresh_token } = req.body
+    const autho = req.headers.authorization
 
-    const decoded = decodeJWT(refresh_token, 'refresh')
+    if (!autho) return next(new BadRequestError('Invalid authorization'))
+    const refresh_token = autho.split(' ')[1]
+    // check if token is blacklisted    
+    const isBlacklisted = await BlacklistedTokens.findOne({ where: { token: refresh_token } })
+
+    if (isBlacklisted) return next(new BadRequestError('Invalid authorization'))
+
+    const decoded = await decodeJWT(refresh_token, 'refresh')
 
     const userId = decoded.id
     const user = await User.findByPk(userId)
@@ -235,45 +253,6 @@ const getNewAccessToken = asyncWrapper(async (req, res, next) => {
     });
 });
 
-const googleCallback = asyncWrapper(async (req, res, next) => {
-    const { code } = req.body
-    const googleUser = await getGoogleUser(code)
-
-    if (!googleUser) return next(new BadRequestError('No user found'))
-
-    const [user, created] = await User.findOrCreate({
-        where: { google_id: googleUser.google_id },
-        defaults: {
-            firstName: googleUser.firstName,
-            lastName: googleUser.lastName,
-            email: googleUser.email,
-            googleId: googleUser.google_id,
-            isActivated: true,
-            role: 'user',
-            terms: 'on'
-        }
-    });
-
-    const { access_token } = await issueToken(user.id)
-
-    if (created) {
-        return res.status(201).json({
-            success: true,
-            message: 'User created successfully',
-            access_token
-        });
-    }
-
-    // add to req session
-    req.session.user = user
-
-    res.status(200).json({ 
-        success: true,
-        message: 'User signed in successfully',
-        access_token
-    });
-});
-
 const facebookauth = asyncWrapper(async (req, res, next) => {
     // Create or update the user in the database
     const { facebookId, email } = req.user;
@@ -283,6 +262,7 @@ const facebookauth = asyncWrapper(async (req, res, next) => {
         user = await User.create({ email, facebookId });
     } else {
         user.facebookId = facebookId;
+        user.status = "ACTIVE"
         await user.save();
     }
 
@@ -297,6 +277,165 @@ const facebookauth = asyncWrapper(async (req, res, next) => {
     });
 });
 
+const googleSignIn = asyncWrapper(async (req, res, next) => {
+    const { googleId, email } = req.user;
+
+    let user = await User.findOne({ where: { email } });
+
+    if(user.googleId !== googleId) {
+        return next(new BadRequestError('Invalid user')); 
+    }
+    user.status = "ACTIVE"
+    await user.save()
+    // Generate a JWT token for authentication
+    const { access_token, refresh_token } = await issueToken(user.id)
+    res.status(200).json({
+        success: true,
+        message: 'User signed in successfully',
+        access_token,
+        refresh_token
+    });
+});
+
+const logout = asyncWrapper(async (req, res, next) => {
+    const autho = req.headers.authorization
+
+    if (!autho) return next(new BadRequestError('Invalid authorization'))
+    const token = autho.split(' ')[1]
+
+    const decoded = await decodeJWT(token)
+
+    const userId = decoded.id
+
+    const user = await User.findByPk(userId)
+    if (!user) return next(new BadRequestError('Invalid user'))
+    user.status = "INACTIVE"
+    await user.save()
+    // blacklist token
+    await BlacklistedTokens.create({ token })
+
+    console.log ("token blacklised successfully")
+
+    res.status(200).json({
+        success: true,
+        message: "User logged out successfully",
+    });
+});
+
+const SwitchAccount = asyncWrapper(async (req, res, next) => {
+    const decoded = req.decoded
+    console.log(decoded)
+    const userId = decoded.id
+    const user = await User.findByPk(userId)
+    if (!user) return next(new BadRequestError('Invalid user'))
+    // switch the value of vendorMode
+    user.vendorMode = !user.vendorMode // flip the boolean value
+
+    // get all brands associated with the user and extract only the id and name fields
+    const brands = (await user.getBrands({
+        attributes: ['id', 'name'],
+        through: { attributes: ['role'] }
+    })).map(brand => ({
+        id: brand.id,
+        name: brand.name,
+        role: brand.UserBrand.role
+    }))
+
+    // if there is only one brand console log its id
+    let access_token;
+    if (brands.length === 1) {
+        console.log('brand', brands)
+        console.log('brand  id',brands[0].id)
+        const tokens = await issueToken(user.id, brands[0].id)
+        access_token = tokens.access_token
+    }
+
+
+    await user.save()
+
+    const message = `User switched to ${user.vendorMode ? 'seller' : 'customer'} mode successfully`
+    const responseData = {
+        success: true,
+        message,
+    }
+    if (access_token) {
+        responseData.access_token = access_token
+    }
+    if (user.vendorMode) {
+        responseData.brands = brands
+    }
+
+    res.status(200).json(responseData)    
+
+});
+
+const selectStore = asyncWrapper(async (req, res, next) => {
+    const decoded = req.decoded
+    const { storeId } = req.body
+    const user = await User.findByPk(decoded.id)
+    if (!user) return next(new BadRequestError('Invalid user'))
+    // check if user is associated with the brand
+    const brand = await Brand.findByPk(storeId)
+    if (!brand) return next(new BadRequestError('Invalid store'))
+    const isAssociated = await brand.hasUser(user)
+    if (!isAssociated) return next(new BadRequestError('Unauthorized'))
+
+    console.log('storeId', storeId)
+
+    const { access_token } = await issueToken(user.id, storeId)
+
+    res.status(200).json({
+        success: true,
+        message: `User switched to ${brand.name} successfully`,
+        access_token
+    });
+});
+
+
+const RegisterStore = asyncWrapper(async (req, res, next) => {
+    const decoded = req.decoded
+    const { storeName, phone, industry, country, address, state, city, postal } = req.body
+    const user = await User.findByPk(decoded.id)
+    if (!user) return next(new BadRequestError('Invalid user'))
+    // if (decoded.vendorMode === false) return next(new BadRequestError('please switch to seller mode'))
+    
+    const details ={
+        user: user.id,
+        folder: `Stores/${storeName}/banner`,
+    }
+    let url;
+    if ( req.file ) {
+        url = await uploadSingleFile(req.file, details)
+    }
+
+    console.log('req object', req.body)
+    // add details to brand 
+    const brand = await Brand.create({
+        userId: decoded.id,
+        name: storeName,
+        businessPhone: phone,
+        industry: industry,
+        country,
+        address,
+        state,
+        owner: decoded.id,
+        city,
+        postal,
+        logo: url ? url : LOGO,
+    })
+
+    // add user to brand 
+    await brand.addUser(user, { through: { role: 'owner' } })
+
+    res.status(200).json({
+        success: true,
+        message: "Store created successfully",
+        brand
+    });
+});
+
+
+
 
 module.exports = { 
     SignUp, 
@@ -308,9 +447,12 @@ module.exports = {
     getNewAccessToken,
     signIn,
     resendVerificationCode,
-    googleCallback,
-    // googleSignIn,
-    facebookauth
+    googleSignIn,
+    facebookauth,
+    logout,
+    SwitchAccount,
+    RegisterStore,
+    selectStore
  }
 
 

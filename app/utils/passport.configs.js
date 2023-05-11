@@ -27,6 +27,8 @@ module.exports = (passport) => {
                             facebookId,
                             firstName: name.split(' ')[0],
                             lastName: name.split(' ')[1],
+                            isActivated: true,
+                            terms: 'on'
                         });
                     }
 
@@ -53,13 +55,27 @@ module.exports = (passport) => {
                     email: profile.emails[0].value,
                     firstName: profile.name.givenName,
                     lastName: profile.name.familyName,
-                    googleId: profile.id
+                    googleId: profile.id,
+                    isActivated: true,
+                    terms : 'on'
+
                 }
             })
-            .then(user => done(null, user))
+                .then(([user, created]) => {
+                    // If the user is created, log them in
+                    if (created) {
+                        console.log('User successfully created:', user.email);
+                        return done(null, user);
+                    }
+
+                    // Otherwise, log in the found user
+                    console.log('User already exists:', user.email);
+                    return done(null, user)
+                })
+
+                // If there's an error, log it and return
                 .catch(error => done(error));
-        }
-    ));
+        }));
 
     passport.serializeUser((user, done) => {
         console.log(`\n ----------> Serialize User:`)

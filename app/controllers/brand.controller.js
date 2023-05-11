@@ -1,7 +1,8 @@
-const { Category, Brand } = require('../../models');
+const { Category, Brand, User } = require('../../models');
 const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/customErrors');
 require('dotenv').config();
-const asyncWrapper = require('../middlewares/async')
+const asyncWrapper = require('../middlewares/async');
+const { at } = require('lodash');
 
 const createBrand = asyncWrapper(async (req, res, next) => {
     const decoded = req.decoded;
@@ -19,7 +20,9 @@ const createBrand = asyncWrapper(async (req, res, next) => {
 });
 
 const getBrands = asyncWrapper(async (req, res, next) => {
-    const brands = await Brand.findAll();
+    const brands = await Brand.findAll({
+        attributes: ['id', 'name', 'socials', 'businessPhone', 'owner', 'logo', 'owner'],
+    });
     res.status(200).json({
         success: true,
         data: brands,
@@ -36,6 +39,29 @@ const getBrand = asyncWrapper(async (req, res, next) => {
         data: brand,
     });
 });
+
+const getBrandStaff = asyncWrapper(async (req, res, next) => {
+    const decoded = req.decoded;
+    const userId = decoded.id;
+    const user = await User.findByPk(userId);
+    if (!user) {
+        return next(new NotFoundError("User not found"));
+    } 
+    const brand = await Brand.scope('includeUsers').findByPk(req.params.id,
+        { attributes : [ 'name', 'businessPhone', 'socials', 'owner'] }
+        );
+    if (!brand) { 
+        return next(new NotFoundError(`Brand with id ${req.params.id} not found`));
+    }
+    if (brand.owner !== userId) {
+        return next(new ForbiddenError("You are not allowed to access this resource"));
+    }
+    res.status(200).json({
+        success: true,
+        data: brand,
+    });
+});
+
 
 const updateBrand = asyncWrapper(async (req, res, next) => {
     const brand = await Brand.findByPk(req.params.id);
@@ -70,5 +96,6 @@ module.exports = {
     getBrand,
     updateBrand,
     deleteBrand,
+    getBrandStaff
 };
 

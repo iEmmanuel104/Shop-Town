@@ -8,12 +8,14 @@ const {
     getBrand,
     updateBrand,
     deleteBrand,
+    getBrandStaff
 } = require('../controllers/brand.controller');
 
-router.post('/create', basicAuth, createBrand);
-router.get('/get', basicAuth, getBrands);
-router.get('/get/:id', basicAuth, getBrand);
+router.post('/', basicAuth, createBrand);
+router.get('/', getBrands);
+router.get('/:id', getBrand);
 router.put('/update/:id', basicAuth, updateBrand);
 router.delete('/delete/:id', basicAuth, deleteBrand);
+router.get('/staff/:id', basicAuth, getBrandStaff);
 
 module.exports = router

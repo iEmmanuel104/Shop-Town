@@ -51,16 +51,22 @@ module.exports = (sequelize, DataTypes) => {
             }
         },
         address: { type: DataTypes.STRING },
-        phone: { 
-            type: DataTypes.STRING,
-            unique: true,
-            validate: {
-                notNull: {
-                    msg: "Please enter a valid Phone number"
-                }
+        phone: {
+            type: DataTypes.BIGINT,
+            unique: {
+                args: true,
+                msg: 'Phone number already in use!'
             },
-            allowNull: false,
-         },
+            validate: {
+                len: {
+                    args: [10, 15],
+                    msg: 'Phone number should be between 10 and 15 digits!'
+                },
+                isNumeric: {
+                    msg: 'Please enter a valid numeric Phone number!'
+                }
+            }
+        },
         status: {
             type: DataTypes.ENUM(["ACTIVE", "INACTIVE"]),
             defaultValue: "INACTIVE",
@@ -130,6 +136,98 @@ module.exports = (sequelize, DataTypes) => {
         // },
     });
 
+    //  ======  Brand Model  ====== //
+    const Brand = sequelize.define("Brand", {
+        id: {
+            type: DataTypes.UUID,
+            defaultValue: DataTypes.UUIDV4,
+            primaryKey: true,
+            allowNull: false
+        },
+        name: {
+            type: DataTypes.STRING,
+            allowNull: false
+        },
+        socials: {
+            type: DataTypes.JSONB,
+            defaultValue: {},
+            allowNull: false
+        },
+        businessPhone: {
+            type: DataTypes.BIGINT,
+            allowNull: false
+        },
+        industry: {
+            type: DataTypes.STRING,
+            allowNull: false,
+        },
+        owner: { type: DataTypes.STRING },
+        country: { type: DataTypes.STRING },
+        address: { type: DataTypes.STRING },
+        state: { type: DataTypes.STRING },
+        city: { type: DataTypes.STRING },
+        postal: { type: DataTypes.INTEGER },
+        isDisabled: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false,
+            allowNull: false
+        },
+        logo: { type: DataTypes.STRING }
+    }, {
+        tableName: 'Brand',
+        timestamps: true,
+        scopes: {
+            includeProducts: {
+                include: [{
+                    model: 'Product',
+                    as: 'products'
+                }]
+            },
+            includeUsers: {
+                include: [{
+                    model: User,
+                    attributes: ['id', 'firstName', 'lastName', 'status'],
+                    through: {
+                        attributes: ['role']
+                    }
+                }]
+            }
+        }
+    });
+
+    
+    // ======  UserBrand Model  ====== //
+    const UserBrand = sequelize.define("UserBrand", {
+        id: {
+            type: DataTypes.UUID,
+            defaultValue: DataTypes.UUIDV4,
+            primaryKey: true
+        },
+        UserId: {
+            type: DataTypes.UUID,
+            allowNull: false
+        },
+        BrandId: {
+            type: DataTypes.UUID,
+            allowNull: false
+        },
+        role: {
+            type: DataTypes.ENUM(["owner", "staff"]),
+            defaultValue: "staff",
+            allowNull: false,
+            validate: {
+                isIn: {
+                    args: [["owner", "staff"]],
+                    msg: "invalid Role input: Please select correct option"
+                }
+            }
+        },
+    }, {
+        tableName: 'UserBrand',
+        timestamps: true,
+    });
+
+
     //  ======  Password Model  ====== //
     const Password = sequelize.define("Password", {
         id: {
@@ -193,19 +291,19 @@ module.exports = (sequelize, DataTypes) => {
     }, {
         tableName: 'BlacklistedTokens',
         timestamps: false,
-        hooks: {
-            beforeFind: async (options) => {
-                const now = new Date();
-                options.where = {
-                    ...options.where,
-                    expiry: { [Op.lt]: now }
-                };
-                const expiredTokens = await BlacklistedTokens.findAll(options);
-                if (expiredTokens.length > 0) {
-                    await BlacklistedTokens.destroy({ where: { id: expiredTokens.map(token => token.id) } });
-                }
-            }
-        },        
+        // hooks: {
+        //     beforeFind: async (options) => {
+        //         const now = new Date();
+        //         options.where = {
+        //             ...options.where,
+        //             expiry: { [Op.lt]: now }
+        //         };
+        //         const expiredTokens = await BlacklistedTokens.findAll(options);
+        //         if (expiredTokens.length > 0) {
+        //             await BlacklistedTokens.destroy({ where: { id: expiredTokens.map(token => token.id) } });
+        //         }
+        //     }
+        // },        
     });
 
 
@@ -230,12 +328,34 @@ module.exports = (sequelize, DataTypes) => {
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
         }); 
-        User.hasOne(models.Brand, {
+        User.belongsToMany(models.Brand, {
+            through: models.UserBrand,
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
         });
 
     };
+
+
+    Brand.associate = (models) => {
+        Brand.hasMany(models.Product, {
+            foreignKey: 'brandId',
+            as: 'products'
+        });
+        Brand.belongsToMany(models.User, {
+            through: models.UserBrand,
+        });
+        Brand.hasOne(models.Content, {
+            foreignKey: 'refId',
+            as: 'brand'
+        });
+    };
+
+    // ================ USERBRAND ================//
+    UserBrand.associate = (models) => {
+        UserBrand.belongsTo(models.User)
+        UserBrand.belongsTo(models.Brand)
+    }
 
     //  =========== PASSWORD ASSOCIATIONS =========== //
     Password.associate = (models) => {
@@ -255,7 +375,7 @@ module.exports = (sequelize, DataTypes) => {
         });
     };
 
-    return { User, Password, Token, BlacklistedTokens }
+    return { User, Brand, Password, Token, BlacklistedTokens, UserBrand };
 };
 
 

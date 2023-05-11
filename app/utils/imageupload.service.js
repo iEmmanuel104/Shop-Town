@@ -5,7 +5,10 @@ const uploadSingleFile = async (file, details) => {
     let localfilepath = file.path;
     let originalname = file.originalname;
     details.name = originalname    
+    console.log("file details", details)
+
     let uploadresult = await uploadToCloudinary(localfilepath, details);
+    console.log('upload result', uploadresult)
     if (uploadresult.message === 'error') {
         throw new BadRequestError(uploadresult.message);
     }
@@ -32,24 +35,9 @@ const uploadFiles = async (req, type, details) => {
     return results;
 }
 
-const uploadvehicleimages = async (req, res, next) => {
-    const details = {
-        folder: 'vehicles',
-        user: req.body.vehiclePlateNumber,
-    };
-    const bufferarray = await uploadFiles(req, 'images', details);
-    const banner = req.files.banner[0];
-    const banneruploadresult = await uploadSingleFile(banner, details);
-    if (banneruploadresult.message === 'error') {
-        return next(new BadRequestError(banneruploadresult.message));
-    }
-    return {
-        banner: banneruploadresult,
-        images: bufferarray,
-    };
-};
 
 
 module.exports = {
-    uploadvehicleimages,
+    uploadSingleFile,
+    uploadFiles
 };

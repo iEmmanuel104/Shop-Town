@@ -2,6 +2,7 @@ const express = require('express')
 const router = express.Router()
 const passport = require('passport')
 const {basicAuth} = require('../middlewares/authWares')
+const uploadFile = require('../middlewares/multerobject')
 
 const {
     SignUp,
@@ -13,20 +14,15 @@ const {
     getNewAccessToken,
     signIn,
     resendVerificationCode,
-    // googleCallback,
-    // googleSignIn,
-    facebookauth
+    googleSignIn,
+    facebookauth,
+    logout,
+    SwitchAccount,
+    RegisterStore,
+    selectStore
 
 
 } = require('../controllers/auth.controller')
-
-// // Use the req.isAuthenticated() function to check if user is Authenticated
-// const checkAuthenticated = (req, res, next) => {
-//     if (req.isAuthenticated()) {
-//         return next();
-//     }
-//     res.redirect('/login');
-// };
 
 router.post('/signup', SignUp);
 router.post('/verify', basicAuth, verifyEmail);
@@ -35,10 +31,12 @@ router.post('/signin', signIn);
 router.post('/forgot', forgotPassword);
 router.post('/reset', basicAuth, resetPassword);
 router.post('/setlocation', basicAuth, profileOnboarding);
-router.get('/user', getloggedInUser);
-router.post('/refresh', getNewAccessToken);
-// router.post('/google/callback', googleCallback);
-// router.post('/google/signin', googleSignIn);
+router.get('/user',basicAuth, getloggedInUser);
+router.get('/refresh', getNewAccessToken);
+router.post('/logout',basicAuth, logout);
+router.post('/switch',basicAuth, SwitchAccount);
+router.post('/registerstore',basicAuth, uploadFile.single('file') ,RegisterStore);
+router.post('/selectstore',basicAuth, selectStore);
 
 // Facebook authentication route
 router.get('/facebook', passport.authenticate('facebook', { scope: ['email'] }));
@@ -47,9 +45,9 @@ router.get('/facebook/callback', passport.authenticate('facebook', { session: fa
 // Google authentication route
 router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 router.get('/google/callback', passport.authenticate('google', {
-    failureRedirect: '/login',
+    failureRedirect: '/signin',
     session: false
-}));
- 
+}),googleSignIn);
+
 
 module.exports = router

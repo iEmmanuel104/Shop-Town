@@ -1,5 +1,6 @@
 const express = require('express')
 const router = express.Router()
+const {basicAuth} = require('../middlewares/authWares')
 
 const {
     createProduct,
@@ -8,15 +9,28 @@ const {
     getProduct,
     updateProduct,
     deleteProduct,
-    searchProuct
+    searchProduct
 } = require('../controllers/product.controller')
 
-router.post('/create', createProduct)
-router.post('/create/bulk', createBulkProducts)
-router.get('/get', getProducts)
-router.get('/get/:id', getProduct)
-router.put('/update/:id', updateProduct)
-router.delete('/delete/:id', deleteProduct)
-router.get('/search', searchProuct)
+// router.post('/', basicAuth, createProduct),
+// router.post('/bulk', createBulkProducts)
+// router.get('/', getProducts)
+// router.get('/:id', getProduct)
+// router.put('/:id', updateProduct)
+// router.delete('/:id', deleteProduct)
+// router.get('/search', searchProuct)
+router.route('/')
+    .post(basicAuth, createProduct)
+    .get(getProducts);
+
+router.route('/bulk')
+    .post(basicAuth, createBulkProducts);
+
+router.route('/:id')
+    .get(getProduct)
+    .put(basicAuth, updateProduct)
+    .delete(basicAuth, deleteProduct);
+
+router.get('/search', searchProduct);
 
 module.exports = router
