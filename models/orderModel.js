@@ -1,4 +1,6 @@
 module.exports = (sequelize, DataTypes) => {
+    const { User, Product, Brand, DeliveryAddress } = require('./userModel')(sequelize, DataTypes);
+    const { Cart } = require('./storeModel')(sequelize, DataTypes);
     const Order = sequelize.define("Order", {
         id: {
             type: DataTypes.UUID,
@@ -25,7 +27,17 @@ module.exports = (sequelize, DataTypes) => {
         scopes : {
             User : userId => ({
                 where : { userId }
-            })
+            }),
+            includeStore: {
+                include: [{
+                    model: Cart,
+                    as: 'cart'
+                }, {
+                    model: DeliveryAddress,
+                    as: 'deliveryAddress'
+                }]
+            },
+
         }
 
     });

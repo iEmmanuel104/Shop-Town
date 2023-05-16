@@ -238,8 +238,6 @@ module.exports = (sequelize, DataTypes) => {
         }
     });
 
-
-
     // ======  ASSOCATIONS  ====== //
     Category.associate = (models) => {
         Category.hasMany(models.Product, {
