@@ -70,6 +70,7 @@ const auth = require('./app/routes/authRoutes'),
     brand = require('./app/routes/brandRoutes'),
     category = require('./app/routes/categoryRoutes'),
     product = require('./app/routes/productRoutes'),
+    cart = require('./app/routes/cartRoutes'),
     order = require('./app/routes/orderRoutes');
 
 
@@ -78,6 +79,7 @@ app.use('/auth', auth);
 app.use('/brand', brand);
 app.use('/category', category);
 app.use('/product', product);
+app.use('/cart', cart);
 app.use('/order', order);
 
 

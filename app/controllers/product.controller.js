@@ -15,7 +15,7 @@ const createProduct = asyncWrapper(async (req, res, next) => {
         // const { category } = req.params
         const decoded = req.decoded;
         const brandId = decoded.storeId;
-        console.log(req);
+        console.log(brandId);
         const userId = decoded.id;
         // check if user is authorized to create product
         const user = await User.findByPk(userId);
@@ -154,7 +154,7 @@ const updateProduct = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
 
         const productId = req.params.id;
-        const { name, description, price, quantity, specifications, subcategory } = req.body;
+        const { name, description, price, quantity, specifications, subcategory, discount } = req.body;
         const decoded = req.decoded;
         const brandId = decoded.storeId;
 
@@ -188,6 +188,7 @@ const updateProduct = asyncWrapper(async (req, res, next) => {
             quantity,
             specifications,
             subcategory,
+            discount
         }, { transaction: t });
 
         res.status(200).json({
@@ -196,6 +197,47 @@ const updateProduct = asyncWrapper(async (req, res, next) => {
         });
     })
 });
+
+const updateProductdiscount = asyncWrapper(async (req, res, next) => {
+    await sequelize.transaction(async (t) => {
+        const { discount } = req.body
+        const { id } = req.params
+        const decoded = req.decoded
+        const brandId = decoded.storeId
+        const userId = decoded.id
+
+        // check if user is authorized to create product
+        const user = await User.findByPk(userId);
+        if (!user) {
+            return next(new NotFoundError("User not found"));
+        }
+
+        // if (user.role !== 'admin' && user.role !== 'vendor') {
+        //     return next(new ForbiddenError("You are not allowed to access this resource"));
+        // }
+
+        // check if brand exists
+        const brand = await Brand.findByPk(brandId);
+        if (!brand) {
+            return next(new NotFoundError("Store not found"));
+        }
+        const isAssociated = await brand.hasUser(user);
+        if (!isAssociated) {
+            return next(new ForbiddenError("You are not allowed to access this resource"));
+        }
+        const product = await Product.findByPk(id);
+        if (!product) {
+            return next(new NotFoundError(`Product with ID ${id} not found`));
+        }
+        const updated = await product.update({
+            discount
+        }, { transaction: t });
+        res.status(200).json({
+            success: true,
+            message: `Product Updated: ${updated.name} has been successfully updated`,
+        });
+    })
+})
 
 const deleteProduct = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
@@ -392,5 +434,6 @@ module.exports = {
     getProduct,
     updateProduct,
     deleteProduct,
-    searchProduct
+    searchProduct,
+    updateProductdiscount
 };

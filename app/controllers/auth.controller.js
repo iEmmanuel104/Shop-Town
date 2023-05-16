@@ -1,4 +1,4 @@
-const { User, Token, Password, BlacklistedTokens, Brand } = require ('../../models');
+const { User, Token, Password, BlacklistedTokens, Brand, DeliveryAddress } = require ('../../models');
 const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/customErrors');
 const { uploadSingleFile } = require('../utils/imageupload.service');
 const { LOGO } = require('../utils/configs');
@@ -111,11 +111,21 @@ const profileOnboarding = asyncWrapper(async (req, res, next) => {
     }
 
     user.address = location
-    
     await user.save()
+    // create new address in address table
+    await DeliveryAddress.create({ 
+        userId, 
+        address: location,
+        city: req.body.city,
+        state: req.body.state,
+        country: req.body.country,
+        phone: req.body.phone ? user.phone : user.phone,
+        isDefault: true 
+    })
+
      res.status(200).json({ 
         success: true,
-        message: 'User profile updated successfully',
+        message: 'User profile onboarding successful',  
     });
 });
 
@@ -391,7 +401,6 @@ const selectStore = asyncWrapper(async (req, res, next) => {
     });
 });
 
-
 const RegisterStore = asyncWrapper(async (req, res, next) => {
     const decoded = req.decoded
     const { storeName, phone, industry, country, address, state, city, postal } = req.body
@@ -433,9 +442,6 @@ const RegisterStore = asyncWrapper(async (req, res, next) => {
         brand
     });
 });
-
-
-
 
 module.exports = { 
     SignUp, 

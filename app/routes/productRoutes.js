@@ -9,7 +9,8 @@ const {
     getProduct,
     updateProduct,
     deleteProduct,
-    searchProduct
+    searchProduct,
+    updateProductdiscount
 } = require('../controllers/product.controller')
 
 // router.post('/', basicAuth, createProduct),
@@ -29,7 +30,8 @@ router.route('/bulk')
 router.route('/:id')
     .get(getProduct)
     .put(basicAuth, updateProduct)
-    .delete(basicAuth, deleteProduct);
+    .delete(basicAuth, deleteProduct)
+    .patch(basicAuth, updateProductdiscount)
 
 router.get('/search', searchProduct);
 

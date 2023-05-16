@@ -195,7 +195,6 @@ module.exports = (sequelize, DataTypes) => {
         }
     });
 
-    
     // ======  UserBrand Model  ====== //
     const UserBrand = sequelize.define("UserBrand", {
         id: {
@@ -226,7 +225,6 @@ module.exports = (sequelize, DataTypes) => {
         tableName: 'UserBrand',
         timestamps: true,
     });
-
 
     //  ======  Password Model  ====== //
     const Password = sequelize.define("Password", {
@@ -306,6 +304,54 @@ module.exports = (sequelize, DataTypes) => {
         // },        
     });
 
+    const DeliveryAddress = sequelize.define("DeliveryAddress", {
+        id: {
+            type: DataTypes.UUID,
+            defaultValue: DataTypes.UUIDV4,
+            primaryKey: true
+        },
+        address: { type: DataTypes.STRING, allowNull: false },
+        city: { type: DataTypes.STRING, allowNull: false },
+        state: { type: DataTypes.STRING, allowNull: false },
+        country: { type: DataTypes.STRING, allowNull: false },
+        postal: { type: DataTypes.INTEGER },
+        phone: { type: DataTypes.BIGINT, allowNull: false },
+        type: { 
+            type: DataTypes.ENUM(["home", "office", "school", "other"]),
+            defaultValue: "home",
+            allowNull: false,
+            validate: {
+                isIn: {
+                    args: [["home", "office", "school", "other"]],
+                    msg: "invalid Type input: Please select correct option"
+                }
+            }
+        },
+        isDefault: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false,
+            allowNull: false
+        },
+    }, {
+        tableName: 'DeliveryAddress',
+        timestamps: true,
+    });
+
+    DeliveryAddress.addHook('beforeSave', async (address, options) => {
+        if (address.changed('isDefault') && address.isDefault) {
+            // Find all other delivery addresses for this user and update their isDefault field to false
+            await DeliveryAddress.update(
+                { isDefault: false },
+                {
+                    where: {
+                        userId: address.userId,
+                        id: { [Op.ne]: address.id },
+                    },
+                    transaction: options.transaction,
+                }
+            );
+        }
+    });
 
 
     //  =========== ASSOCIATIONS =========== //
@@ -330,6 +376,14 @@ module.exports = (sequelize, DataTypes) => {
         }); 
         User.belongsToMany(models.Brand, {
             through: models.UserBrand,
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE'
+        });
+        User.hasOne(models.Cart, {
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE'
+        });
+        User.hasMany(models.DeliveryAddress, {
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
         });
@@ -375,7 +429,16 @@ module.exports = (sequelize, DataTypes) => {
         });
     };
 
-    return { User, Brand, Password, Token, BlacklistedTokens, UserBrand };
+    // ===========  DELIVERY ADDRESS ASSOCIATIONS   =========== //
+    DeliveryAddress.associate = (models) => {
+        DeliveryAddress.belongsTo(models.User, {
+            foreignKey: 'userId',
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE'
+        });
+    };
+
+    return { User, Brand, Password, Token, BlacklistedTokens, UserBrand, DeliveryAddress };
 };
 
 
