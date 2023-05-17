@@ -17,6 +17,19 @@ const createCategory = asyncWrapper(async (req, res, next) => {
     });
 }); 
 
+// const createCategory = asyncWrapper(async (req, res, next) => {
+//     const categories = req.body; // Array of category objects [{ name: 'Category 1', description: 'Description 1' }, { name: 'Category 2', description: 'Description 2' }, ...]
+
+//     // Map through the array of categories and create them in bulk
+//     const createdCategories = await Category.bulkCreate(categories);
+
+//     res.status(201).json({
+//         success: true,
+//         data: createdCategories,
+//     });
+// });
+
+
 const getCategories = asyncWrapper(async (req, res, next) => {
     const categories = await Category.findAll();
     res.status(200).json({
@@ -26,7 +39,7 @@ const getCategories = asyncWrapper(async (req, res, next) => {
 });
 
 const getCategory = asyncWrapper(async (req, res, next) => {
-    const category = await Category.findByPk(req.params.id);
+    const category = await Category.scope('includeProducts').findByPk(req.params.id);
     if (!category) {
         return next(new NotFoundError(`Category with id ${req.params.id} not found`));
     }

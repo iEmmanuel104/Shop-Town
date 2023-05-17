@@ -20,7 +20,7 @@ const storeCart = asyncWrapper(async (req, res) => {
                 success: true,
                 data: newCart
             });
-    });
+    }); 
 });
 
 const getCart = asyncWrapper(async (req, res) => {
@@ -110,10 +110,15 @@ const cartcheckout = asyncWrapper(async (req, res) => {
     await sequelize.transaction(async (t) => {
         const decoded = req.decoded
         const { id } = req.params;
+
+        console.log(decoded.vendorMode)
+
+        // if (decoded.vendorMode) {
+        //     throw new ForbiddenError("Plesae switch to customer mode to checkout");
+        // }
+
         const cart = await Cart.findOne({
-            where: {
-                id: id
-            }
+            where: {id}
         });
         if (cart) {
             cart.userId = decoded.id;

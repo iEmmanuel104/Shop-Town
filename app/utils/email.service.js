@@ -10,7 +10,7 @@ const createSendGridEmail = () => {
     const sendEmail = async (options) => {
         const mailOptions = {
             // from: options.from ? options.from : `Royalti.io <${EMAIL_HOST_ADDRESS}>`,
-            from: options.from ? options.from : 'EZcart <hello@EZcart.com>',
+            from: options.from ? options.from : 'KLICK <hello@EZcart.com>',
             to: options.email,
             subject: options.subject,
             text: options.message,
@@ -52,7 +52,7 @@ const createNodemailerEmail = () => {
     const sendEmail = async (options) => {
         console.log("mail options:", options)
         const mailOptions = {
-            from: options.from ? options.from : `EZCART <${EMAIL_HOST_ADDRESS}>`,
+            from: options.from ? options.from : `KLICK <${EMAIL_HOST_ADDRESS}>`,
             to: options.email,
             subject: options.subject,
             text: options.message,

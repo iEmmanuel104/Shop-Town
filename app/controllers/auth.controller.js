@@ -8,6 +8,7 @@ const asyncWrapper = require('../middlewares/async');
 const { generateCode } = require('../utils/StringGenerator');
 const { sendverificationEmail, sendForgotPasswordEmail } = require('../utils/mailTemplates');
 const { issueToken, decodeJWT } = require('../utils/auth.service');
+const { validateAddress } = require('../utils/shipbubble.service');
 
 const SignUp = asyncWrapper(async (req, res, next) => {
     const {  email, firstName, lastName, phone, password } = req.body;
@@ -112,6 +113,15 @@ const profileOnboarding = asyncWrapper(async (req, res, next) => {
 
     user.address = location
     await user.save()
+
+    const addressdetails = location + ','+ req.body.city + ',' + req.body.state + ',' + req.body.country,
+    details = {
+        name: user.firstName + ' ' + user.lastName,
+        email: user.email,
+        phone: user.phone,
+        address: addressdetails,
+    }
+    const address_code = await validateAddress(details)
     // create new address in address table
     await DeliveryAddress.create({ 
         userId, 
@@ -120,6 +130,7 @@ const profileOnboarding = asyncWrapper(async (req, res, next) => {
         state: req.body.state,
         country: req.body.country,
         phone: req.body.phone ? user.phone : user.phone,
+        addressCode: address_code,
         isDefault: true 
     })
 
@@ -416,19 +427,17 @@ const RegisterStore = asyncWrapper(async (req, res, next) => {
     if ( req.file ) {
         url = await uploadSingleFile(req.file, details)
     }
-
-    console.log('req object', req.body)
     // add details to brand 
     const brand = await Brand.create({
         userId: decoded.id,
         name: storeName,
         businessPhone: phone,
         industry: industry,
-        country,
+        country: country,
         address,
         state,
         owner: decoded.id,
-        city,
+        city: city,
         postal,
         logo: url ? url : LOGO,
     })
@@ -436,6 +445,29 @@ const RegisterStore = asyncWrapper(async (req, res, next) => {
     // add user to brand 
     await brand.addUser(user, { through: { role: 'owner' } })
 
+    const addressdetails = address + ',' + city + ',' + state + ',' + country
+
+    console.log(addressdetails)
+    
+    const   detailss = {
+            name: storeName,
+            email: user.email,
+            phone: phone,
+            address: addressdetails,
+        }
+        console.log(detailss)
+    const address_code = await validateAddress(detailss)
+    // create new address in address table
+    await DeliveryAddress.create({
+        brandId: brand.id,
+        address,
+        city,
+        state,
+        country,
+        phone: req.body.phone ? user.phone : user.phone,
+        addressCode: address_code,
+        isDefault: true
+    })
     res.status(200).json({
         success: true,
         message: "Store created successfully",

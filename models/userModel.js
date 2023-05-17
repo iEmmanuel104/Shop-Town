@@ -162,11 +162,6 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false,
         },
         owner: { type: DataTypes.STRING },
-        country: { type: DataTypes.STRING },
-        address: { type: DataTypes.STRING },
-        state: { type: DataTypes.STRING },
-        city: { type: DataTypes.STRING },
-        postal: { type: DataTypes.INTEGER },
         isDisabled: {
             type: DataTypes.BOOLEAN,
             defaultValue: false,
@@ -327,6 +322,7 @@ module.exports = (sequelize, DataTypes) => {
                 }
             }
         },
+        addressCode: { type: DataTypes.INTEGER },
         isDefault: {
             type: DataTypes.BOOLEAN,
             defaultValue: false,
@@ -339,12 +335,20 @@ module.exports = (sequelize, DataTypes) => {
 
     DeliveryAddress.addHook('beforeSave', async (address, options) => {
         if (address.changed('isDefault') && address.isDefault) {
-            // Find all other delivery addresses for this user and update their isDefault field to false
+            const whereClause = {};
+
+            if (address.userId) {
+                whereClause.userId = address.userId;
+            } else if (address.brandId) {
+                whereClause.brandId = address.brandId;
+            }
+
+            // Find all other delivery addresses for this user or brand and update their isDefault field to false
             await DeliveryAddress.update(
                 { isDefault: false },
                 {
                     where: {
-                        userId: address.userId,
+                        ...whereClause,
                         id: { [Op.ne]: address.id },
                     },
                     transaction: options.transaction,
@@ -352,6 +356,7 @@ module.exports = (sequelize, DataTypes) => {
             );
         }
     });
+
 
 
     //  =========== ASSOCIATIONS =========== //
@@ -403,6 +408,15 @@ module.exports = (sequelize, DataTypes) => {
             foreignKey: 'refId',
             as: 'brand'
         });
+        Brand.hasOne(models.DeliveryAddress, {
+            foreignKey: 'brandId',
+            as: 'deliveryAddress'
+        });
+        Brand.hasMany(models.StoreDiscount, {
+            foreignKey: 'brandId',
+            as: 'storeDiscounts'
+        });
+
     };
 
     // ================ USERBRAND ================//
@@ -433,6 +447,11 @@ module.exports = (sequelize, DataTypes) => {
     DeliveryAddress.associate = (models) => {
         DeliveryAddress.belongsTo(models.User, {
             foreignKey: 'userId',
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE' 
+        });
+        DeliveryAddress.belongsTo(models.Brand, {
+            foreignKey: 'brandId',
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
         });

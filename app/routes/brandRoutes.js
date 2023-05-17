@@ -8,7 +8,11 @@ const {
     getBrand,
     updateBrand,
     deleteBrand,
-    getBrandStaff
+    getBrandStaff,
+    AddStoreDiscount,
+    getStoreDiscounts,
+    updateStoreDiscount,
+    deleteStoreDiscount
 } = require('../controllers/brand.controller');
 
 router.post('/', basicAuth, createBrand);
@@ -17,5 +21,8 @@ router.get('/:id', getBrand);
 router.put('/update/:id', basicAuth, updateBrand);
 router.delete('/delete/:id', basicAuth, deleteBrand);
 router.get('/staff/:id', basicAuth, getBrandStaff);
-
+router.post('/discount/:id', basicAuth, AddStoreDiscount);
+router.get('/discount/:id', basicAuth, getStoreDiscounts);
+router.put('/discount/:id', basicAuth, updateStoreDiscount);
+router.delete('/discount/:id', basicAuth, deleteStoreDiscount);
 module.exports = router

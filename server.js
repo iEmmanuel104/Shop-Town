@@ -127,7 +127,7 @@ app.use('/category', category);
 app.use('/product', product);
 app.use('/cart', cart);
 app.use('/address', deliveryAddress);
-app.use('/order', order);
+// app.use('/order', order);
 
 app.use(errorHandler);
 app.use(notFoundMiddleware);
@@ -136,7 +136,7 @@ app.use((req, res, next) => {
         status: 'fail',
         message: `Can't find ${req.originalUrl} on this server!`,
     });
-});
+}); 
 
 let PORT = process.env.PORT;
 let drop;
@@ -148,6 +148,7 @@ if (env === 'test') {
 
 // sdding {force: true} will drop the table if it already exists
 db.sequelize.sync().then(() => {
+// db.sequelize.sync({ force: true }).then(() => {
     console.log('Dropped all tables: All models were synchronized successfully');
     app.listen(PORT, () => {
         console.log(`Server is running on port ${PORT}........`);

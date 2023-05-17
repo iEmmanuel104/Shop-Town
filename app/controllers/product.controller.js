@@ -132,9 +132,9 @@ const getProducts = asyncWrapper(async (req, res, next) => {
             limit,
             offset
         }, {transaction: t});
+        res.status(200).json({ success: true, data: products });
     });
 
-    res.status(200).json({ success: true, data: products });
 });
 
 const getProduct = asyncWrapper(async (req, res, next) => {

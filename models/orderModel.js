@@ -1,5 +1,5 @@
 module.exports = (sequelize, DataTypes) => {
-    const { User, Product, Brand, DeliveryAddress } = require('./userModel')(sequelize, DataTypes);
+    const { DeliveryAddress } = require('./userModel')(sequelize, DataTypes);
     const { Cart } = require('./storeModel')(sequelize, DataTypes);
     const Order = sequelize.define("Order", {
         id: {

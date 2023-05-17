@@ -81,21 +81,48 @@ module.exports = (sequelize, DataTypes) => {
                 }]
             },
 
-            includePrice : {
+            includePrice: {
                 attributes: ['id', 'name', 'price', 'quantity', 'discount', 'discountedPrice'],
             },
 
         }
     });
 
-    // Hook to automatically recalculate discounted price when discount is applied
-    Product.beforeSave((product, options) => {
+    // To automatically recalculate discounted price, 
+    // when discount is applied either to product directly or from stroe 
+    Product.beforeSave(async (product, options) => {
         if (product.changed('discount')) {
             const price = parseFloat(product.price);
             const discount = parseFloat(product.discount);
-            product.discountedPrice = (price * (1 - discount / 100)).toFixed(2);
+
+            // Fetch the current store discount for the product's brand
+            const brand = await Brand.findByPk(product.brandId, {
+                include: {
+                    model: StoreDiscount,
+                    as: 'storeDiscounts',
+                    where: {
+                        status: 'active',
+                    }
+                }
+            });
+            const storeDiscount = brand?.storeDiscounts; // Assuming the association alias is 'StoreDiscount'
+
+            if (storeDiscount) {
+                const discountType = storeDiscount.type;
+
+                if (discountType === 'percentage') {
+                    product.discountedPrice = (price * (1 - storeDiscount.value / 100)).toFixed(2);
+                } else if (discountType === 'amount') {
+                    const totalProductPrice = price; // Use the product price as the total product price for amount discount
+                    product.discountedPrice = (totalProductPrice - storeDiscount.value).toFixed(2);
+                }
+            } else {
+                // No store discount available, use the original calculation
+                product.discountedPrice = (price * (1 - discount / 100)).toFixed(2);
+            }
         }
     });
+
 
     const Category = sequelize.define("Category", {
         id: {
@@ -166,17 +193,17 @@ module.exports = (sequelize, DataTypes) => {
                     if (quantity) {
                         const price = product.discountedPrice ? product.discountedPrice : product.price;
                         const inStock = product.quantity.instock;
-                        const itemStatus = inStock >= quantity.quantity ? 'instock' : 'outofstock';
+                        const itemStatus = inStock >= quantity ? 'instock' : 'outofstock';
 
                         cart.items[product.id] = {
-                            id: product.id,
                             name: product.name,
-                            price: price,
-                            quantity: quantity.quantity,
+                            quantity: quantity,
+                            UnitPrice: product.price,
                             discount: product.discount,
+                            Discountprice: price,
                             status: itemStatus
                         };
-                        totalAmount += price * quantity.quantity;
+                        totalAmount += price * quantity;
                     }
                 });
 
@@ -187,58 +214,168 @@ module.exports = (sequelize, DataTypes) => {
                 if (!cart || !cart.items) {
                     return;
                 }
+
                 const itemIds = Object.keys(cart.items);
                 const products = await Product.scope('defaultScope', 'includePrice').findAll({
                     where: { id: itemIds }
                 });
+
                 let totalAmount = 0;
+
                 products.forEach(product => {
                     const quantity = cart.items[product.id];
-                    console.log(quantity)
+
                     if (quantity) {
                         const price = product.discountedPrice ? product.discountedPrice : product.price;
-                        console.log(product.discountedPrice)
                         const inStock = product.quantity.instock;
                         const cartItem = cart.items[product.id];
 
-                        if (cartItem.price !== price) {
-                            // If price changed, update the cart item
-                            if (inStock >= quantity.quantity) {
-                                cart.items[product.id] = {
-                                    name: product.name,
-                                    price: price,
-                                    quantity: quantity.quantity,
-                                    discount: product.discount,
-                                    status: "instock"
-                                };
-                                console.log('case 1')
-                                totalAmount += price * quantity.quantity;
-                            } else {
-                                cart.items[product.id] = {
-                                    name: product.name,
-                                    price: price,
-                                    quantity: quantity.quantity,
-                                    discount: product.discount,
-                                    status: "outofstock"
-                                };
-                                console.log('case 2')
-
-                                totalAmount += price * inStock;
-                            }
-                        } else {
-                            // If price didn't change, use the existing cart item
-                            console.log('case 0')
-                            cart.items[product.id] = cartItem;
+                        if (cartItem && cartItem.status === 'instock') {
+                            cartItem.Discountprice = price;
+                            cartItem.discount = product.discount;
+                            cartItem.UnitPrice = product.price;
                             totalAmount += price * cartItem.quantity;
+                            console.log('case 0')
+                        } else if (inStock >= quantity.quantity) {
+                            cart.items[product.id] = {
+                                name: product.name,
+                                quantity: quantity.quantity,
+                                UnitPrice: product.price,
+                                discount: product.discount,
+                                Discountprice: price,
+                                status: "instock"
+                            };
+                            console.log('case 1');
+                            totalAmount += price * quantity.quantity;
+                        } else {
+                            cart.items[product.id] = {
+                                name: product.name,
+                                quantity: quantity.quantity,
+                                UnitPrice: product.price,
+                                discount: product.discount,
+                                status: "outofstock"
+                            };
+                            console.log('case 2');
+                            totalAmount += price * inStock;
                         }
                     }
                 });
+
                 cart.totalAmount = totalAmount;
+            }
+
+        }
+    });
+
+    const StoreDiscount = sequelize.define("StoreDiscount", {
+        id: {
+            type: DataTypes.UUID,
+            defaultValue: DataTypes.UUIDV4,
+            primaryKey: true,
+            allowNull: false
+        },
+        title: {
+            type: DataTypes.STRING,
+            allowNull: false
+        },
+        type: {
+            type: DataTypes.ENUM(["percentage", "amount"]),
+            defaultValue: "percentage",
+            allowNull: false
+        },
+        value: {
+            type: DataTypes.FLOAT,
+            allowNull: false
+        },
+        status: {
+            type: DataTypes.ENUM(["active", "inactive"]),
+            defaultValue: "inactive",
+            allowNull: false
+        },
+        minSpend: {
+            type: DataTypes.FLOAT,
+        },
+        maxSpend: {
+            type: DataTypes.FLOAT,
+        },
+        startDate: {
+            type: DataTypes.DATE,
+        },
+        endDate: {
+            type: DataTypes.DATE,
+            allowNull: false
+        },
+        usageLimitPerPerson: {
+            type: DataTypes.INTEGER,
+            defaultValue: 1,
+        },
+        usageLimitPerDiscount: {
+            type: DataTypes.INTEGER,
+            defaultValue: 1,
+        },
+    }, {
+        tableName: 'StoreDiscount',
+        timestamps: true,
+        scopes: {
+            includeStore: {
+                include: [{
+                    model: Brand,
+                    as: 'brand'
+                }]
             }
         }
     });
 
-    // ======  ASSOCATIONS  ====== //
+    StoreDiscount.afterUpdate(async (storeDiscount) => {
+        if (storeDiscount.status === 'active') {
+            const products = await Product.findAll({ where: { brandId: storeDiscount.brandId } });
+            const productIds = products.map((product) => product.id);
+            const discountType = storeDiscount.type;
+
+            if (discountType === 'percentage') {
+                await Product.update(
+                    { discount: storeDiscount.value },
+                    { where: { id: productIds } }
+                );
+            } else if (discountType === 'amount') {
+                for (const product of products) {
+                    if (parseFloat(product.price) <= storeDiscount.value) {
+                        await Product.update(
+                            { discount: 0 },
+                            { where: { id: product.id } }
+                        );
+                    } else {
+                        const discountValue = (storeDiscount.value / parseFloat(product.price)) * 100;
+                        await Product.update(
+                            { discount: discountValue },
+                            { where: { id: product.id } }
+                        );
+                    }
+                }
+            }
+        }
+    });
+
+
+    StoreDiscount.beforeDestroy(async (storeDiscount) => {
+        if (storeDiscount.status === 'active') {
+            const products = await Product.findAll({ where: { brandId: storeDiscount.brandId } });
+            const productIds = products.map((product) => product.id);
+
+            await Product.update(
+                { discount: 0 }, // Remove the discount by setting it to null or any other appropriate value
+                { where: { id: productIds } }
+            );
+        }
+    });
+
+
+
+
+
+
+
+    // ===========  ASSOCATIONS  ========= //
     Category.associate = (models) => {
         Category.hasMany(models.Product, {
             foreignKey: 'categoryId',
@@ -280,6 +417,13 @@ module.exports = (sequelize, DataTypes) => {
         });
     };
 
+    StoreDiscount.associate = (models) => {
+        StoreDiscount.belongsTo(models.Brand, {
+            foreignKey: 'brandId',
+            as: 'brand'
+        });
+    };
 
-    return { Category, Product, Cart };
+
+    return { Category, Product, Cart, StoreDiscount };
 }
