@@ -118,7 +118,7 @@ const auth = require('./app/routes/authRoutes'),
     category = require('./app/routes/categoryRoutes'),
     cart = require('./app/routes/cartRoutes'),
     deliveryAddress = require('./app/routes/addressRoutes'),
-    product = require('./app/routes/productRoutes');
+    product = require('./app/routes/productRoutes'),
     order = require('./app/routes/orderRoutes');
     
 app.use('/auth', auth);
@@ -127,7 +127,7 @@ app.use('/category', category);
 app.use('/product', product);
 app.use('/cart', cart);
 app.use('/address', deliveryAddress);
-// app.use('/order', order);
+app.use('/order', order);
 
 app.use(errorHandler);
 app.use(notFoundMiddleware);

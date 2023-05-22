@@ -3,6 +3,9 @@ const Op = require('sequelize').Op;
 
 module.exports = (sequelize, DataTypes) => {
 
+    // imports
+    const { Wallet } = require('./walletModel')(sequelize, DataTypes);
+
     //  ======  User Model  ====== //
     const User = sequelize.define("User", {
         id: {
@@ -105,15 +108,12 @@ module.exports = (sequelize, DataTypes) => {
         timestamps: true,
 
         scopes: {
-            active: {
+            verified: {
                 where: {
-                    status: 'ACTIVE'
-                }
-            },
-            verified : {
-                where: {
-                    isActivated: true
-                }
+                    status: 'ACTIVE',
+                    isActivated: true,
+                },
+                attributes: ['id', 'firstName', 'lastName', 'email', 'phone', 'role', 'status', 'vendorMode', 'createdAt', 'updatedAt']
             }
         },
 
@@ -277,7 +277,7 @@ module.exports = (sequelize, DataTypes) => {
             primaryKey: true
         },
         token: { type: DataTypes.TEXT, allowNull: false },
-        expiry: { 
+        expiry: {
             type: DataTypes.DATE,
             defaultValue: Date.now() + (24 * 60 * 60 * 1000) // 24 hours in milliseconds
         },
@@ -311,7 +311,7 @@ module.exports = (sequelize, DataTypes) => {
         country: { type: DataTypes.STRING, allowNull: false },
         postal: { type: DataTypes.INTEGER },
         phone: { type: DataTypes.BIGINT, allowNull: false },
-        type: { 
+        type: {
             type: DataTypes.ENUM(["home", "office", "school", "other"]),
             defaultValue: "home",
             allowNull: false,
@@ -331,6 +331,18 @@ module.exports = (sequelize, DataTypes) => {
     }, {
         tableName: 'DeliveryAddress',
         timestamps: true,
+        scopes: {
+            Default(value) {
+                let valuq;
+                value.type === 'store' ? valuq = 'brandId' : valuq = 'userId';
+                return {
+                    where: {
+                        isDefault: true,
+                        [valuq]: value.id
+                    }
+                }
+            }
+        }
     });
 
     DeliveryAddress.addHook('beforeSave', async (address, options) => {
@@ -357,6 +369,17 @@ module.exports = (sequelize, DataTypes) => {
         }
     });
 
+    User.addScope('fulldetails', {
+        include: [{
+            model: DeliveryAddress,
+            as: 'DeliveryAddresses',
+            where: {
+                isDefault: true,
+            },
+            attributes: ['id', 'address', 'city', 'state', 'country', 'postal', 'phone', 'type', 'addressCode']
+        }, { model: Wallet, as: 'Wallet', attributes: ['id', 'amount', 'type', 'currency', 'isActive'] }]
+    });
+
 
 
     //  =========== ASSOCIATIONS =========== //
@@ -378,7 +401,7 @@ module.exports = (sequelize, DataTypes) => {
         User.hasMany(models.Order, {
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
-        }); 
+        });
         User.belongsToMany(models.Brand, {
             through: models.UserBrand,
             onDelete: 'CASCADE',
@@ -392,29 +415,49 @@ module.exports = (sequelize, DataTypes) => {
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
         });
+        User.hasOne(models.Wallet, {
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE'
+        });
 
     };
 
 
     Brand.associate = (models) => {
         Brand.hasMany(models.Product, {
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE',
             foreignKey: 'brandId',
             as: 'products'
         });
         Brand.belongsToMany(models.User, {
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE',
             through: models.UserBrand,
         });
         Brand.hasOne(models.Content, {
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE',
             foreignKey: 'refId',
             as: 'brand'
         });
         Brand.hasOne(models.DeliveryAddress, {
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE',
             foreignKey: 'brandId',
             as: 'deliveryAddress'
         });
         Brand.hasMany(models.StoreDiscount, {
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE',
             foreignKey: 'brandId',
             as: 'storeDiscounts'
+        });
+        Brand.hasOne(models.Wallet, {
+            foreignKey: 'storeId',
+            as: 'storewallet',
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE'
         });
 
     };
@@ -448,7 +491,7 @@ module.exports = (sequelize, DataTypes) => {
         DeliveryAddress.belongsTo(models.User, {
             foreignKey: 'userId',
             onDelete: 'CASCADE',
-            onUpdate: 'CASCADE' 
+            onUpdate: 'CASCADE'
         });
         DeliveryAddress.belongsTo(models.Brand, {
             foreignKey: 'brandId',

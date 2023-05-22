@@ -1,7 +1,8 @@
-const { Product, User, Order, Brand, Category, Cart, KShip, SellerShip, KsecureShip, DeliveryAddress } = require('../../models');
+const { Product, User, Order, Brand, Category, Cart, ShipbubbleOrder, DeliveryAddress } = require('../../models');
 require('dotenv').config();
 const { sequelize, Sequelize } = require('../../models');
-const asyncWrapper = require('../middlewares/async')
+const asyncWrapper = require('../middlewares/async');
+const { KSECURE_FEE } = require('../utils/configs');
 // const queryString = require('query-string');
 // const validator = require('validator');
 const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/customErrors');
@@ -13,54 +14,84 @@ const { v4: uuidv4 } = require('uuid');
 
 
 const createOrder = asyncWrapper(async (req, res, next) => {
-    const decoded = req.decoded;
-    const userId = decoded.id;
-    const userInfo = await User.findOne({ 
-        where: { id: userId },
-        include: [
-            {
-                model: Cart,
-            },
-            {
-                model: DeliveryAddress,
-                where: {isDefault: true},
-            }
-        ]
-     });
-     console.log(userInfo); 
-    // if (!userInfo) {
-    //     throw new NotFoundError('User not found');
-    // }
-    // const cart = userInfo.Cart;
-    // if (!cart) {
-    //     throw new NotFoundError('Cart not found');
-    // }
-    // const deliveryAddress = userInfo.DeliveryAddress;
-    // if (!deliveryAddress) {
-    //     throw new NotFoundError('Delivery address not found');
-    // }
+    await sequelize.transaction(async (t) => {
+        const decoded = req.decoded;
+        const userId = decoded.id;
+        const userInfo = await User.findOne({ where: { id: userId } });
+        const { shipping_method, storeId } = req.body;
+        const cart = await Cart.findOne({ where: { userId } });
+        console.log(cart.checkoutData)
+        let shippingMethod = { type: shipping_method }
+        let cartdetails = {
+            items: cart.items,
+            info: cart.checkoutData.checkkout_data,
+            courier: cart.checkoutData.cheapest_courier,
+        }
 
-    // query ship bubble api for shipping cost
+        const store = await Brand.findOne(
+            {
+                where: { id: storeId },
+                attributes: ['socials']
+            })
+        if (!store) {
+            throw new NotFoundError('Store not found');
+        }
+        let order, socials, kship_order, shippingObject, returnobject;
 
-    const order = await sequelize.transaction(async (t) => {
-        const order = await Order.create({
+        socials = store.socials;
+        order = await Order.create({
             userId,
-            status: 'active',
+            shippingMethod,
+            cartdetails,
+            storeId,
         }, { transaction: t });
-        // await cart.destroy({ transaction: t });
-        return order;
-    }    );
-    const orderInfo = await Order.scope('includeStore').findOne({ where: { id: order.id } });
-    res.status(200).json({
-        success: true,
-        data: orderInfo
-    });
+
+        shippingObject = {
+            orderId: order.id,
+            requestToken: cart.checkoutData.request_token,
+            serviceCode: cart.checkoutData.cheapest_courier.service_code,
+            courierId: cart.checkoutData.cheapest_courier.courier_id,
+            packageCost: cart.totalAmount,
+            deliveryFee: cart.checkoutData.cheapest_courier.total,
+        }
+
+        returnobject = {
+            order,
+            socials
+        }
+
+        if (shipping_method === 'seller') {
+            // send order request notification to seller
+        } else if (shipping_method === 'kship') {
+            kship_order = await ShipbubbleOrder.create(shippingObject, { transaction: t });
+            returnobject.kship_order = kship_order;
+        } else if (shipping_method === 'ksecure') {
+            kship_order = await ShipbubbleOrder.create({
+                ...shippingObject,
+                isKSecure: true,
+                kSecureFee: parseFloat(KSECURE_FEE),
+            }, { transaction: t });
+            returnobject.ksecure_order = kship_order;
+        } else {
+            throw new BadRequestError('Invalid shipping method');
+        }
+
+        // ======= HERE UNCOMMENT BELOW =======
+
+        // const orderInfo = await Order.scope('includeStore').findOne({ where: { id: order.id } });
+
+        res.status(200).json({
+            success: true,
+            message: 'Order created successfully, please proceed to make payment',
+            data: returnobject
+        });
+    })
 });
 
-const getOrders = asyncWrapper(async (req, res) => {
+const getAllOrders = asyncWrapper(async (req, res) => {
     const decoded = req.decoded;
     const userId = decoded.id;
-    const orders = await Order.scope('includeStore').findAll({ where: { userId } });
+    const orders = await Order.findAll({ where: { userId } });
     res.status(200).json({
         success: true,
         data: orders
@@ -71,167 +102,32 @@ const getOrders = asyncWrapper(async (req, res) => {
 const getOrder = asyncWrapper(async (req, res) => {
     const decoded = req.decoded;
     const userId = decoded.id;
-    const order = await Order.scope('includeStore').findOne({ where: { id: req.params.id, userId } });
+    const order = await Order.findOne({ where: { id: req.params.id, userId } });
     if (!order) {
         throw new NotFoundError('Order not found');
     }
     res.status(200).json({
         success: true,
         data: order
-    });
-}
-);
-
-const updateOrder = asyncWrapper(async (req, res) => {
-    const decoded = req.decoded;
-    const userId = decoded.id;
-    const order = await Order.findOne({ where: { id: req.params.id, userId } });
-    if (!order) {
-        throw new NotFoundError('Order not found');
-    }
-    const updatedOrder = await order.update(req.body);
-    res.status(200).json({
-        success: true,
-        data: updatedOrder
     });
 }
 );
 
 const deleteOrder = asyncWrapper(async (req, res) => {
-    const decoded = req.decoded;
-    const userId = decoded.id;
-    const order = await Order.findOne({ where: { id: req.params.id, userId } });
-    if (!order) {
-        throw new NotFoundError('Order not found');
-    }
-    await order.destroy();
-    res.status(200).json({
-        success: true,
-        data: {}
-    });
-}
-);
-
-const getKShipOrders = asyncWrapper(async (req, res) => {
-    const decoded = req.decoded;
-    const userId = decoded.id;
-    const orders = await KShip.scope('includeStore').findAll({ where: { userId } });
-    res.status(200).json({
-        success: true,
-        data: orders
-    });
-}
-);
-
-const getKShipOrder = asyncWrapper(async (req, res) => {
-    const decoded = req.decoded;
-    const userId = decoded.id;
-    const order = await KShip.scope('includeStore').findOne({ where: { id: req.params.id, userId } });
-    if (!order) {
-        throw new NotFoundError('Order not found');
-    }
-    res.status(200).json({
-        success: true,
-        data: order
-    });
-}
-);
-
-const updateKShipOrder = asyncWrapper(async (req, res) => {
-    const decoded = req.decoded;
-    const userId = decoded.id;
-    const order = await KShip.findOne({ where: { id: req.params.id, userId } });
-    if (!order) {
-        throw new NotFoundError('Order not found');
-    }
-    const updatedOrder = await order.update(req.body);
-    res.status(200).json({
-        success: true,
-        data: updatedOrder
-    });
-}
-);
-
-const deleteKShipOrder = asyncWrapper(async (req, res) => {
-    const decoded = req.decoded;
-    const userId = decoded.id;
-    const order = await KShip.findOne({ where: { id: req.params.id, userId } });
-    if (!order) {
-        throw new NotFoundError('Order not found');
-    }
-    await order.destroy();
-    res.status(200).json({
-        success: true,
-        data: {}
-    });
-}
-);
-
-const getSellerShipOrders = asyncWrapper(async (req, res) => {
-    const decoded = req.decoded;
-    const userId = decoded.id;
-    const orders = await SellerShip.scope('includeStore').findAll({ where: { userId } });
-    res.status(200).json({
-        success: true,
-        data: orders
-    });
-}
-);
-
-const getSellerShipOrder = asyncWrapper(async (req, res) => {
-    const decoded = req.decoded;
-    const userId = decoded.id;
-    const order = await SellerShip.scope('includeStore').findOne({ where: { id: req.params.id, userId } });
-    if (!order) {
-        throw new NotFoundError('Order not found');
-    }
-    res.status(200).json({
-        success: true,
-        data: order
-    });
-}
-);
-
-const updateSellerShipOrder = asyncWrapper(async (req, res) => {
-    const decoded = req.decoded;
-    const userId = decoded.id;
-    const order = await SellerShip.findOne({ where: { id: req.params.id, userId } });
-    if (!order) {
-        throw new NotFoundError('Order not found');
-    }
-    const updatedOrder = await order.update(req.body);
-    res.status(200).json({
-        success: true,
-        data: updatedOrder
-    });
-}
-);
-
-const deleteSellerShipOrder = asyncWrapper(async (req, res) => {
-    const decoded = req.decoded;
-    const userId = decoded.id;
-    const order = await SellerShip.findOne({ where: { id: req.params.id, userId } });
-    if (!order) {
-        throw new NotFoundError('Order not found');
-    }
-    await order.destroy();
-    res.status(200).json({
-        success: true,
-        data: {}
-    });
-}
-);
-
-const getKsecureShipOrders = asyncWrapper(async (req, res) => {
-    const decoded = req.decoded;
-    const userId = decoded.id;
-    const orders = await KsecureShip.scope('includeStore').findAll({ where: { userId } });
-    res.status(200).json({
-        success: true,
-        data: orders
-    });
-}
-);
+    await sequelize.transaction(async (t) => {
+        const decoded = req.decoded;
+        const userId = decoded.id;
+        const order = await Order.findOne({ where: { id: req.params.id, userId } });
+        if (!order) {
+            throw new NotFoundError('Order not found');
+        }
+        await order.destroy({ transaction: t });
+        res.status(200).json({
+            success: true,
+            data: {}
+        });
+    })
+})
 
 const getKsecureShipOrder = asyncWrapper(async (req, res) => {
 
@@ -245,40 +141,13 @@ const getKsecureShipOrder = asyncWrapper(async (req, res) => {
         success: true,
         data: order
     });
-}
-);
+});
 
-const updateKsecureShipOrder = asyncWrapper(async (req, res) => {
-    const decoded = req.decoded;
-    const userId = decoded.id;
-    const order = await KsecureShip.findOne({ where: { id: req.params.id, userId } });
-    if (!order) {
-        throw new NotFoundError('Order not found');
-    }
-    const updatedOrder = await order.update(req.body);
-    res.status(200).json({
-        success: true,
-        data: updatedOrder
-    });
-}
-);
-
-const deleteKsecureShipOrder = asyncWrapper(async (req, res) => {
-    const decoded = req.decoded;
-    const userId = decoded.id;
-    const order = await KsecureShip.findOne({ where: { id: req.params.id, userId } });
-    if (!order) {
-        throw new NotFoundError('Order not found');
-    }
-    await order.destroy();
-    res.status(200).json({
-        success: true,
-        data: {}
-    });
-}
-);
 
 module.exports = {
     createOrder,
+    getAllOrders,
+    getOrder,
+    deleteOrder,
 }
 

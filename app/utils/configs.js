@@ -37,7 +37,10 @@ const EMAIL_HOST_ADDRESS = process.env.EMAIL_HOST_ADDRESS,
 // FACEBOOK CONFIGS
 FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID,
 FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET,
-API_URL = process.env.API_URL
+API_URL = process.env.API_URL,
+
+// KSECURE FEE
+KSECURE_FEE = process.env.KSECURE_FEE
 
 module.exports = {
     refreshTokenExpiry,
@@ -63,7 +66,8 @@ module.exports = {
     LOGO,
     FACEBOOK_APP_ID,
     FACEBOOK_APP_SECRET,
-    API_URL
+    API_URL,
+    KSECURE_FEE
 }
 
     

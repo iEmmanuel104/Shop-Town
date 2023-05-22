@@ -1,4 +1,4 @@
-const sendEmail = require('../utils/email.service');    
+const sendEmail = require('../services/email.service');    
 let options = {};
 
 const sendWhatsappMessage = async (phone, message) => {

@@ -8,12 +8,27 @@ const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/cus
 const { getPagination, getPagingData } = require('../utils/pagination')
 const Op = require("sequelize").Op;
 const path = require('path');
+const { validateAddress } = require('../services/shipbubble.service');
 
 const AddNewAddress = asyncWrapper(async (req, res) => {
     await sequelize.transaction(async (t) => {
         const decoded = req.decoded;
         const userId = decoded.id;
+        const user = await User.findOne({ where: { id: userId } });
         const { address, city, state, country, postal, phone, type, defaults } = req.body;
+        const addressdetails = address + ',' + city + ',' + state + ',' + country
+        const name = user.fullName
+
+        console.log(addressdetails)
+
+        const detailss = {
+            name: name,
+            email: user.email,
+            phone: phone,
+            address: addressdetails,
+        }
+        console.log(detailss)
+        const address_code = await validateAddress(detailss)
         const deliveryAddress = await DeliveryAddress.create({
             address: address,
             city,
@@ -23,6 +38,7 @@ const AddNewAddress = asyncWrapper(async (req, res) => {
             type: type ? type : 'home',
             isDefault: defaults ? defaults : false,
             postal: postal ? postal : null,
+            addressCode: address_code,
             userId
         });
         res.status(200).json({

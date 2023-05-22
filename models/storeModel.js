@@ -1,5 +1,6 @@
 module.exports = (sequelize, DataTypes) => {
     const { Brand } = require('./userModel')(sequelize, DataTypes);
+    
     const Product = sequelize.define("Product", {
         id: {
             type: DataTypes.UUID,
@@ -82,7 +83,7 @@ module.exports = (sequelize, DataTypes) => {
             },
 
             includePrice: {
-                attributes: ['id', 'name', 'price', 'quantity', 'discount', 'discountedPrice'],
+                attributes: ['id', 'name', 'price', 'quantity', 'discount', 'discountedPrice', 'brandId'],
             },
 
         }
@@ -165,6 +166,10 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.JSONB,
             defaultValue: {}
         },
+        checkoutData: {
+            type: DataTypes.JSONB,
+            defaultValue: {}
+        },
         totalAmount: {
             type: DataTypes.FLOAT,
             defaultValue: 0
@@ -180,91 +185,6 @@ module.exports = (sequelize, DataTypes) => {
                 }]
             }
         },
-        hooks: {
-            beforeSave: async (cart) => {
-                const itemIds = Object.keys(cart.items);
-                const products = await Product.scope('defaultScope', 'includePrice').findAll({
-                    where: { id: itemIds }
-                });
-                let totalAmount = 0;
-
-                products.forEach(product => {
-                    const quantity = cart.items[product.id];
-                    if (quantity) {
-                        const price = product.discountedPrice ? product.discountedPrice : product.price;
-                        const inStock = product.quantity.instock;
-                        const itemStatus = inStock >= quantity ? 'instock' : 'outofstock';
-
-                        cart.items[product.id] = {
-                            name: product.name,
-                            quantity: quantity,
-                            UnitPrice: product.price,
-                            discount: product.discount,
-                            Discountprice: price,
-                            status: itemStatus
-                        };
-                        totalAmount += price * quantity;
-                    }
-                });
-
-                cart.totalAmount = totalAmount;
-            },
-
-            afterFind: async (cart) => {
-                if (!cart || !cart.items) {
-                    return;
-                }
-
-                const itemIds = Object.keys(cart.items);
-                const products = await Product.scope('defaultScope', 'includePrice').findAll({
-                    where: { id: itemIds }
-                });
-
-                let totalAmount = 0;
-
-                products.forEach(product => {
-                    const quantity = cart.items[product.id];
-
-                    if (quantity) {
-                        const price = product.discountedPrice ? product.discountedPrice : product.price;
-                        const inStock = product.quantity.instock;
-                        const cartItem = cart.items[product.id];
-
-                        if (cartItem && cartItem.status === 'instock') {
-                            cartItem.Discountprice = price;
-                            cartItem.discount = product.discount;
-                            cartItem.UnitPrice = product.price;
-                            totalAmount += price * cartItem.quantity;
-                            console.log('case 0')
-                        } else if (inStock >= quantity.quantity) {
-                            cart.items[product.id] = {
-                                name: product.name,
-                                quantity: quantity.quantity,
-                                UnitPrice: product.price,
-                                discount: product.discount,
-                                Discountprice: price,
-                                status: "instock"
-                            };
-                            console.log('case 1');
-                            totalAmount += price * quantity.quantity;
-                        } else {
-                            cart.items[product.id] = {
-                                name: product.name,
-                                quantity: quantity.quantity,
-                                UnitPrice: product.price,
-                                discount: product.discount,
-                                status: "outofstock"
-                            };
-                            console.log('case 2');
-                            totalAmount += price * inStock;
-                        }
-                    }
-                });
-
-                cart.totalAmount = totalAmount;
-            }
-
-        }
     });
 
     const StoreDiscount = sequelize.define("StoreDiscount", {
@@ -338,7 +258,7 @@ module.exports = (sequelize, DataTypes) => {
                     { where: { id: productIds } }
                 );
             } else if (discountType === 'amount') {
-                for (const product of products) {
+                products.forEach(async (product) => {
                     if (parseFloat(product.price) <= storeDiscount.value) {
                         await Product.update(
                             { discount: 0 },
@@ -351,7 +271,7 @@ module.exports = (sequelize, DataTypes) => {
                             { where: { id: product.id } }
                         );
                     }
-                }
+                });
             }
         }
     });
@@ -368,12 +288,6 @@ module.exports = (sequelize, DataTypes) => {
             );
         }
     });
-
-
-
-
-
-
 
     // ===========  ASSOCATIONS  ========= //
     Category.associate = (models) => {
@@ -400,10 +314,6 @@ module.exports = (sequelize, DataTypes) => {
             foreignKey: 'refId',
             as: 'product'
         });
-        Product.hasMany(models.Order, {
-            foreignKey: 'productId',
-            as: 'orders'
-        });
         Product.hasMany(models.Review, {
             foreignKey: 'productId',
             as: 'reviews'
@@ -413,7 +323,6 @@ module.exports = (sequelize, DataTypes) => {
     Cart.associate = (models) => {
         Cart.belongsTo(models.User, {
             foreignKey: 'userId',
-            as: 'user'
         });
     };
 

@@ -1,14 +1,15 @@
 const { User, Token, Password, BlacklistedTokens, Brand, DeliveryAddress } = require ('../../models');
 const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/customErrors');
-const { uploadSingleFile } = require('../utils/imageupload.service');
+const { uploadSingleFile } = require('../services/imageupload.service');
 const { LOGO } = require('../utils/configs');
-
+const {generateWallet} = require('../services/wallet.service');
+const { sequelize, Sequelize } = require('../../models');
 require('dotenv').config();
 const asyncWrapper = require('../middlewares/async');
 const { generateCode } = require('../utils/StringGenerator');
 const { sendverificationEmail, sendForgotPasswordEmail } = require('../utils/mailTemplates');
-const { issueToken, decodeJWT } = require('../utils/auth.service');
-const { validateAddress } = require('../utils/shipbubble.service');
+const { issueToken, decodeJWT } = require('../services/auth.service');
+const { validateAddress } = require('../services/shipbubble.service');
 
 const SignUp = asyncWrapper(async (req, res, next) => {
     const {  email, firstName, lastName, phone, password } = req.body;
@@ -61,8 +62,14 @@ const verifyEmail = asyncWrapper(async (req, res, next) => {
 
     if (!user) return next(new BadRequestError('Invalid verification code'))
     user.isActivated = true
-
     await user.save()
+    const walleti = {
+        id : user.id,
+        type: 'customer'
+    }
+    const wallet = await generateWallet(walleti)
+
+    console.log ('User Wallet Generated', wallet)
     await token.destroy()
 
     res.status(200).json({
@@ -235,12 +242,9 @@ const getloggedInUser = asyncWrapper(async (req, res, next) => {
     const decoded = req.decoded
 
     const userId = decoded.id
+    console.log('userId', userId)
 
-    const user = await User.findByPk(userId, {
-        attributes: {
-            exclude: ['password', 'facebookId', 'googleId', 'isActivated', 'terms']
-        }
-    })
+    const user = await User.scope('verified').findByPk(userId)
     if (!user) return next(new BadRequestError('Invalid user'))
 
     res.status(200).json({
@@ -361,6 +365,15 @@ const SwitchAccount = asyncWrapper(async (req, res, next) => {
         name: brand.name,
         role: brand.UserBrand.role
     }))
+    
+    // if there is no brand associated with the user, return a message
+
+    if (brands.length === 0) {
+        return res.status(200).json({
+            success: true,
+            message: `User has no associated store, please create a store to switch to seller mode`,
+        });
+    }
 
     // if there is only one brand console log its id
     let access_token;
@@ -383,7 +396,7 @@ const SwitchAccount = asyncWrapper(async (req, res, next) => {
         responseData.access_token = access_token
     }
     if (user.vendorMode) {
-        responseData.brands = brands
+        responseData.stores = brands
     }
 
     res.status(200).json(responseData)    
@@ -468,6 +481,13 @@ const RegisterStore = asyncWrapper(async (req, res, next) => {
         addressCode: address_code,
         isDefault: true
     })
+    const walleti = {
+        id : brand.id,
+        type: 'store'
+    }
+    const wallet = await generateWallet(walleti)
+
+    console.log ('Store Wallet Generated', wallet)
     res.status(200).json({
         success: true,
         message: "Store created successfully",

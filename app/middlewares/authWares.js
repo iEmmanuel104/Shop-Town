@@ -1,6 +1,6 @@
 const { User, Token, BlacklistedTokens } = require('../../models')
 const { BadRequestError, NotFoundError, ForbiddenError, UnauthorizedError } = require('../utils/customErrors')
-const { issueToken, decodeJWT } = require('../utils/auth.service')
+const { issueToken, decodeJWT } = require('../services/auth.service')
 
 const asyncWrapper = require('../middlewares/async')
 
@@ -17,6 +17,7 @@ const basicAuth = asyncWrapper(async (req, res, next) => {
     if (isBlacklisted) return next(new BadRequestError('Unauthorised Token'))
     
     req.decoded = decoded
+    console.log('decoded', decoded)
     next()
     
 })
