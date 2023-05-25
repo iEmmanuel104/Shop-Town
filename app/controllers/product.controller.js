@@ -12,7 +12,8 @@ const path = require('path');
 
 const createProduct = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
-        const { name, description, price, quantity, specifications, category, shippingcategory } = req.body;
+        const { name, description, price, quantity, specifications, shippingcategory } = req.body;
+        const {category} = req.query
         // const { category } = req.params
         const decoded = req.decoded;
         const brandId = decoded.storeId;
