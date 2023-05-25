@@ -8,7 +8,7 @@ const { BadRequestError } = require('../utils/customErrors');
 
 const FlutterwavePay = async (paydetails) => {
     let StoreLogo = paydetails.storeLogo ? paydetails.storeLogo : LOGO;
-    let title, meta = {}; 
+    let title, meta = {};
     if (paydetails.storeName) {
         title = `${paydetails.storeName} Order Payment`
         meta = {
@@ -35,7 +35,7 @@ const FlutterwavePay = async (paydetails) => {
             "amount": paydetails.amount,
             "currency": "NGN",
             "redirect_url": FLW_REDIRECT_URL,
-            "meta" : meta,
+            "meta": meta,
             "customer": {
                 "email": paydetails.email,
                 "phonenumber": paydetails.phone,
@@ -64,12 +64,12 @@ const validateFlutterwavePay = async (details) => {
     console.log(details.transactionId)
     try {
         const response = await flw.Transaction.verify({ id: details.transactionId })
-        if (response.data.status === "successful" ) {
+        if (response.data.status === "successful") {
             console.log('payment was successful')
             console.log(response.data)
             return response.data;
-        } 
-        else {  
+        }
+        else {
             console.log('payment was not successful')
             console.log(response.data)
             return response.data;
@@ -78,6 +78,81 @@ const validateFlutterwavePay = async (details) => {
         console.log(error)
         throw new BadRequestError('Error validating payment: ' + error.message);
     }
+};
+
+const getflutterwavepayoutbanks = async () => {
+    var options = {
+        'method': 'GET',
+        'url': 'https://api.flutterwave.com/v3/banks/NG',
+        'headers': {
+            'Authorization': `Bearer ${FLW_SECRET_KEY}`
+        }
+    };
+    return new Promise((resolve, reject) => {
+        request(options, function (error, response) {
+            if (error) {
+                reject(error);
+            } else {
+                resolve(JSON.parse(response.body));
+            }
+        });
+    });
+};
+
+const FlutterwaveTransferfee = async (details) => {
+    try {
+        const response = await flw.Transfer.fee({
+            "amount": details.amount,
+            "currency": 'NGN',
+            "type": "account"
+        });
+        return response.data;
+    } catch (error) {
+        throw new BadRequestError('Error transferring payment: ' + error.message);
+    }
+};
+
+const FlutterwaveTransferStatus = async (details) => {
+    var options = {
+        'method': 'GET',
+        'url': `https://api.flutterwave.com/v3/transfers/${details.transferId} `,
+        'headers': {
+            'Authorization': `Bearer ${FLW_SECRET_KEY}`
+        }
+    };
+    return new Promise((resolve, reject) => {
+        request(options, function (error, response) {
+            if (error) {
+                reject(error);
+            } else {
+                resolve(JSON.parse(response.body));
+            }
+        });
+    });
+};
+
+const FlutterwavePayout = async (details) => {
+    const detailss = {
+        account_bank: details.bankCode,
+        account_number: details.accountNumber,
+        amount: details.amount,
+        currency: "NGN",
+        narration: details.narration,
+        reference: generateTransactionReference(),
+    };
+    const response = flw.Transfer.initiate(detailss)
+    if (response.data.status === "successful") {
+        console.log('Transfer Queued successfully')
+        // store data.id in db
+        console.log(response.data)
+        return response.data;
+    }
+    else {
+        console.log('payment was not successful')
+        console.log(response.data)
+        return response.data;
+    }
+        
 };
 
 const FlutterwaveRefund = async (details) => {
@@ -89,17 +164,13 @@ const FlutterwaveRefund = async (details) => {
     }
 };
 
-const FlutterwaveTransfer = async (details) => {
-    try {
-        const response = await flw.Transfer.create(details);
-        return response.data;
-    } catch (error) {
-        throw new BadRequestError('Error transferring payment: ' + error.message);
-    }
-};
-    
+
 
 module.exports = {
     FlutterwavePay,
-    validateFlutterwavePay
+    validateFlutterwavePay,
+    getflutterwavepayoutbanks,
+    FlutterwaveTransferfee,
+    FlutterwaveTransferStatus,
+    FlutterwavePayout  
 };

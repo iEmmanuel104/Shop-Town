@@ -120,7 +120,8 @@ const auth = require('./app/routes/authRoutes'),
     deliveryAddress = require('./app/routes/addressRoutes'),
     product = require('./app/routes/productRoutes'),
     order = require('./app/routes/orderRoutes'),
-    post = require('./app/routes/ksocialRoutes');
+    post = require('./app/routes/ksocialRoutes'),
+    wallet = require('./app/routes/walletRoutes');
     
 app.use('/auth', auth);
 app.use('/brand', brand);
@@ -130,6 +131,7 @@ app.use('/cart', cart);
 app.use('/address', deliveryAddress);
 app.use('/order', order);
 app.use('/post', post);
+app.use('/wallet', wallet);
 
 app.use(errorHandler);
 app.use(notFoundMiddleware);

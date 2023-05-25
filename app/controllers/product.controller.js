@@ -4,7 +4,7 @@ const { sequelize, Sequelize } = require('../../models');
 const asyncWrapper = require('../middlewares/async');
 const { getshippingcategories } = require('../services/shipbubble.service');
 // const queryString = require('query-string');
-// const validator = require('validator');
+const { uploadSingleFile, uploadFiles } = require('../services/imageupload.service');
 const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/customErrors');
 const { getPagination, getPagingData } = require('../utils/pagination')
 const Op = require("sequelize").Op;
@@ -22,6 +22,20 @@ const createProduct = asyncWrapper(async (req, res, next) => {
         const user = await User.findByPk(userId);
         if (!user) {
             return next(new NotFoundError("User not found"));
+        }
+
+        let fileUrls = [];
+
+        if (req.files) {
+            console.log(req.files)
+            const details = {
+                folder: 'product',
+                user: brandId
+            };
+
+            console.log('files found for upload')
+
+            fileUrls = await uploadFiles(req, details);
         }
 
         // if (user.role !== 'admin' && user.role !== 'vendor') {
@@ -46,6 +60,7 @@ const createProduct = asyncWrapper(async (req, res, next) => {
             subcategory: shippingcategory,
             categoryId: category,
             brandId: brandId,
+            images: fileUrls
         }, { transaction: t });
         res.status(201).json({
             success: true,
@@ -188,16 +203,30 @@ const updateProduct = asyncWrapper(async (req, res, next) => {
         if (!isAssociated) {
             return next(new ForbiddenError("You are not allowed to access this resource"));
         }
+        let fileUrls = [];
+
+        if (req.files) {
+            console.log(req.files)
+            const details = {
+                folder: 'product',
+                user: brandId
+            };
+
+            console.log('files found for upload')
+
+            fileUrls = await uploadFiles(req, details);
+        }
 
         // Update the product
         const updated = await product.update({
-            name,
-            description,
-            price,
-            quantity,
-            specifications,
-            subcategory,
-            discount
+            name: name ? name : product.name,
+            description : description ? description : product.description,
+            price : price ? price : product.price,
+            quantity : quantity ? quantity : product.quantity,
+            specifications : specifications ? specifications : product.specifications,
+            subcategory : subcategory ? subcategory : product.subcategory,
+            discount : discount ? discount : product.discount,  
+            images: fileUrls ? fileUrls : product.images
         }, { transaction: t });
 
         res.status(200).json({

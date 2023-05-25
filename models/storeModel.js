@@ -51,6 +51,10 @@ module.exports = (sequelize, DataTypes) => {
             defaultValue: "ACTIVE",
             allowNull: false
         },
+        images: {
+            type: DataTypes.ARRAY(DataTypes.STRING),
+            defaultValue: []
+        },
     }, {
         tableName: 'Product',
         timestamps: true,

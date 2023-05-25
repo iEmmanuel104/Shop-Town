@@ -2,7 +2,10 @@ const { Wallet, WalletTransaction, Payment, User } = require('../../models');
 require('dotenv').config();
 const { sequelize, Sequelize } = require('../../models');
 const asyncWrapper = require('../middlewares/async');
-const { FlutterwavePay, validateFlutterwavePay } = require('../services/flutterwave.service');
+const { FlutterwavePay, validateFlutterwavePay, 
+    getflutterwavepayoutbanks, FlutterwaveTransferStatus,
+    FlutterwaveTransferfee, FlutterwavePayout
+  } = require('../services/flutterwave.service');
 const { KSECURE_FEE } = require('../utils/configs');
 // const queryString = require('query-string');
 // const validator = require('validator');
@@ -168,4 +171,93 @@ const generatereceipt = asyncWrapper(async (req, res, next) => {
     res.status(200).json({ success: true, message: 'Receipt generated successfully', data: { receipt } });
 });
 
-// const walletPayout = asyncWrapper(async (req, res, next) => {
+const getallPayoutBanks = asyncWrapper(async (req, res, next) => {
+   const banks = await getflutterwavepayoutbanks();
+    res.status(200).json({ success: true, message: 'Banks fetched successfully', data: { banks } });
+});
+
+const getpayoutfee = asyncWrapper(async (req, res, next) => {
+    const { amount } = req.body;
+    const details = { amount: parseInt(amount) }
+    const fee = FlutterwaveTransferfee(details);
+    res.status(200).json({ success: true, message: 'Fee fetched successfully', data: { fee } });
+});
+
+const checkTransferStatus = asyncWrapper(async (req, res, next) => {
+    const { transferId } = req.body;
+    const details = { transferId }
+    const status = await FlutterwaveTransferStatus(details);
+    res.status(200).json({ success: true, message: 'Transfer status fetched successfully', data: { status } });
+});
+
+const walletPayout = asyncWrapper(async (req, res, next) => {
+    const decoded = req.decoded;
+    const userId = decoded.id;
+    const { amount, bankCode, accountNumber } = req.body;
+    const wallet = await Wallet.findOne({ where: { userId } });
+    if (!wallet) {
+        throw new NotFoundError('Wallet not found');
+    }
+    const fee = await FlutterwaveTransferfee(details);
+    const totalAmount = parseInt(amount) + parseInt(fee);
+    if (wallet.amount < totalAmount) {
+        throw new BadRequestError('Insufficient wallet balance');
+    }
+    const details = { 
+        amount: parseInt(totalAmount), 
+        bankCode, 
+        accountNumber,
+        narration: 'Wallet payout',
+    }
+    const transfer = await FlutterwavePayout(details);
+    let message;
+    await sequelize.transaction(async (t) => {
+    if (transfer.status === 'success') {
+            // Decrease the wallet balance
+            // await Wallet.decrement('amount', {
+            //     by: totalAmount,
+            //     where: { id: wallet.id },
+            // });
+            // Create the transaction
+            await WalletTransaction.create({
+                walletId: wallet.id,
+                type: 'debit',
+                amount: totalAmount,
+                status: 'pending',
+                description: 'Wallet payout',
+                reference: transfer.id,
+            });
+            message = `Wallet payout initiated:${transfer.message}`;
+        } else if (transfer.status === 'error') {
+            await  WalletTransaction.create({
+                walletId: wallet.id,
+                type: 'debit',
+                amount: totalAmount,
+                status: 'failed',
+                description: 'Wallet payout',
+                reference: transfer.id,
+            });
+            message = `Wallet payout failed:${transfer.message}`;
+        }
+    });
+    res.status(200).json({ success: true, message: 'Wallet payout successful', data: { transfer } });
+});
+
+const flutterwavecallback = asyncWrapper(async (req) => {
+    console.log(req.body);
+});
+
+module.exports = {
+    fundWallet,
+    validateWalletFund,
+    getWalletTransactions,
+    getWalletBalance,
+    getWallet,
+    getWallets,
+    generatereceipt,
+    getallPayoutBanks,
+    getpayoutfee,
+    checkTransferStatus,
+    walletPayout,
+    flutterwavecallback,
+};

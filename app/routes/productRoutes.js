@@ -1,6 +1,7 @@
 const express = require('express')
 const router = express.Router()
 const {basicAuth} = require('../middlewares/authWares')
+const uploadFile = require('../middlewares/multerobject')
 
 const {
     createProduct,
@@ -22,7 +23,7 @@ const {
 // router.delete('/:id', deleteProduct)
 // router.get('/search', searchProuct)
 router.route('/')
-    .post(basicAuth, createProduct)
+    .post(basicAuth, uploadFile.array('images'), createProduct)
     .get(getProducts)
 
 router.route('/bulk')
@@ -32,7 +33,7 @@ router.route('/:id')
     .get(getProduct)
     .put(basicAuth, updateProduct)
     .delete(basicAuth, deleteProduct)
-    .patch(basicAuth, updateProductdiscount)
+    .patch(basicAuth, uploadFile.array('images'), updateProductdiscount)
 
 router.get('/search', searchProduct);
 
