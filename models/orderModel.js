@@ -54,7 +54,7 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false
         },
         packageCost: {
-            type: DataTypes.FLOAT,
+            type: DataTypes.DECIMAL(10, 2), // 10 digits in total, 2 after decimal point
             allowNull: false
         },
         isKSecure: {
@@ -63,19 +63,23 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false
         },
         kSecureFee: {
-            type: DataTypes.FLOAT,
+            type: DataTypes.DECIMAL(10, 2), // 10 digits in total, 2 after decimal point
             allowNull: false,
             defaultValue: 0
         },
         deliveryFee: {
-            type: DataTypes.FLOAT,
+            type: DataTypes.DECIMAL(10, 2), // 10 digits in total, 2 after decimal point
+            allowNull: false
+        },
+        status: {
+            type: DataTypes.ENUM(["pending", "processing", "completed", "cancelled"]),
+            defaultValue: "pending",
             allowNull: false
         },
     }, {
         tableName: 'ShipbubbleOrder',
         timestamps: true,
     });
-
 
     const Review = sequelize.define("Review", {
         id: {
@@ -114,6 +118,14 @@ module.exports = (sequelize, DataTypes) => {
             defaultValue: "pending",
             allowNull: false
         },
+        refId: {
+            type: DataTypes.STRING,
+            allowNull: true
+        },
+        amount: {
+            type: DataTypes.DECIMAL(10, 2), // 10 digits in total, 2 after decimal point
+            allowNull: false
+        },
         paymentReference: {
             type: DataTypes.STRING,
             allowNull: true
@@ -122,7 +134,6 @@ module.exports = (sequelize, DataTypes) => {
         tableName: 'Payment',
         timestamps: true,
     });
-
 
     // ================== ASSOCIATIONS ================== //
 

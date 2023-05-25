@@ -7,6 +7,7 @@ const {
     createBulkProducts,
     getProducts,
     getProduct,
+    getshippingcategory,
     updateProduct,
     deleteProduct,
     searchProduct,
@@ -22,7 +23,7 @@ const {
 // router.get('/search', searchProuct)
 router.route('/')
     .post(basicAuth, createProduct)
-    .get(getProducts);
+    .get(getProducts)
 
 router.route('/bulk')
     .post(basicAuth, createBulkProducts);
@@ -34,5 +35,7 @@ router.route('/:id')
     .patch(basicAuth, updateProductdiscount)
 
 router.get('/search', searchProduct);
+
+router.get('/shipping/category', getshippingcategory);
 
 module.exports = router

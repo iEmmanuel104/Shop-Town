@@ -103,6 +103,7 @@ module.exports = (sequelize, DataTypes) => {
             defaultValue: false,
             allowNull: false
         },
+        profileImage: { type: DataTypes.STRING },
     }, {
         tableName: 'User',
         timestamps: true,
@@ -116,24 +117,6 @@ module.exports = (sequelize, DataTypes) => {
                 attributes: ['id', 'firstName', 'lastName', 'email', 'phone', 'role', 'status', 'vendorMode', 'createdAt', 'updatedAt']
             }
         },
-
-        // indexes : [
-        //     {
-        //         unique: true,
-        //         fields: ['email']
-        //     }, {
-        //         unique: true,
-        //         fields: ['phone']
-        //     }
-        // ],
-
-        // hooks: {
-        //     afterCreate(user, options) {
-        //         user.createPassword({
-        //             password: user.password
-        //         });
-        //     },
-        // },
     });
 
     //  ======  Brand Model  ====== //
@@ -394,10 +377,6 @@ module.exports = (sequelize, DataTypes) => {
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
         });
-        User.hasMany(models.Content, {
-            onDelete: 'CASCADE',
-            onUpdate: 'CASCADE'
-        });
         User.hasMany(models.Order, {
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
@@ -419,7 +398,9 @@ module.exports = (sequelize, DataTypes) => {
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
         });
-
+        User.hasMany(models.PostActivity, {
+            onDelete: 'CASCADE',
+        });
     };
 
 
@@ -434,12 +415,6 @@ module.exports = (sequelize, DataTypes) => {
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE',
             through: models.UserBrand,
-        });
-        Brand.hasOne(models.Content, {
-            onDelete: 'CASCADE',
-            onUpdate: 'CASCADE',
-            foreignKey: 'refId',
-            as: 'brand'
         });
         Brand.hasOne(models.DeliveryAddress, {
             onDelete: 'CASCADE',
@@ -456,6 +431,10 @@ module.exports = (sequelize, DataTypes) => {
         Brand.hasOne(models.Wallet, {
             foreignKey: 'storeId',
             as: 'storewallet',
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE'
+        });
+        Brand.hasMany(models.Ksocial, {
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
         });

@@ -27,6 +27,7 @@
     "connect-session-sequelize": "^7.1.6",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
+    "cron": "^2.3.0",
     "crypto": "^1.0.1",
     "csurf": "^1.11.0",
     "dotenv": "^16.0.3",
@@ -55,6 +56,7 @@
     "query-string": "^8.1.0",
     "sequelize": "^6.31.1",
     "sharp": "^0.32.1",
+    "util": "^0.12.5",
     "uuid": "^9.0.0",
     "validator": "^13.9.0",
     "xss-clean": "^0.1.1"

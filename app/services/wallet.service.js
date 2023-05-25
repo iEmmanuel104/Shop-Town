@@ -24,4 +24,18 @@ const generateWallet = async (fields) => {
     }
 };
 
+// const NewpaymentEntry = async (fields) => {
+//     const { 
+//         method,
+//         amount,
+//         reference,
+//         status,
+//         type,
+//         userId,
+//      } = fields;
+
+//     const payment = await WalletTransaction.create({
+
+
+
 module.exports = { generateWallet }

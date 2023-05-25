@@ -1,7 +1,8 @@
 const { Product, User, Brand, Category } = require('../../models');
 require('dotenv').config();
 const { sequelize, Sequelize } = require('../../models');
-const asyncWrapper = require('../middlewares/async')
+const asyncWrapper = require('../middlewares/async');
+const { getshippingcategories } = require('../services/shipbubble.service');
 // const queryString = require('query-string');
 // const validator = require('validator');
 const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/customErrors');
@@ -50,6 +51,14 @@ const createProduct = asyncWrapper(async (req, res, next) => {
             success: true,
             data: product,
         });
+    });
+});
+
+const getshippingcategory = asyncWrapper(async (req, res, next) => {
+    const categories = await getshippingcategories();
+    res.status(200).json({
+        success: true,
+        data: categories
     });
 });
 
@@ -432,6 +441,7 @@ module.exports = {
     createBulkProducts,
     getProducts,
     getProduct,
+    getshippingcategory,
     updateProduct,
     deleteProduct,
     searchProduct,

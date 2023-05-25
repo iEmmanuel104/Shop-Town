@@ -171,7 +171,7 @@ module.exports = (sequelize, DataTypes) => {
             defaultValue: {}
         },
         totalAmount: {
-            type: DataTypes.FLOAT,
+            type: DataTypes.DECIMAL(10, 2),
             defaultValue: 0
         }
     }, {
@@ -295,10 +295,6 @@ module.exports = (sequelize, DataTypes) => {
             foreignKey: 'categoryId',
             as: 'products'
         });
-        Category.hasOne(models.Content, {
-            foreignKey: 'refId',
-            as: 'category'
-        });
     };
 
     Product.associate = (models) => {
@@ -309,10 +305,6 @@ module.exports = (sequelize, DataTypes) => {
         Product.belongsTo(models.Brand, {
             foreignKey: 'brandId',
             as: 'brand'
-        });
-        Product.hasOne(models.Content, {
-            foreignKey: 'refId',
-            as: 'product'
         });
         Product.hasMany(models.Review, {
             foreignKey: 'productId',

@@ -31,6 +31,20 @@ const uploadtocloudinary = (filepath, details) => {
     }
 };
 
+const deleteFromCloudinary = (public_id) => {
+    try {
+        return cloudinary.uploader.destroy(public_id)
+        .then((result) => {
+            console.log(result);
+            return { message: 'success', result: result }
+        })
+    } catch (error) {
+        console.log(error);
+        return { message: 'error', error: error }
+    }
+};
+
+
 
 
 // const uploadresizeToCloudinary = async (filepath, details) => {
@@ -90,4 +104,5 @@ const uploadresizeToCloudinary = async (filepath, details) => {
 module.exports = {
     uploadtocloudinary,
     uploadresizeToCloudinary,
+    deleteFromCloudinary
 };

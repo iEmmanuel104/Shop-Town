@@ -15,9 +15,12 @@ const basicAuth = asyncWrapper(async (req, res, next) => {
     // check if token is blacklisted
     const isBlacklisted = await BlacklistedTokens.findOne({ where: { token: authtoken } })
     if (isBlacklisted) return next(new BadRequestError('Unauthorised Token'))
-    
+    if (decoded.storeId) {
+        console.log('store id found', decoded.storeId)
+    }
+
     req.decoded = decoded
-    console.log('decoded', decoded)
+    console.log('decoded from basicAuth', decoded)
     next()
     
 })

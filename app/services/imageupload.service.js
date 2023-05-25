@@ -17,10 +17,10 @@ const uploadSingleFile = async (file, details) => {
     }
 };
 
-const uploadFiles = async (req, type, details) => {
-    const files = req.files[type];
+const uploadFiles = async (req, details) => {
+    const files = req.files;
     if (!files || !files.length) {
-        throw new BadRequestError(`${ type } is required`);
+        throw new BadRequestError('No files found for upload');
     }
     const results = [];
     for (let i = 0; i < files.length; i++) {
@@ -30,7 +30,20 @@ const uploadFiles = async (req, type, details) => {
     }
     // console.log(results)
     if (results.length === 0) {
-        throw new BadRequestError(`Error uploading ${ type } to cloudinary`);
+        throw new BadRequestError(`Error uploading files to cloudinary`);
+    }
+    return results;
+}
+
+const deleteFiles = async (urls) => {
+    const results = [];
+    for (let i = 0; i < urls.length; i++) {
+        const url = urls[i];
+        const result = await deleteFromCloudinary(url);
+        results.push(result);
+    }
+    if (results.length === 0) {
+        throw new BadRequestError(`Error deleting files from cloudinary`);
     }
     return results;
 }

@@ -7,6 +7,7 @@ const {
     getAllOrders,
     getOrder,   
     deleteOrder,
+    validateOrderPayment
 
  
 } = require('../controllers/order.controller')
@@ -18,6 +19,9 @@ router.route('/')
 router.route('/:id')
     .get(basicAuth, getOrder)
     .delete(basicAuth, deleteOrder)
+
+router.route('/validate/:tx_ref/:transaction_id')
+    .post(basicAuth, validateOrderPayment)
     
 
 

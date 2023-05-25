@@ -198,6 +198,7 @@ const cartcheckout = asyncWrapper(async (req, res) => {
                 id: Object.keys(groupedCartItems)[0],
                 type: 'store'
             };
+            console.log(groupedCartItems[storeId.id][0].specification)
             const userId = { id: decoded.id };
 
             let sender_address_code, receiver_address_code, pickup_date, category_id, package_items, package_dimension, description;
@@ -205,8 +206,11 @@ const cartcheckout = asyncWrapper(async (req, res) => {
             // Get sender and user address codes 
             sender_address_code = (await DeliveryAddress.scope({ method: ["Default", storeId] }).findOne()).addressCode;
             receiver_address_code = (await DeliveryAddress.scope({ method: ["Default", userId] }).findOne()).addressCode;
-            pickup_date = new Date().toISOString().split('T')[0];
-            category_id = groupedCartItems[storeId.id][0].specification.shipping_id;
+            // pickup_date = new Date().toISOString().split('T')[0];
+            pickup_date = new Date(new Date().getTime() + 60 * 60 * 1000).toISOString().split('T')[0];
+            console.log(pickup_date)
+            category_id = groupedCartItems[storeId.id][0].specification.shippingcategory_id;
+            console.log(category_id)
             package_items = groupedCartItems[storeId.id].map(item => {
                 const weightsum = item.quantity * item.specification.weight;
                 return {
@@ -246,8 +250,9 @@ const cartcheckout = asyncWrapper(async (req, res) => {
             res.status(200).json({
                 success: true,
                 message: "Proceed to choose a suitable shipping method",
-                data: cart
-            });
+                data: cart,
+                courier: cheapest_courier.total
+            });  
         }
         else {
             res.status(200).json({

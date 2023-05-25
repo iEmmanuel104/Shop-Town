@@ -1,78 +1,67 @@
 module.exports = (sequelize, DataTypes) => {
-    const Content = sequelize.define("Content", {
+    const Ksocial = sequelize.define("Ksocial", {
         id: {
             type: DataTypes.UUID,
             defaultValue: DataTypes.UUIDV4,
             primaryKey: true,
-            allowNull: false
-        },
-        refId: {
-            type: DataTypes.UUID,
-            allowNull: false
-        },
-        type: {
-            type: DataTypes.ENUM([ "audio", "video", "image", "file" ]),
-            defaultValue: "image",
             allowNull: false
         },
         contentUrl: {
             type: DataTypes.ARRAY(DataTypes.STRING),
             allowNull: false
+        },
+        caption: {
+            type: DataTypes.STRING,
+        },
+        posttype: {
+            type: DataTypes.ENUM('ksocial', 'status'),
+            defaultValue: 'ksocial',
         }
     }, {
-        tableName: 'Content',
+        tableName: 'Ksocial',
         timestamps: true,
     });
 
-    const Post = sequelize.define("Post", {
+    const PostActivity = sequelize.define("PostActivity", {
         id: {
             type: DataTypes.UUID,
             defaultValue: DataTypes.UUIDV4,
             primaryKey: true,
             allowNull: false
         },
-        title: {
-            type: DataTypes.STRING,
-            allowNull: false
+        comment: { type: DataTypes.STRING},
+        like: { 
+            type: DataTypes.BOOLEAN,
+            defaultValue: false,
         },
-        content: {
-            type: DataTypes.TEXT,
-            allowNull: false
-        }
     }, {
-        tableName: 'Post',
+        tableName: 'PostActivity',
         timestamps: true,
     });
 
-    Content.associate = models => {
-        Content.belongsTo(models.User, {
-            foreignKey: 'refId',
-            as: 'user'
+    Ksocial.associate = (models) => {
+        Ksocial.hasMany(models.PostActivity, {
+            foreignKey: "KsocialId",
+            as: "postActivities",
+            onDelete: "CASCADE",
         });
-        Content.belongsTo(models.Product, {
-            foreignKey: 'refId',
-            as: 'product'
-        });
-        Content.belongsTo(models.Brand, {
-            foreignKey: 'refId',
-            as: 'brand'
-        });
-        Content.belongsTo(models.Category, {
-            foreignKey: 'refId',
-            as: 'category'
-        });
-        Content.belongsTo(models.Post, {
-            foreignKey: 'refId',
-            as: 'post'
+        Ksocial.belongsTo(models.Brand, {
+            foreignKey: "brandId",
+            onDelete: "CASCADE",
         });
     };
 
-    Post.associate = models => {
-        Post.hasMany(models.Content, {
-            foreignKey: 'refId',
-            as: 'contents'
+    PostActivity.associate = (models) => {
+        PostActivity.belongsTo(models.Ksocial, {
+            foreignKey: "KsocialId",
+            onDelete: "CASCADE",
+        });
+        PostActivity.belongsTo(models.User, {
+            foreignKey: "userId",
+            onDelete: "CASCADE",
         });
     };
 
-    return { Content, Post}
+
+    return { Ksocial, PostActivity };
 }
