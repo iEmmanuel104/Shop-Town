@@ -421,6 +421,7 @@ const selectStore = asyncWrapper(async (req, res, next) => {
     res.status(200).json({
         success: true,
         message: `User switched to ${brand.name} successfully`,
+        data: brand,
         access_token
     });
 });
