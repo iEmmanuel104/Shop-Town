@@ -14,10 +14,10 @@ const {
 
 router.route('/')
     .post(basicAuth, uploadFile.array('files'), createPost)
-    .get(basicAuth, getPosts)
+    .get(getPosts)
 
 router.route('/:id')
-    .get(basicAuth, getPost)
+    .get(getPost)
     .put(basicAuth, uploadFile.array('files'), updatePost)
     .delete(basicAuth, deletePost)
 
