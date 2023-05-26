@@ -96,7 +96,7 @@ const getPosts = asyncWrapper(async (req, res, next) => {
         // group: ['Ksocial.id', 'Brand.id'],
     });
 
-    const response = getPagingData(posts, page, limit);
+    const response = getPagingData(posts, page, limit, 'posts');
 
     res.status(200).json({
         success: true,
