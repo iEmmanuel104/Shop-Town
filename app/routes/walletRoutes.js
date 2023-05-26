@@ -5,6 +5,7 @@ const { basicAuth } = require('../middlewares/authWares')
 const {
     fundWallet,
     getWalletTransactions,
+    validateWalletFund,
     getWalletBalance,
     getWallet,
     getWallets,
@@ -29,7 +30,7 @@ router.route('/balance')
 router.route('/:id')
     .get(basicAuth, getWallet)
 
-router.route('/receipt/:id')
+router.route('/receipt/:transactionId')
     .get(basicAuth, generatereceipt)
 
 router.route('/payout/banks')
@@ -45,6 +46,9 @@ router.route('/payout')
     .post(basicAuth, walletPayout)
 
 router.route('/flutterwave/callback')
-    .post(flutterwavecallback)
+    .post(flutterwavecallback) 
+
+router.route('/validate')
+    .post(basicAuth, validateWalletFund)
 
 module.exports = router

@@ -1,4 +1,5 @@
 const multer = require("multer");
+const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/customErrors');
 
 const fileFilter = (req, file, cb) => {
   if (

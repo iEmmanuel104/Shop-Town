@@ -104,11 +104,10 @@ const FlutterwaveTransferfee = async (details) => {
         const response = await flw.Transfer.fee({
             "amount": details.amount,
             "currency": 'NGN',
-            "type": "account"
         });
         return response.data;
     } catch (error) {
-        throw new BadRequestError('Error transferring payment: ' + error.message);
+        throw new BadRequestError('Error getting transfer fee: ' + error.message);
     }
 };
 
@@ -137,11 +136,47 @@ const FlutterwavePayout = async (details) => {
         account_number: details.accountNumber,
         amount: details.amount,
         currency: "NGN",
+        debit_currency: "NGN",
         narration: details.narration,
-        reference: generateTransactionReference(),
+        reference: details.reference,
+        // callback_url: 'https://891e-102-89-22-59.ngrok-free.app/wallet/flutterwave/callback'
     };
-    const response = flw.Transfer.initiate(detailss)
-    if (response.data.status === "successful") {
+
+
+
+
+    // var options = {
+    //     'method': 'POST',
+    //     'url': 'https://api.flutterwave.com/v3/transfers',
+    //     'headers': {
+    //         'Content-Type': 'application/json',
+    //         'Authorization': `Bearer ${FLW_SECRET_KEY}`
+    //         // 'Authorization': 'Bearer FLWSECK_TEST-524b5ca50966cff5b5afc9729dcdd31e-X'
+    //     },
+    //     body: JSON.stringify({
+    //         "account_bank": details.bankCode,
+    //         "account_number": details.accountNumber,
+    //         "amount": details.amount,
+    //         "currency": "NGN",
+    //         "debit_currency": "NGN",
+    //         "narration": details.narration,
+    //         "reference": details.reference,
+    //         // "callback_url": 'https://891e-102-89-22-59.ngrok-free.app/wallet/flutterwave/callback'
+    //     })
+
+    // };
+    // return new Promise((resolve, reject) => {
+    //     request(options, function (error, response) {
+    //         if (error) {
+    //             reject(error);
+    //         } else {
+    //             resolve(JSON.parse(response.body));
+    //         }
+    //     });
+    // });
+    const response = await flw.Transfer.initiate(detailss)
+    console.log(response)
+    if (response.status === "successful") {
         console.log('Transfer Queued successfully')
         // store data.id in db
         console.log(response.data)

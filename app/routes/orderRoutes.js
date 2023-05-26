@@ -20,7 +20,7 @@ router.route('/:id')
     .get(basicAuth, getOrder)
     .delete(basicAuth, deleteOrder)
 
-router.route('/validate/:tx_ref/:transaction_id')
+router.route('/validate')
     .post(basicAuth, validateOrderPayment)
     
 

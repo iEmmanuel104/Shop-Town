@@ -44,7 +44,7 @@ const fundWallet = asyncWrapper(async (req, res, next) => {
             email: userInfo.email,
             phone: userInfo.phone,
             fullName: userInfo.fullName,
-            tx_ref: `WalletFund-${transaction.id}`,
+            tx_ref: `WalletFund_${transaction.id}`,
         }
         const link = await FlutterwavePay(paydetails);
         console.log("return from flutterwave", link.data.link);
@@ -53,7 +53,7 @@ const fundWallet = asyncWrapper(async (req, res, next) => {
         // await Wallet.increment('amount', {
         //     by: amount,
         //     where: { id: wallet.id },
-        // });
+        // }); status=successful&tx_ref=WalletFund-27aca5c3-5f06-438f-90a2-14688cf4413c&transaction_id=4349800
 
         res.status(200).json({
             success: true,
@@ -66,31 +66,33 @@ const fundWallet = asyncWrapper(async (req, res, next) => {
 const validateWalletFund = asyncWrapper(async (req, res, next) => {
     const decoded = req.decoded;
     const userId = decoded.id;
-    const { tx_ref, transaction_id, status } = req.body;
+    const { tx_ref, transaction_id, status } = req.query;
 
-    const transaction = await WalletTransaction.findOne({ where: { id: tx_ref.split('-')[1] } });
+    const transaction = await WalletTransaction.findOne({ where: { id: tx_ref.split('_')[1] } });
     if (!transaction) {
         throw new NotFoundError('Transaction not found');
     }
     if (transaction.status === 'success') {
         throw new BadRequestError('Transaction already validated');
     }
-    let details = { transactionId: transaction_id, expectedAmount: req.body.amount }
+    let details = { transactionId: transaction_id}
     let validtrx, message;
+    console.log('hererererer')
     await sequelize.transaction(async (t) => {
 
         if (status === 'successful') {
             validtrx = await validateFlutterwavePay(details);
+            console.log("return from flutterwave", validtrx);
             // Increase the wallet balance
             await Wallet.increment('amount', {
                 by: transaction.amount,
                 where: { id: transaction.walletId },
             });
             // Update the transaction status
-            await WalletTransaction.update({ status: 'success', transactionId: transaction_id }, { where: { id: transaction.id } });
+            await WalletTransaction.update({ status: 'success', reference: transaction_id }, { where: { id: transaction.id } });
             message = 'Wallet fund validated successfully';
         } else {
-            await WalletTransaction.update({ status: 'failed', transactionId: transaction_id }, { where: { id: transaction.id } });
+            await WalletTransaction.update({ status: 'failed', reference: transaction_id }, { where: { id: transaction.id } });
             message = 'Wallet fund validation failed';
         }
 
@@ -108,7 +110,7 @@ const getWalletTransactions = asyncWrapper(async (req, res, next) => {
     const transactions = await WalletTransaction.findAll({
         where: { walletId: wallet.id },
         order: [['createdAt', 'DESC']],
-        group: [sequelize.literal('DATE_TRUNC(\'month\', "createdAt")')],
+        // group: [sequelize.literal('DATE_TRUNC(\'month\', "createdAt")')],
     });
 
     res.status(200).json({ success: true, message: 'Wallet transactions fetched successfully', data: { transactions } });
@@ -173,18 +175,18 @@ const generatereceipt = asyncWrapper(async (req, res, next) => {
 
 const getallPayoutBanks = asyncWrapper(async (req, res, next) => {
    const banks = await getflutterwavepayoutbanks();
-    res.status(200).json({ success: true, message: 'Banks fetched successfully', data: { banks } });
+    res.status(200).json({ success: true, message: 'Banks fetched successfully', data:  banks  });
 });
 
 const getpayoutfee = asyncWrapper(async (req, res, next) => {
-    const { amount } = req.body;
+    const { amount } = req.query;
     const details = { amount: parseInt(amount) }
     const fee = FlutterwaveTransferfee(details);
     res.status(200).json({ success: true, message: 'Fee fetched successfully', data: { fee } });
 });
 
 const checkTransferStatus = asyncWrapper(async (req, res, next) => {
-    const { transferId } = req.body;
+    const { transferId } = req.query;
     const details = { transferId }
     const status = await FlutterwaveTransferStatus(details);
     res.status(200).json({ success: true, message: 'Transfer status fetched successfully', data: { status } });
@@ -198,8 +200,9 @@ const walletPayout = asyncWrapper(async (req, res, next) => {
     if (!wallet) {
         throw new NotFoundError('Wallet not found');
     }
-    const fee = await FlutterwaveTransferfee(details);
-    const totalAmount = parseInt(amount) + parseInt(fee);
+    // const detailss = { amount: parseInt(amount)}
+    // const fee = (await FlutterwaveTransferfee(detailss)) ? (await FlutterwaveTransferfee(detailss)) : 0;
+    const totalAmount = parseInt(amount) //+ parseInt(fee);
     if (wallet.amount < totalAmount) {
         throw new BadRequestError('Insufficient wallet balance');
     }
@@ -208,8 +211,11 @@ const walletPayout = asyncWrapper(async (req, res, next) => {
         bankCode, 
         accountNumber,
         narration: 'Wallet payout',
+        reference: `WalletPayout_${wallet.id}`,
     }
+    // console.log(details)
     const transfer = await FlutterwavePayout(details);
+    console.log(transfer)
     let message;
     await sequelize.transaction(async (t) => {
     if (transfer.status === 'success') {
@@ -225,7 +231,7 @@ const walletPayout = asyncWrapper(async (req, res, next) => {
                 amount: totalAmount,
                 status: 'pending',
                 description: 'Wallet payout',
-                reference: transfer.id,
+                reference: details.reference,
             });
             message = `Wallet payout initiated:${transfer.message}`;
         } else if (transfer.status === 'error') {
@@ -235,7 +241,7 @@ const walletPayout = asyncWrapper(async (req, res, next) => {
                 amount: totalAmount,
                 status: 'failed',
                 description: 'Wallet payout',
-                reference: transfer.id,
+                reference: details.reference,
             });
             message = `Wallet payout failed:${transfer.message}`;
         }
@@ -244,6 +250,7 @@ const walletPayout = asyncWrapper(async (req, res, next) => {
 });
 
 const flutterwavecallback = asyncWrapper(async (req) => {
+    console.log(req)
     console.log(req.body);
 });
 

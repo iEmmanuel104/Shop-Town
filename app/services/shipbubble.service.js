@@ -246,11 +246,41 @@ const getshippingboxes = async () => {
     }
 }
 
+const createshipment = async (details) => {
+    let data = JSON.stringify({
+        "request_token": details.request_token,
+        "service_code": details.service_code,
+        "courier_id": details.courier_id,
+    });
 
+    let config = {
+        method: 'post',
+        maxBodyLength: Infinity,
+        url: 'https://api.shipbubble.com/v1/shipping/labels',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer sb_sandbox_d1736e48887d79f702c29800aa85f858078618ad20679b2a54f46d604d655763',
+            'Cookie': 'connect.sid=s%3Ag3JurJ5tS6rqUKrKuiUHBW8LM_YpI5hV.mXjdY0E3AqfZ8EeAdbNSrAB%2BnsMyO%2BYKVdTzVIGP80Y'
+        },
+        data: data
+    };
+
+    try {
+        const response = await axios.request(config);
+        console.log(response.data);
+        const requestobject = {
+        }
+        return response.data.data;
+    } catch (error) {
+        console.log(error.response.data);
+        throw new BadRequestError('Error creating shipment');
+    }
+}
 
 module.exports = {
     validateAddress,
     getShippingRates,
     getshippingcategories,
-    getshippingboxes
+    getshippingboxes,
+    createshipment
 }

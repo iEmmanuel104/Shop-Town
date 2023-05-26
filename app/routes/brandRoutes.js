@@ -1,6 +1,8 @@
 const express = require('express')
 const router = express.Router()
 const {basicAuth} = require('../middlewares/authWares')
+const uploadFile = require('../middlewares/multerobject')
+
 
 const {
     createBrand,
@@ -18,7 +20,7 @@ const {
 router.post('/', basicAuth, createBrand);
 router.get('/', getBrands);
 router.get('/:id', getBrand);
-router.put('/update/:id', basicAuth, updateBrand);
+router.put('/update/:id', basicAuth, uploadFile.single('file'), updateBrand);
 router.delete('/delete/:id', basicAuth, deleteBrand);
 router.get('/staff/:id', basicAuth, getBrandStaff);
 router.post('/discount/:id', basicAuth, AddStoreDiscount);

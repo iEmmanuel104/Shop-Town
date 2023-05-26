@@ -72,10 +72,19 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false
         },
         status: {
-            type: DataTypes.ENUM(["pending", "processing", "completed", "cancelled"]),
-            defaultValue: "pending",
+            type: DataTypes.STRING,
+            defaultValue: "pending", //pending, confirmed, picked_up, in_transit, completed, cancelled
             allowNull: false
         },
+        shippingReference: {
+            type: DataTypes.STRING, // id from shipbubble
+            allowNull: true
+        },
+        trackingUrl: {
+            type: DataTypes.STRING, // url from shipbubble
+            allowNull: true
+        },
+
     }, {
         tableName: 'ShipbubbleOrder',
         timestamps: true,
@@ -119,7 +128,7 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false
         },
         refId: {
-            type: DataTypes.STRING,
+            type: DataTypes.STRING, // id for order, wallet
             allowNull: true
         },
         amount: {
@@ -127,9 +136,9 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false
         },
         paymentReference: {
-            type: DataTypes.STRING,
+            type: DataTypes.STRING, // id from flutterwave
             allowNull: true
-        }
+        },
     }, {
         tableName: 'Payment',
         timestamps: true,

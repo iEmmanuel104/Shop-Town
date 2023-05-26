@@ -1,8 +1,9 @@
-const { Product, User, Order, Brand, Category, Cart, ShipbubbleOrder, DeliveryAddress, Payment } = require('../../models');
+const { Product, User, Order, Brand, Category, Cart, ShipbubbleOrder, DeliveryAddress, Payment, Wallet, WalletTransaction } = require('../../models');
 require('dotenv').config();
 const { sequelize, Sequelize } = require('../../models');
 const asyncWrapper = require('../middlewares/async');
 const { FlutterwavePay, validateFlutterwavePay } = require('../services/flutterwave.service');
+const { createshipment } = require('../services/shipbubble.service');
 const { KSECURE_FEE } = require('../utils/configs');
 // const queryString = require('query-string');
 // const validator = require('validator');
@@ -22,6 +23,7 @@ const createOrder = asyncWrapper(async (req, res, next) => {
         const { shipping_method, storeId, option } = req.body;
         const cart = await Cart.findOne({ where: { userId } });
         let shippingMethod = { type: shipping_method }
+        // cartdetails for order
         let cartdetails = {
             items: cart.items,
             totalAmount: cart.totalAmount,
@@ -40,6 +42,8 @@ const createOrder = asyncWrapper(async (req, res, next) => {
         let order, socials, kship_order, shippingObject, returnobject;
 
         socials = store.socials;
+
+        // create order
         order = await Order.create({
             userId,
             shippingMethod,
@@ -49,7 +53,7 @@ const createOrder = asyncWrapper(async (req, res, next) => {
 
         const orderobj = {
             orderId: order.id,
-            orderstatus: order.status,  
+            orderstatus: order.status,
             orderdate: order.createdAt,
             orderamount: order.cartdetails.totalAmount,
             userId: order.userId,
@@ -69,7 +73,7 @@ const createOrder = asyncWrapper(async (req, res, next) => {
         returnobject = {
             order: orderobj,
             socials,
-        } 
+        }
 
         let paymentamt = parseFloat(cart.totalAmount);
 
@@ -82,7 +86,7 @@ const createOrder = asyncWrapper(async (req, res, next) => {
             paymentamt = paymentamt + parseFloat(cart.checkoutData.cheapest_courier.total);
         } else if (shipping_method === 'ksecure') {
             kship_order = await ShipbubbleOrder.create({
-                ...shippingObject, 
+                ...shippingObject,
                 isKSecure: true,
                 kSecureFee: parseFloat(KSECURE_FEE),
             }, { transaction: t });
@@ -93,7 +97,8 @@ const createOrder = asyncWrapper(async (req, res, next) => {
         } else {
             throw new BadRequestError('Invalid shipping method');
         }
-        // ======= HERE UNCOMMENT BELOW =======
+
+
         if (kship_order && kship_order.requestToken) {
             const paydetails = {
                 amount: parseFloat(paymentamt),
@@ -112,15 +117,41 @@ const createOrder = asyncWrapper(async (req, res, next) => {
 
             if (option === 'CARD') {
                 const link = await FlutterwavePay(paydetails);
-                console.log("return from flutterwave",link.data.link);
-                returnobject.paymentLink = link.data.link; 
-            } else {
+                console.log("return from flutterwave", link.data.link);
+                returnobject.paymentLink = link.data.link;
+                await Payment.create({
+                    refId: order.id,
+                    amount: paymentamt,
+                    paymentMethod: "CARD"
+                }, { transaction: t });
+            } else if (option === 'KCREDIT') {
                 // pay with wallet
+                const wallet = await Wallet.findOne({ where: { userId } });
+                if (!wallet) {
+                    throw new NotFoundError('Wallet not found');
+                }
+                if (wallet.amount < paymentamt) {
+                    throw new BadRequestError('Insufficient wallet balance');
+                }
+                await WalletTransaction.create({
+                    walletId: wallet.id,
+                    amount: paymentamt,
+                    reference: `KCREDIT_${order.id}`,
+                    status: 'success',
+                    type: 'debit',
+                    description: 'Payment for order',
+                }, { transaction: t });
+                await Wallet.decrement('amount', { by: paymentamt, where: { id: wallet.id }, transaction: t });
+                await Order.update({ status: 'completed' }, { where: { id: order.id }, transaction: t });
+                await Payment.create({ refId: order.id, amount: paymentamt, paymentMethod: "KCREDIT" }, { transaction: t });
             }
         }
         // add payment amount to return object
         returnobject.paymentAmount = paymentamt;
         // const orderInfo = await Order.scope('includeStore').findOne({ where: { id: order.id } });
+
+        // await Cart.destroy({ where: { userId }, transaction: t });
+
 
         res.status(200).json({
             success: true,
@@ -172,48 +203,72 @@ const deleteOrder = asyncWrapper(async (req, res) => {
     })
 })
 
-// Payment aspect of orders
+// Payment aspect of orders for flutterwave
 const validateOrderPayment = asyncWrapper(async (req, res) => {
     const decoded = req.decoded;
     const userId = decoded.id;
-    const { tx_ref, transaction_id } = req.params;
-    const { status, amount } = req.query;
+    console.log(userId)
+    const { tx_ref, transaction_id, status } = req.query;
+    console.log(tx_ref.split('_')[1])
     const order = await Order.findOne({ where: { id: tx_ref.split('_')[1], userId } });
     if (!order) {
         throw new NotFoundError('Order not found');
     }
-    if (order.status === 'completed') {
-        throw new BadRequestError('Order already paid for');
-    }
-    let payobj = {
-        paymentMethod: 'CARD',
-        paymentReference: transaction_id,
-        refId: order.id,
-    }
+    // if (order.status === 'completed') {
+    //     throw new BadRequestError('Order already paid for');
+    // }
+    const paymentt = await Payment.findOne({ where: { refId: order.id } });
+
     let validtrx;
     await sequelize.transaction(async (t) => {
-    if (status === 'successful') {
-        let details = { transactionId: transaction_id}
-        validtrx = await validateFlutterwavePay(details);
-        payobj.amount = validtrx.amount;
-        payobj.paymentStatus = 'paid';
-         await Payment.create({ ...payobj }, { transaction: t });
-        if (order.shippingMethod === 'kship' || order.shippingMethod === 'ksecure') {
-            const kship_order = await ShipbubbleOrder.findOne({ where: { orderId: order.id } });
-            await kship_order.update({ status: 'processing' }, { transaction: t });
-        }
-    } else {
-        payobj.amount = amount;
-        payobj.paymentStatus = 'failed';
-        await Payment.create({ ...payobj }, { transaction: t });
-    }
+        if (status === 'successful') {
+            let details = { transactionId: transaction_id }
+            validtrx = await validateFlutterwavePay(details);
+            await Payment.update({
+                paymentStatus: 'paid',
+                paymentReference: transaction_id,
+                amount: validtrx.amount === paymentt.amount ?  paymentt.amount : validtrx.amount
+            }, { where: { refId: order.id }, transaction: t });
+            await Order.update({ status: 'completed' }, { where: { id: order.id }, transaction: t });
+            if (order.shippingMethod === 'kship' || order.shippingMethod === 'ksecure') {
+                const kship_order = await ShipbubbleOrder.findOne({ where: { orderId: order.id } });
+                await kship_order.update({ status: 'processing' }, { transaction: t });
+            }
 
-    let message;
-    if (amount !== validtrx.amount) {
-        message = 'Payment amount does not match order amount';
-    } else {
-        message = 'Order payment validated successfully';
-    }
+            const shipbubbledetails = await ShipbubbleOrder.findOne({ where: { orderId: order.id },
+                attributes: ['requestToken', 'serviceCode', 'courierId', 'status', 'deliveryFee'] });
+
+            // shipment request to kship
+            const {order_id, status,payment, tracking_url} = await createshipment({
+                request_token: shipbubbledetails.requestToken,
+                service_code: shipbubbledetails.serviceCode,
+                courier_id: shipbubbledetails.courierId,
+            });
+
+            console.log(order_id, status, payment, tracking_url)
+
+            await ShipbubbleOrder.update({
+                status: status,
+                deliveryFee: payment.shipping_fee = shipbubbledetails.deliveryFee ? shipbubbledetails.deliveryFee : payment.shipping_fee,
+                shippingReference: order_id,
+                trackingUrl: tracking_url
+            }, { where: { orderId: order.id }, transaction: t });
+
+        } else {
+            await Payment.update({
+                paymentStatus: 'failed',
+                paymentReference: transaction_id,
+                amount: validtrx.amount === paymentt.amount ?  paymentt.amount : validtrx.amount
+            }, { where: { refId: order.id }, transaction: t });
+        }
+
+        let message;
+        console.log(validtrx.amount, paymentt.amount)
+        if (paymentt.amount !== validtrx.amount) {
+            message = 'Payment amount does not match order amount';
+        } else {
+            message = 'Order payment validated successfully';
+        }
 
         // send order request notification to seller
 
@@ -226,7 +281,7 @@ const validateOrderPayment = asyncWrapper(async (req, res) => {
     })
 
 });
-        
+
 
 // tx_ref=Klickorder_e169c91c-add9-41fb-8f3b-c4ad808360c0&transaction_id=4346320
 

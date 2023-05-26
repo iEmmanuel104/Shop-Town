@@ -97,6 +97,11 @@ const updateBrand = asyncWrapper(async (req, res, next) => {
 
         console.log(addressdetails)
 
+        let url;
+        if (req.file) {
+            url = await uploadSingleFile(req.file, details)
+        }
+
         const detailss = {
             name: brand.name,
             email: user.email,
@@ -111,6 +116,7 @@ const updateBrand = asyncWrapper(async (req, res, next) => {
         Daddress.country = country;
         Daddress.postal = postal;
         Daddress.addressCode = address_code;
+        Daddress.logo = url ? url : Daddress.logo;
 
         await Daddress.save({ transaction: t });
 
