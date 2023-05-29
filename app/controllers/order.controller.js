@@ -229,7 +229,10 @@ const validateOrderPayment = asyncWrapper(async (req, res) => {
                 paymentReference: transaction_id,
                 amount: validtrx.amount === paymentt.amount ?  paymentt.amount : validtrx.amount
             }, { where: { refId: order.id }, transaction: t });
+
             await Order.update({ status: 'completed' }, { where: { id: order.id }, transaction: t });
+
+
             if (order.shippingMethod === 'kship' || order.shippingMethod === 'ksecure') {
                 const kship_order = await ShipbubbleOrder.findOne({ where: { orderId: order.id } });
                 await kship_order.update({ status: 'processing' }, { transaction: t });
@@ -239,7 +242,7 @@ const validateOrderPayment = asyncWrapper(async (req, res) => {
                 attributes: ['requestToken', 'serviceCode', 'courierId', 'status', 'deliveryFee'] });
 
             // shipment request to kship
-            const {order_id, status,payment, tracking_url} = await createshipment({
+            const {order_id, status, payment, tracking_url} = await createshipment({
                 request_token: shipbubbledetails.requestToken,
                 service_code: shipbubbledetails.serviceCode,
                 courier_id: shipbubbledetails.courierId,
@@ -255,6 +258,7 @@ const validateOrderPayment = asyncWrapper(async (req, res) => {
             }, { where: { orderId: order.id }, transaction: t });
 
         } else {
+
             await Payment.update({
                 paymentStatus: 'failed',
                 paymentReference: transaction_id,
@@ -269,6 +273,8 @@ const validateOrderPayment = asyncWrapper(async (req, res) => {
         } else {
             message = 'Order payment validated successfully';
         }
+
+        // 
 
         // send order request notification to seller
 

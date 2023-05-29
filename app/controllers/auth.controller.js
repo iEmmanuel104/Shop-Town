@@ -237,7 +237,18 @@ const signIn = asyncWrapper(async (req, res, next) => {
     user.status = "ACTIVE"
     await user.save()
 
-    const { access_token, refresh_token } = await issueToken(user.id)
+    let tokens;
+    // check if the user has a store 
+    const brands = await user.getBrands()
+    if (brands.length > 0) {
+        user.vendorMode = true
+        tokens = await issueToken(user.id, brands[0].id)
+        await user.save()
+    } else {
+         tokens = await issueToken(user.id)
+    }
+
+    const { access_token, refresh_token } = tokens
 
     res.status(200).json({
         success: true,
@@ -456,6 +467,10 @@ const RegisterStore = asyncWrapper(async (req, res, next) => {
     const user = await User.findByPk(decoded.id)
     if (!user) return next(new BadRequestError('Invalid user'))
     // if (decoded.vendorMode === false) return next(new BadRequestError('please switch to seller mode'))
+
+    // CHECK IF USER HAS A STORE
+    const hasStore = await user.getBrands()
+    if (hasStore.length > 0) return next(new BadRequestError('User already has a store'))
 
     const details = {
         user: user.id,
