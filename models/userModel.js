@@ -129,6 +129,10 @@ module.exports = (sequelize, DataTypes) => {
         },
         name: {
             type: DataTypes.STRING,
+            unique: {
+                args: true,
+                msg: 'Store name already in use!'
+            },
             allowNull: false
         },
         socials: {
@@ -138,6 +142,10 @@ module.exports = (sequelize, DataTypes) => {
         },
         businessPhone: {
             type: DataTypes.BIGINT,
+            unique: {
+                args: true,
+                msg: 'Phone number already in use!'
+            },
             allowNull: false
         },
         industry: {

@@ -42,3 +42,5 @@ appengine_config.py
 
 # removing migrations from version control
 migrations/
+
+app/cloudkeys

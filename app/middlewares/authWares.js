@@ -25,5 +25,26 @@ const basicAuth = asyncWrapper(async (req, res, next) => {
     
 })
 
-module.exports = { basicAuth }
+const authenticate =  async (socket) => {
+    try {
+        const token = socket.handshake.query?.access_token;
+        if (!token) {
+            throw new Error('Authentication token not provided')
+        }
+
+        const decoded = await decodeJWT(token);
+        const user_doc = await User.findByPk(decoded.id)
+
+        socket.user = user_doc;
+
+        return socket
+    } catch (err) {
+        console.log(err)
+        return err
+    }
+}
+
+
+
+module.exports = { basicAuth, authenticate }
 

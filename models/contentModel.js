@@ -16,6 +16,23 @@ module.exports = (sequelize, DataTypes) => {
         posttype: {
             type: DataTypes.ENUM('ksocial', 'status'),
             defaultValue: 'ksocial',
+        },
+        likesCount: {
+            type: DataTypes.VIRTUAL,
+            get() {
+                // RETURN all the post activities with like = true
+                return this.postActivities.filter((activity) => activity.like === true)
+                    .length;            }
+        },
+        commentsCount: {
+            type: DataTypes.VIRTUAL,
+            get() {
+                // Return all the comments when comment is not null
+                return this.postActivities.filter(
+                    (activity) =>
+                        activity.comment !== null && activity.comment !== ""
+                ).length;
+            }
         }
     }, {
         tableName: 'Ksocial',

@@ -1,13 +1,18 @@
 module.exports = (sequelize, DataTypes) => {
-    const { User, Brand } = require('./userModel')(sequelize, DataTypes);
-    const ChatRoom = sequelize.define('ChatRoom', {
+    const { User } = require('./userModel')(sequelize, DataTypes);
+    const { Brand } = require('./userModel')(sequelize, DataTypes);
 
+    const ChatRoom = sequelize.define('ChatRoom', {
+        id: {
+            type: DataTypes.UUID,
+            defaultValue: DataTypes.UUIDV4,
+            primaryKey: true,
+        },
         userId: {
             type: DataTypes.UUID,
-            primaryKey: true,
             references: {
                 model: User,
-                key: 'id'
+                key: 'id' 
             }
         },
         storeId: {
@@ -26,8 +31,8 @@ module.exports = (sequelize, DataTypes) => {
     const Message = sequelize.define('Message', {
         id: {
             type: DataTypes.UUID,
+            defaultValue: DataTypes.UUIDV4,
             primaryKey: true,
-            autoIncrement: true
         },
         senderId: {
             type: DataTypes.UUID,

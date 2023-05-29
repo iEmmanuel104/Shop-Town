@@ -9,7 +9,7 @@ const errorHandler = require("../middlewares/error-handler");
 const issueToken = async (userid, storeId) => {
     try {
         const this_user = await User.findByPk(userid)
-        if (!this_user) return next(new BadRequestError('Invalid user'))
+        if (!this_user) throw new BadRequestError('Invalid user')
         const payload = {
             id: this_user.id,
             fullName: this_user.fullName,
@@ -28,7 +28,6 @@ const issueToken = async (userid, storeId) => {
         return { access_token, refresh_token }
     } catch (error) {
         throw new Error(error);
-
     }
 };
 

@@ -42,6 +42,10 @@ API_URL = process.env.API_URL,
 // KSECURE FEE
 KSECURE_FEE = process.env.KSECURE_FEE
 
+// TWILIO CONFIGS
+TWILIO_ACCOUNT_SID = process.env.TWILIO_ACCOUNT_SID,
+TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN
+
 module.exports = {
     refreshTokenExpiry,
     accessTokenExpiry,
@@ -67,7 +71,9 @@ module.exports = {
     FACEBOOK_APP_ID,
     FACEBOOK_APP_SECRET,
     API_URL,
-    KSECURE_FEE
+    KSECURE_FEE,
+    TWILIO_ACCOUNT_SID,
+    TWILIO_AUTH_TOKEN
 }
 
     

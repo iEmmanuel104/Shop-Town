@@ -77,24 +77,22 @@ const getPosts = asyncWrapper(async (req, res, next) => {
             'posttype',
             'contentUrl',
             'createdAt',
-
+            'likesCount',
+            'commentsCount',
         ],
         include: [
             {
                 model: Brand,
                 attributes: ['id', 'name', 'logo'],
             },
-            {
-                model: PostActivity,
-                as: 'postActivities',
-                // attributes: [
-                //     [sequelize.literal("SUM(CASE WHEN \"postActivities\".\"like\" = true THEN 1 ELSE 0 END)"), 'totalLikes'],
-                //     [sequelize.fn('COUNT', sequelize.col('postActivities.comment')), 'totalComments'],
-                // ],
-            },
+            // {
+            //     model: PostActivity,
+            //     as: 'postActivities',
+            // },
         ],
-        // group: ['Ksocial.id', 'Brand.id'],
     });
+
+    // delete posts.rows.postActivities;
 
     const response = getPagingData(posts, page, limit, 'posts');
 
@@ -108,7 +106,7 @@ const getPosts = asyncWrapper(async (req, res, next) => {
 
 const getPost = asyncWrapper(async (req, res, next) => {
     const post = await Ksocial.findByPk(req.params.id, {
-        attributes: ['id', 'caption', 'posttype', 'contentUrl', 'createdAt'],
+        attributes: ['id', 'caption', 'posttype', 'contentUrl', 'createdAt', 'likesCount', 'commentsCount'],
         include: [
             {
                 model: Brand,
@@ -116,11 +114,8 @@ const getPost = asyncWrapper(async (req, res, next) => {
             },
             {
                 model: PostActivity,
-                attributes: ['id',
-                    'userId', 'like', 'comment',
-                    [sequelize.literal("SUM(CASE WHEN `PostActivity`.`like` = true THEN 1 ELSE 0 END)"), 'totalLikes'],
-                    [sequelize.fn('COUNT', sequelize.col('PostActivity.comment')), 'totalComments']
-                ],
+                as: 'postActivities',
+                attributes: ['id', 'userId', 'like', 'comment', 'createdAt', 'updatedAt'],
                 include: [
                     {
                         model: User,
@@ -197,18 +192,18 @@ const addPostActivity = asyncWrapper(async (req, res, next) => {
     });
 
     let message;
-
+    newlike = like ? 'true' : 'false';  
     if (!activity) {
         await PostActivity.create({
-            ksocialId: req.params.id,
+            KsocialId: req.params.id,
             userId,
-            like: like ? like : false,
+            like: newlike,
             comment: comment ? comment : null,
         });
         message = 'Post activity added successfully';
     } else {
         await activity.update({
-            like: like ? like : activity.like,
+            like: newlike,
             comment: comment ? comment : activity.comment,
         });
         message = 'Post activity updated successfully';

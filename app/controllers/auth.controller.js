@@ -1,8 +1,8 @@
-const { User, Token, Password, BlacklistedTokens, Brand, DeliveryAddress } = require ('../../models');
+const { User, Token, Password, BlacklistedTokens, Brand, DeliveryAddress } = require('../../models');
 const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/customErrors');
 const { uploadSingleFile } = require('../services/imageupload.service');
 const { LOGO } = require('../utils/configs');
-const {generateWallet} = require('../services/wallet.service');
+const { generateWallet } = require('../services/wallet.service');
 const { sequelize, Sequelize } = require('../../models');
 require('dotenv').config();
 const asyncWrapper = require('../middlewares/async');
@@ -12,39 +12,46 @@ const { issueToken, decodeJWT } = require('../services/auth.service');
 const { validateAddress } = require('../services/shipbubble.service');
 
 const SignUp = asyncWrapper(async (req, res, next) => {
-    const {  email, firstName, lastName, phone, password } = req.body;
-    if ( !email | !firstName | !lastName )  return next(new BadRequestError('Please fill all required fields'));
+    await sequelize.transaction(async (t) => {
+        const { email, firstName, lastName, phone, password } = req.body;
+        if (!email | !firstName | !lastName) return next(new BadRequestError('Please fill all required fields'));
 
-    const user = await User.create({
-        email,
-        firstName,
-        lastName,
-        terms: "on", 
-        role: "guest",
-        phone
+        const user = await User.create({
+            email,
+            firstName,
+            lastName,
+            terms: "on",
+            role: "guest",
+            phone
+        });
+
+        if (!user) return next(new BadRequestError('User not created'));
+
+        let code = await generateCode()
+
+        await Token.create({ userId: user.id, verificationCode: code }, { transaction: t })
+
+        await Password.create({ id: user.id, password: password }, { transaction: t })
+
+        let options = {
+            email: user.email,
+            phone: user.phone,
+        }
+
+        await sendverificationEmail(options, code)
+
+        const { access_token } = await issueToken(user.id)
+
+        res.status(201).json({
+            success: true,
+            message: 'User created successfully, check your email for verification code',
+            access_token
+        });
     });
-
-    if (!user) return next(new BadRequestError('User not created'));
-
-    let code = await generateCode()
-
-    await Token.create({ userId: user.id, verificationCode: code })    
-
-    await Password.create({ id: user.id, password: password })
-
-    await sendverificationEmail(user.email, code)
-
-    const {access_token} = await issueToken(user.id)
-
-    res.status(201).json({
-        success: true,
-        message: 'User created successfully, check your email for verification code',
-        access_token
-    });
-}); 
+});
 
 const verifyEmail = asyncWrapper(async (req, res, next) => {
-    const { code } = req.body 
+    const { code } = req.body
 
     const decoded = req.decoded
     if (decoded.isActivated) return next(new BadRequestError('User already verified'))
@@ -64,12 +71,12 @@ const verifyEmail = asyncWrapper(async (req, res, next) => {
     user.isActivated = true
     await user.save()
     const walleti = {
-        id : user.id,
+        id: user.id,
         type: 'customer'
     }
     const wallet = await generateWallet(walleti)
 
-    console.log ('User Wallet Generated', wallet)
+    console.log('User Wallet Generated', wallet)
     await token.destroy()
 
     res.status(200).json({
@@ -83,7 +90,7 @@ const resendVerificationCode = asyncWrapper(async (req, res, next) => {
     const decoded = req.decoded
     console.log('decoded', decoded)
     const userId = decoded.id
-    
+
     if (decoded.isActivated) return next(new BadRequestError('User already verified'))
 
     const user = await User.findByPk(userId)
@@ -94,7 +101,11 @@ const resendVerificationCode = asyncWrapper(async (req, res, next) => {
     console.log('verifycode', code)
 
     await Token.create({ userId: user.id, verificationCode: code })
-    await sendverificationEmail(user.email, code)
+    let options = {
+        email: user.email,
+        phone: user.phone,
+    }
+    await sendverificationEmail(options, code)
     console.log('verification email sent')
 
     res.status(200).json({
@@ -121,29 +132,29 @@ const profileOnboarding = asyncWrapper(async (req, res, next) => {
     user.address = location
     await user.save()
 
-    const addressdetails = location + ','+ req.body.city + ',' + req.body.state + ',' + req.body.country,
-    details = {
-        name: user.firstName + ' ' + user.lastName,
-        email: user.email,
-        phone: user.phone,
-        address: addressdetails,
-    }
+    const addressdetails = location + ',' + req.body.city + ',' + req.body.state + ',' + req.body.country,
+        details = {
+            name: user.firstName + ' ' + user.lastName,
+            email: user.email,
+            phone: user.phone,
+            address: addressdetails,
+        }
     const address_code = await validateAddress(details)
     // create new address in address table
-    await DeliveryAddress.create({ 
-        userId, 
+    await DeliveryAddress.create({
+        userId,
         address: location,
         city: req.body.city,
         state: req.body.state,
         country: req.body.country,
         phone: req.body.phone ? user.phone : user.phone,
         addressCode: address_code,
-        isDefault: true 
+        isDefault: true
     })
 
-     res.status(200).json({ 
+    res.status(200).json({
         success: true,
-        message: 'User profile onboarding successful',  
+        message: 'User profile onboarding successful',
     });
 });
 
@@ -165,7 +176,7 @@ const forgotPassword = asyncWrapper(async (req, res, next) => {
     console.log('verifycode', code)
 
     await Token.create({ userId: user.id, verificationCode: code })
-    await sendForgotPasswordEmail (user.email, code)
+    await sendForgotPasswordEmail(options, code)
 
     const { access_token } = await issueToken(user.id)
 
@@ -184,7 +195,7 @@ const resetPassword = asyncWrapper(async (req, res, next) => {
 
     const decoded = req.decoded
     const userId = decoded.id
-    
+
     const user = await User.findByPk(userId)
     if (!user) return next(new BadRequestError('Invalid user'))
 
@@ -193,7 +204,7 @@ const resetPassword = asyncWrapper(async (req, res, next) => {
     if (!haspassword) return next(new BadRequestError('User has no prior password set'))
     haspassword.password = password
     await haspassword.save()
-    
+
     // blacklist token
     await BlacklistedTokens.create({ token })
 
@@ -206,9 +217,9 @@ const resetPassword = asyncWrapper(async (req, res, next) => {
 const signIn = asyncWrapper(async (req, res, next) => {
     const { password } = req.body;
 
-    const data = req.body.email ? { email: req.body.email } 
-                : req.body.phone ? { phone: req.body.phone } 
-                : next(new BadRequestError('Please provide email or phone'));
+    const data = req.body.email ? { email: req.body.email }
+        : req.body.phone ? { phone: req.body.phone }
+            : next(new BadRequestError('Please provide email or phone'));
 
     const user = await User.findOne({ where: data });
     if (!user) return next(new BadRequestError('Invalid user'));
@@ -245,12 +256,26 @@ const getloggedInUser = asyncWrapper(async (req, res, next) => {
     console.log('userId', userId)
 
     const user = await User.scope('verified').findByPk(userId)
-    if (!user) return next(new BadRequestError('Invalid user'))
+    if (!user) return next(new BadRequestError('Unverified user'))
+
+    // get all brands associated with the user and extract only the id and name fields
+    const brands = (await user.getBrands({
+        attributes: ['id', 'name', 'logo', 'businessPhone', 'socials' ],
+        through: { attributes: ['role'] }
+    })).map(brand => ({
+        id: brand.id,
+        name: brand.name,
+        role: brand.UserBrand.role,
+        logo: brand.logo,
+        phone: brand.businessPhone,
+        socials: brand.socials
+    }))
 
     res.status(200).json({
         success: true,
         message: "User retrieved successfully",
-        user
+        user,
+        stores: brands
     });
 });
 
@@ -307,8 +332,8 @@ const googleSignIn = asyncWrapper(async (req, res, next) => {
 
     let user = await User.findOne({ where: { email } });
 
-    if(user.googleId !== googleId) {
-        return next(new BadRequestError('Invalid user')); 
+    if (user.googleId !== googleId) {
+        return next(new BadRequestError('Invalid user'));
     }
     user.status = "ACTIVE"
     await user.save()
@@ -339,7 +364,7 @@ const logout = asyncWrapper(async (req, res, next) => {
     // blacklist token
     await BlacklistedTokens.create({ token })
 
-    console.log ("token blacklised successfully")
+    console.log("token blacklised successfully")
 
     res.status(200).json({
         success: true,
@@ -365,7 +390,7 @@ const SwitchAccount = asyncWrapper(async (req, res, next) => {
         name: brand.name,
         role: brand.UserBrand.role
     }))
-    
+
     // if there is no brand associated with the user, return a message
 
     if (brands.length === 0) {
@@ -379,11 +404,10 @@ const SwitchAccount = asyncWrapper(async (req, res, next) => {
     let access_token;
     if (brands.length === 1) {
         console.log('brand', brands)
-        console.log('brand  id',brands[0].id)
+        console.log('brand  id', brands[0].id)
         const tokens = await issueToken(user.id, brands[0].id)
         access_token = tokens.access_token
     }
-
 
     await user.save()
 
@@ -399,7 +423,7 @@ const SwitchAccount = asyncWrapper(async (req, res, next) => {
         responseData.stores = brands
     }
 
-    res.status(200).json(responseData)    
+    res.status(200).json(responseData)
 
 });
 
@@ -432,13 +456,13 @@ const RegisterStore = asyncWrapper(async (req, res, next) => {
     const user = await User.findByPk(decoded.id)
     if (!user) return next(new BadRequestError('Invalid user'))
     // if (decoded.vendorMode === false) return next(new BadRequestError('please switch to seller mode'))
-    
-    const details ={
+
+    const details = {
         user: user.id,
         folder: `Stores/${storeName}/banner`,
     }
     let url;
-    if ( req.file ) {
+    if (req.file) {
         url = await uploadSingleFile(req.file, details)
     }
     // add details to brand 
@@ -462,14 +486,14 @@ const RegisterStore = asyncWrapper(async (req, res, next) => {
     const addressdetails = address + ',' + city + ',' + state + ',' + country
 
     console.log(addressdetails)
-    
-    const   detailss = {
-            name: storeName,
-            email: user.email,
-            phone: phone,
-            address: addressdetails,
-        }
-        console.log(detailss)
+
+    const detailss = {
+        name: storeName,
+        email: user.email,
+        phone: phone,
+        address: addressdetails,
+    }
+    console.log(detailss)
     const address_code = await validateAddress(detailss)
     // create new address in address table
     await DeliveryAddress.create({
@@ -483,12 +507,12 @@ const RegisterStore = asyncWrapper(async (req, res, next) => {
         isDefault: true
     })
     const walleti = {
-        id : brand.id,
+        id: brand.id,
         type: 'store'
     }
     const wallet = await generateWallet(walleti)
 
-    console.log ('Store Wallet Generated', wallet)
+    console.log('Store Wallet Generated', wallet)
     res.status(200).json({
         success: true,
         message: "Store created successfully",
@@ -496,9 +520,9 @@ const RegisterStore = asyncWrapper(async (req, res, next) => {
     });
 });
 
-module.exports = { 
-    SignUp, 
-    verifyEmail, 
+module.exports = {
+    SignUp,
+    verifyEmail,
     profileOnboarding,
     forgotPassword,
     resetPassword,
@@ -512,6 +536,6 @@ module.exports = {
     SwitchAccount,
     RegisterStore,
     selectStore
- }
+}
 
 
