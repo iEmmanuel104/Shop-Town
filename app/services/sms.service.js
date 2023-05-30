@@ -1,7 +1,6 @@
 const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN } = require('../utils/configs')
 const accountSid = TWILIO_ACCOUNT_SID;
 const authToken = TWILIO_AUTH_TOKEN;
-console.log("accountSid:", accountSid)  
 const client = require('twilio')(accountSid, authToken);
 
 const sendSMS = async (options) => {

@@ -22,7 +22,7 @@ const createPost = asyncWrapper(async (req, res, next) => {
 
     if (req.files) {
         console.log(req.files) 
-        const details = {
+        const details = { 
             folder: 'ksocial',
             user: storeId,
         };
@@ -64,13 +64,14 @@ const createPost = asyncWrapper(async (req, res, next) => {
 });
 
 const getPosts = asyncWrapper(async (req, res, next) => {
-    const { page, size } = req.query;
-    const { limit, offset } = getPagination(page, size);
+    const { page, size, status } = req.query;
+    // const { limit, offset } = getPagination(page, size);
 
     const posts = await Ksocial.findAndCountAll({
-        limit,
-        offset,
+        // limit,
+        // offset,
         order: [['createdAt', 'DESC']],
+        // where: { posttype:  status ? status : 'ksocial' }, 
         attributes: [
             'id',
             'caption',
@@ -83,7 +84,7 @@ const getPosts = asyncWrapper(async (req, res, next) => {
         include: [
             {
                 model: Brand,
-                attributes: ['id', 'name', 'logo'],
+                attributes: ['id', 'name', 'logo', 'socials'],
             },
             // {
             //     model: PostActivity,
@@ -94,13 +95,46 @@ const getPosts = asyncWrapper(async (req, res, next) => {
 
     // delete posts.rows.postActivities;
 
-    const response = getPagingData(posts, page, limit, 'posts');
+    // const response = getPagingData(posts, page, limit, 'posts');
 
     res.status(200).json({
         success: true,
-        data: response,
+        data: posts,
     });
 });
+
+const getuserpost = asyncWrapper(async (req, res, next) => {
+    const decoded = req.decoded;
+    const storeId = decoded.storeId;
+
+    if (!storeId) {
+        return next(new ForbiddenError('You are not authorized to create a post'));
+    }
+
+    const posts = await Ksocial.findAll({
+        order: [['createdAt', 'DESC']],
+        where: { brandId : storeId},
+        attributes: [
+            'id',
+            'caption',
+            'posttype',
+            'contentUrl',
+            'createdAt',
+            'likesCount',
+            'commentsCount',
+        ],
+        include: [
+            {
+                model: Brand,
+                attributes: ['id', 'name', 'logo', 'socials'],
+            },
+            // {
+            //     model: PostActivity,
+            //     as: 'postActivities',
+            // },
+        ],
+    });
+})
 
 
 
@@ -215,9 +249,6 @@ const addPostActivity = asyncWrapper(async (req, res, next) => {
     });
 });
 
-
-
-
 const deletePost = asyncWrapper(async (req, res, next) => {
     const decoded = req.decoded;
     const storeId = decoded.storeId;
@@ -240,7 +271,6 @@ const deletePost = asyncWrapper(async (req, res, next) => {
         data: {},
     });
 });
-
 
 
 module.exports = {

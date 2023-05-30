@@ -3,7 +3,7 @@ const authenticate = require('../middlewares/authWares').authenticate;
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 const { addClient, removeClient } = require('../utils/clients');
-const app = require("../../server");
+const app = require("../../app");
 const { randomUUID } = require('crypto');
 
 const initializeSocketEventHandlers = (socket) => {
@@ -12,9 +12,11 @@ const initializeSocketEventHandlers = (socket) => {
 
 const initializeSocketListeners = (socket) => {
     try {
+        console.log(`User connected ${socket.id}`);
         // Initialize socket listeners
         socket.on('message', (message) => {
             console.log(message);
+            socket.broadcast.emit('message', message);
         });
 
         socket.on('disconnect', () => {
@@ -33,7 +35,8 @@ const initializeSocketListeners = (socket) => {
         });
 
         // Initialize socket event handlers
-        initializeSocketEventHandlers(socket);
+        // initializeSocketEventHandlers(socket);
+
     } catch (error) {
         console.log(error);
     }
@@ -42,23 +45,24 @@ const initializeSocketListeners = (socket) => {
 let curr_client;
 const onConnection = async (socket) => {
     // Authenticate socket
-    const authenticated_socket = await authenticate(socket);
+    
+    // const authenticated_socket = await authenticate(socket);
 
-    if (authenticated_socket instanceof Error) {
-        // Send error to client
-        socket.emit('error', 'Authentication failed');
+    // if (authenticated_socket instanceof Error) {
+    //     // Send error to client
+    //     socket.emit('error', 'Authentication failed');
 
-        // Close connection
-        socket.disconnect();
+    //     // Close connection
+    //     socket.disconnect();
 
-        throw new Error('Authentication failed');
-    }
+    //     throw new Error('Authentication failed');
+    // }
 
-    socket = authenticated_socket; curr_client = socket;
-    console.log(`${socket.user.email}: connected`);
+    // socket = authenticated_socket; curr_client = socket;
+    // console.log(`${socket.user.email}: connected`);
 
-    // Add client to clients map
-    addClient(curr_client);
+    // // Add client to clients map
+    // addClient(curr_client);
 
     // Initialize socket listeners
     initializeSocketListeners(socket);
@@ -74,25 +78,25 @@ const io = new Server(httpServer, {
     }
 });
 
-io.use(socketWrapper((socket, next) => {
-    const { origin } = socket.handshake.headers;
+// io.use(socketWrapper((socket, next) => {
+//     const { origin } = socket.handshake.headers;
 
-    const allowed_origins = ['http://localhost:8082', 'http://localhost:3001'];
-    if (allowed_origins.includes(origin)) {
-        next();
-    } else {
-        next(new Error('Not allowed by CORS'));
-    }
-}));
+//     const allowed_origins = ['http://localhost:8082', 'http://localhost:3001'];
+//     if (allowed_origins.includes(origin)) {
+//         next();
+//     } else {
+//         next(new Error('Not allowed by CORS'));
+//     }
+// }));
 
-io.on('connection', socketWrapper(onConnection));
+    io.on('connection', socketWrapper(onConnection));
 
-io.on('error', socketWrapper((error) => {
-    // Send error to client
-    console.log(error);
+    io.on('error', socketWrapper((error) => {
+        // Send error to client
+        console.log(error);
 
-    // Close connection
-    io.close();
-}));
+        // Close connection
+        io.close();
+    }));
 
-module.exports = httpServer;
+    module.exports = httpServer;

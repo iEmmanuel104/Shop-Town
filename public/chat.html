@@ -1,40 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Simple Chat App</title>
-  <script src="/socket.io/socket.io.js"></script>
-</head>
-<body>
-  <div id="messages"></div>
-  <form id="chat-form">
-    <input id="message-input" type="text" />
-    <button type="submit">Send</button>
-  </form>
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Socket.IO Chat</title>
+    <!-- <script src="/socket.io/socket.io.js"></script> -->
+    <!-- <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script> -->
+    <!-- <script src="../node_modules/socket.io/client-dist/socket.io.js"></script> -->
+  </head>
 
-  <script>
-    const socket = io();
+  <body>
+    <h1>Socket.IO Chat</h1>
 
-    // Listen for incoming messages
-    socket.on('message', (data) => {
-      const { message } = data;
-      const messageElement = document.createElement('p');
-      messageElement.textContent = message;
-      document.getElementById('messages').appendChild(messageElement);
-    });
+    <div id="messages"></div>
 
-    // Send a message
-    document.getElementById('chat-form').addEventListener('submit', (e) => {
-      e.preventDefault();
-      const messageInput = document.getElementById('message-input');
-      const message = messageInput.value.trim();
-      if (message !== '') {
-        socket.emit('message', { message });
-        messageInput.value = '';
-      }
-    });
-  </script>
-</body>
+    <input type="text" id="messageInput" placeholder="Type a message" />
+    <button id="sendButton">Send</button>
+
+    <!-- <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script> -->
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/script.js"></script>
+ 
+  </body>
 </html>

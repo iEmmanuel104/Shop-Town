@@ -469,8 +469,8 @@ const RegisterStore = asyncWrapper(async (req, res, next) => {
     // if (decoded.vendorMode === false) return next(new BadRequestError('please switch to seller mode'))
 
     // CHECK IF USER HAS A STORE
-    const hasStore = await user.getBrands()
-    if (hasStore.length > 0) return next(new BadRequestError('User already has a store'))
+    // const hasStore = await user.getBrands()
+    // if (hasStore.length > 0) return next(new BadRequestError('User already has a store'))
 
     const details = {
         user: user.id,
