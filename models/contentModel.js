@@ -20,6 +20,7 @@ module.exports = (sequelize, DataTypes) => {
         likesCount: {
             type: DataTypes.VIRTUAL,
             get() {
+                 if (this.postActivities === undefined) return 0;
                 // RETURN all the post activities with like = true
                 return this.postActivities.filter((activity) => activity.like === true)
                     .length;            }
@@ -27,6 +28,7 @@ module.exports = (sequelize, DataTypes) => {
         commentsCount: {
             type: DataTypes.VIRTUAL,
             get() {
+                 if (this.postActivities === undefined) return 0;
                 // Return all the comments when comment is not null
                 return this.postActivities.filter(
                     (activity) =>
