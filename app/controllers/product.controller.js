@@ -175,6 +175,67 @@ const getProduct = asyncWrapper(async (req, res, next) => {
     })
 });
 
+const getStoreProducts = asyncWrapper(async (req, res, next) => {
+    await sequelize.transaction(async (t) => {
+        const decoded = req.decoded;
+        const brandId = decoded.storeId;
+        if (!brandId) {
+            return next(new ForbiddenError("please ensure you are connected to a store"));
+        }
+        const brand = await Brand.findByPk(brandId);
+        if (!brand) {
+            return next(new NotFoundError("Store not found"));
+        }
+        const products = await Product.findAll({
+            where: {
+                brandId
+            }
+        });
+        res.status(200).json({
+            success: true,
+            message: `Products for store: ${brand.name} retrieved successfully`,
+            data: products,
+        });
+    })
+});
+
+const toggleProduct = asyncWrapper(async (req, res, next) => {
+    await sequelize.transaction(async (t) => {
+        const decoded = req.decoded;
+        const brandId = decoded.storeId;
+        const { id } = req.params
+
+        if (!brandId) {
+            return next(new ForbiddenError("please ensure you are connected to a store"));
+        }
+        const brand = await Brand.findByPk(brandId);
+        if (!brand) {
+            return next(new NotFoundError("Store not found"));
+        }
+
+        const product = await Product.findByPk(id);
+        if (!product) {
+            return next(new NotFoundError(`Product with id ${req.params.id} not found`));
+        }
+        const newproductStatus = product.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
+        let messsage; 
+        if (newproductStatus === 'ACTIVE') {
+            messsage = 'Product has been successfully activated'
+        } else {
+            messsage = 'Product has been hidden successfully'
+        }
+        await Product.update({
+            status: newproductStatus
+        }, { where: { id, brandId }}, { transaction: t });
+
+        res.status(200).json({
+            success: true,
+            message: messsage,
+        });
+    })
+});
+
+
 const updateProduct = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
 
@@ -186,7 +247,12 @@ const updateProduct = asyncWrapper(async (req, res, next) => {
         // Check if the product exists
         const product = await Product.findByPk(productId);
         if (!product) {
-            return next(new NotFoundError(`Product with ID ${productId} not found`));
+            return next(new NotFoundError(`Product with not found`));
+        }
+
+        // ensure product is inactive before updating
+        if (product.status !== 'INACTIVE') {
+            return next(new BadRequestError(`Product must be inactive before updating`));
         }
 
         // Check if the user is authorized to update the product
@@ -475,5 +541,7 @@ module.exports = {
     updateProduct,
     deleteProduct,
     searchProduct,
+    getStoreProducts,
+    toggleProduct,
     updateProductdiscount
 };

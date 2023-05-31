@@ -12,6 +12,8 @@ const {
     updateProduct,
     deleteProduct,
     searchProduct,
+    toggleProduct,
+    getStoreProducts,
     updateProductdiscount
 } = require('../controllers/product.controller')
 
@@ -38,5 +40,9 @@ router.route('/:id')
 router.get('/search', searchProduct);
 
 router.get('/shipping/category', getshippingcategory);
+
+router.get('/store/product', basicAuth, getStoreProducts);
+
+router.patch('/toggle/:id', basicAuth, toggleProduct);
 
 module.exports = router

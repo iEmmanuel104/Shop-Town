@@ -1,5 +1,6 @@
 const sendEmail = require('../services/email.service');
-const sendSMS = require('../services/sms.service');    
+const sendSMS = require('../services/sms.service'); 
+const {sendPushNotification} = require('../services/firebase.service');   
 let options = {};
 
 const sendWhatsappMessage = async (phone, message) => {
@@ -8,7 +9,6 @@ const sendWhatsappMessage = async (phone, message) => {
     await sendEmail(options);
     
 };
-
 
 const sendverificationEmail = async (details, code) => {
     const {email, phone } = details;
@@ -32,4 +32,28 @@ const sendForgotPasswordEmail = async (details, code) => {
     await sendEmail(options);
 };
 
-module.exports = {sendverificationEmail, sendForgotPasswordEmail}
+const orderConfirmationEmail = async (details) => {
+    const {email, phone, order} = details;
+    options.email = email;
+    options.subject = 'Order Confirmation';
+    options.message = `Your order has been confirmed.`;
+    // options.html = `${options.message}`;
+    await sendEmail(options);
+};
+
+const sendorderpushNotification = async (details) => {
+    const {registrationToken, phone, order} = details;
+    const title = 'Order Confirmation';
+    const body = `New order payment has been confirmed.`;
+    await sendPushNotification(registrationToken, title, body);
+};
+
+   
+
+
+module.exports = {
+    sendverificationEmail, 
+    sendForgotPasswordEmail,
+    orderConfirmationEmail,
+    sendorderpushNotification,
+}

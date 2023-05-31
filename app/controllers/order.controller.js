@@ -8,6 +8,7 @@ const { KSECURE_FEE } = require('../utils/configs');
 // const queryString = require('query-string');
 // const validator = require('validator');
 const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/customErrors');
+const { sendorderpushNotification } = require('../utils/mailTemplates');
 const { getPagination, getPagingData } = require('../utils/pagination')
 const Op = require("sequelize").Op;
 const path = require('path');
@@ -30,6 +31,9 @@ const createOrder = asyncWrapper(async (req, res, next) => {
             info: cart.checkoutData.checkkout_data,
             courier: cart.checkoutData.cheapest_courier,
         }
+
+        console.log("cartdetails===",cart)
+        console.log("cartdetails============",)
 
         const store = await Brand.findOne(
             {
@@ -58,6 +62,7 @@ const createOrder = asyncWrapper(async (req, res, next) => {
             orderamount: order.cartdetails.totalAmount,
             userId: order.userId,
             storeId: order.storeId,
+            orderNumber: order.orderNumber,
             shippingMethod: order.shippingMethod
         }
 
@@ -73,9 +78,11 @@ const createOrder = asyncWrapper(async (req, res, next) => {
         returnobject = {
             order: orderobj,
             socials,
+            subTotal: cart.totalAmount,
         }
 
         let paymentamt = parseFloat(cart.totalAmount);
+        console.log("initial paymentamt===",paymentamt) 
 
         if (shipping_method === 'seller') {
             // send order request notification to seller
@@ -83,7 +90,7 @@ const createOrder = asyncWrapper(async (req, res, next) => {
             kship_order = await ShipbubbleOrder.create(shippingObject, { transaction: t });
             returnobject.deliveryFee = kship_order.deliveryFee;
             // returnobject.kship_order = kship_order;
-            paymentamt = paymentamt + parseFloat(cart.checkoutData.cheapest_courier.total);
+            paymentamt += parseFloat(cart.checkoutData.cheapest_courier.total);
         } else if (shipping_method === 'ksecure') {
             kship_order = await ShipbubbleOrder.create({
                 ...shippingObject,
@@ -93,7 +100,8 @@ const createOrder = asyncWrapper(async (req, res, next) => {
             returnobject.deliveryFee = kship_order.deliveryFee;
             returnobject.kSecureFee = parseFloat(KSECURE_FEE);
             // returnobject.ksecure_order = kship_order;
-            paymentamt = paymentamt + parseFloat(cart.checkoutData.cheapest_courier.total) + parseFloat(KSECURE_FEE);
+            paymentamt += parseFloat(cart.checkoutData.cheapest_courier.total) + parseFloat(KSECURE_FEE);
+            console.log("ksecure===",paymentamt)
         } else {
             throw new BadRequestError('Invalid shipping method');
         }
@@ -151,11 +159,20 @@ const createOrder = asyncWrapper(async (req, res, next) => {
         // const orderInfo = await Order.scope('includeStore').findOne({ where: { id: order.id } });
 
         // await Cart.destroy({ where: { userId }, transaction: t });
-
+        let message;
+        if (shipping_method === 'seller') {
+            message = 'Order created successfully, please contact seller for payment';
+        } else if (shipping_method === 'kship') {
+            message = 'Order created successfully, please make payment on delivery';
+        } else if (shipping_method === 'ksecure') {
+            message = 'Order created successfully, please proceed to make payment';
+        } else {
+            message = 'Order created successfully';
+        }
 
         res.status(200).json({
             success: true,
-            message: 'Order created successfully, please proceed to make payment',
+            message: message,
             data: returnobject
         });
     })
@@ -273,10 +290,13 @@ const validateOrderPayment = asyncWrapper(async (req, res) => {
         } else {
             message = 'Order payment validated successfully';
         }
-
-        // 
-
         // send order request notification to seller
+        await sendorderpushNotification({
+            registrationToken: order.store.socials.firebaseToken,
+            phone: order.store.phone,
+            order: order.cartdetails,
+        });
+
 
         // send order request Email to seller
 

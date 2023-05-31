@@ -20,10 +20,10 @@ const initializeSocketListeners = (socket) => {
         });
 
         socket.on('disconnect', () => {
-            console.log(socket.user.email + ': disconnected');
+            console.log( 'user disconnected');
 
             // Remove client from clients map
-            removeClient(socket);
+            // removeClient(socket);
         });
 
         socket.on('error', (error) => {

@@ -130,20 +130,22 @@ const updateCart = asyncWrapper(async (req, res) => {
             }
         });
         if (cart) {
-            const cart = { items }
+            const updatedCart = { items }
             console.log(items)
-            const converted = await convertcart(cart)
+            const converted = await convertcart(updatedCart)
             cart.items = converted.items;
             cart.totalAmount = converted.totalAmount;
-            await cart.save();
+            await cart.save({ transaction: t });
+            
             res.status(200).json({
                 success: true,
-                message: "Cart updated",
+                message: "Cart Updated Succesfully",
             });
         }
         else {
             res.status(200).json({
                 success: true,
+                message: "Cart not found",
                 data: {}
             });
         }
@@ -188,17 +190,22 @@ const cartcheckout = asyncWrapper(async (req, res) => {
         });
         // console.log(cart.toJSON())
         if (cart) {
+            // update the cart with the user id
             cart.userId = decoded.id;
+
             const converted = await convertcart(cart, 'get')
+
+            // update the cart with the converted items and totalAmount
             cart.items = converted.items;
             cart.totalAmount = converted.totalAmount;
+
             // categorise itens by brand
             const groupedCartItems = await groupCartItems(cart.items, cart.totalAmount);
             const storeId = {
                 id: Object.keys(groupedCartItems)[0],
                 type: 'store'
             };
-            console.log(groupedCartItems[storeId.id][0].specification)
+            console.log(groupedCartItems)
             const userId = { id: decoded.id };
 
             let sender_address_code, receiver_address_code, pickup_date, category_id, package_items, package_dimension, description;
@@ -208,9 +215,7 @@ const cartcheckout = asyncWrapper(async (req, res) => {
             receiver_address_code = (await DeliveryAddress.scope({ method: ["Default", userId] }).findOne()).addressCode;
             // pickup_date = new Date().toISOString().split('T')[0];
             pickup_date = new Date(new Date().getTime() + 60 * 60 * 1000).toISOString().split('T')[0];
-            console.log(pickup_date)
             category_id = groupedCartItems[storeId.id][0].specification.shippingcategory_id;
-            console.log(category_id)
             package_items = groupedCartItems[storeId.id].map(item => {
                 const weightsum = item.quantity * item.specification.weight;
                 return {
@@ -222,6 +227,7 @@ const cartcheckout = asyncWrapper(async (req, res) => {
                     total_weight: weightsum
                 }
             });
+
             const boxSizes = (await getshippingboxes()).data;
             package_dimension = await estimateBoxDimensions(package_items, boxSizes);
             description = package_dimension.description 
@@ -242,8 +248,10 @@ const cartcheckout = asyncWrapper(async (req, res) => {
 
             console.log (request_token, cheapest_courier, checkout_data)
 
+            // update cart checkout data
             cart.checkoutData = { request_token, cheapest_courier, checkout_data }
-            await cart.save();
+
+            await cart.save( { transaction: t });
 
             // CREATE A NEW ORDER INSTANCE
 
@@ -297,8 +305,6 @@ const groupCartItems = async (items, amt) => {
     return groupedItems;
 };
 
-
-
 const estimateBoxDimensions = async (items, boxSizes) => {
     // Calculate the accumulated weight of all items
     const accumulatedWeight = await items.reduce((sum, item) => sum + item.total_weight, 0);
@@ -347,10 +353,8 @@ const estimateBoxDimensions = async (items, boxSizes) => {
 };
 
 
-
-
-
 module.exports = {
+    convertcart,
     storeCart,
     getCart,
     updateCart,

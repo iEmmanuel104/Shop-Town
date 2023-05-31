@@ -1,4 +1,5 @@
 module.exports = (sequelize, DataTypes) => {
+    const { generateCode } = require('../app/utils/StringGenerator')
     const { DeliveryAddress } = require('./userModel')(sequelize, DataTypes);
     const { Cart } = require('./storeModel')(sequelize, DataTypes);
     const Order = sequelize.define("Order", {
@@ -24,6 +25,10 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.ENUM(["active", "completed", "cancelled"]),
             defaultValue: "active",
             allowNull: false
+        },
+        orderNumber: {
+            type: DataTypes.STRING,
+            defaultValue: `#K-ID${generateCode(6)}`,
         },
     }, {
         tableName: 'Order', 

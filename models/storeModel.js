@@ -65,6 +65,7 @@ module.exports = (sequelize, DataTypes) => {
                 }
             },
             includeBrand: {
+                where: { status : 'ACTIVE' },
                 include: [
                     {
                         model: Brand,
@@ -87,6 +88,7 @@ module.exports = (sequelize, DataTypes) => {
             },
 
             includePrice: {
+                where: { status : 'ACTIVE' },
                 attributes: ['id', 'name', 'price', 'quantity', 'discount', 'discountedPrice', 'brandId'],
             },
 
