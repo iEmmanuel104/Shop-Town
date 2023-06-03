@@ -23,8 +23,12 @@ const createOrder = asyncWrapper(async (req, res, next) => {
         const userInfo = await User.findOne({ where: { id: userId } });
         const { shipping_method, storeId, option } = req.body;
         const cart = await Cart.findOne({ where: { userId } });
+        if (!cart) {
+            throw new NotFoundError('Cart not found');
+        }
         let shippingMethod = { type: shipping_method }
         // cartdetails for order
+        console.log("cartdetails===",cart)
         let cartdetails = {
             items: cart.items,
             totalAmount: cart.totalAmount,
@@ -32,7 +36,6 @@ const createOrder = asyncWrapper(async (req, res, next) => {
             courier: cart.checkoutData.cheapest_courier,
         }
 
-        console.log("cartdetails===",cart)
         console.log("cartdetails============",)
 
         const store = await Brand.findOne(

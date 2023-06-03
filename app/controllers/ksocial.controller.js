@@ -6,60 +6,64 @@ const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/cus
 const { getPagination, getPagingData } = require('../utils/pagination')
 const Op = require("sequelize").Op;
 const { uploadSingleFile, uploadFiles } = require('../services/imageupload.service');
-const CronJob = require('cron').CronJob;
+// const CronJob = require('cron').CronJob;
+const { postDeletionQueue } = require('../services/task.schedule.service');
 
 // Controller for creating a post
 const createPost = asyncWrapper(async (req, res, next) => {
-    const { caption, post_type } = req.body;
-    const decoded = req.decoded;
-    const storeId = decoded.storeId;
+    await sequelize.transaction(async (t) => {
+        const { caption, post_type } = req.body;
+        const decoded = req.decoded;
+        const storeId = decoded.storeId;
 
-    if (!storeId) {
-        return next(new ForbiddenError('You are not authorized to create a post'));
-    }
+        if (!storeId) {
+            return next(new ForbiddenError('You are not authorized to create a post'));
+        }
 
-    let fileUrls = [];
+        let fileUrls = [];
 
-    if (req.files) {
-        console.log(req.files) 
-        const details = { 
-            folder: 'ksocial',
-            user: storeId,
-        };
+        if (req.files) {
+            console.log(req.files)
+            const details = {
+                folder: 'ksocial',
+                user: storeId,
+            };
 
-        console.log('files found for upload')
+            console.log('files found for upload')
 
-        fileUrls = await uploadFiles(req, details);
-    }
+            fileUrls = await uploadFiles(req, details);
+        }
 
-    const post = await Ksocial.create({
-        caption,
-        posttype: post_type,
-        contentUrl: fileUrls,
-        brandId: storeId,
-    });
+        const post = await Ksocial.create({
+            caption,
+            posttype: post_type,
+            contentUrl: fileUrls,
+            brandId: storeId,
+        }, { transaction: t });
+
+        console.log(post.id)
 
 
-    if (post.posttype === 'status') {
-        // Schedule the post deletion
-        const deletionJob = new CronJob('0 0 */24 * * *', async () => {
-        // const deletionJob = new CronJob('0 */1 * * * *', async () => {
-            try {
-                // Delete the post and associated files
-                await post.destroy();
-                console.log(`Post with ID ${post.id} deleted.`);
-            } catch (error) {
-                console.error('Error deleting post:', error);
-            }
+        if (post.posttype === 'status') {
+            // Schedule the post deletion
+            const deletionJob = postDeletionQueue.add(
+                { postId: post.id },
+                {
+                    // delay: 1000 * 60 * 60 * 24 , // 1 day
+                    // 1 minute
+                    delay: 1000 * 60 * 1,
+                    removeOnComplete: true,
+                    // removeOnFail: true,
+                }
+            );
+            // deletionJob.start(); // Start the deletion job
+            console.log(`Post with ID ${post.id} scheduled for deletion.`);
+        }
+
+        res.status(201).json({
+            success: true,
+            data: post,
         });
-
-        deletionJob.start(); // Start the deletion job
-        console.log(`Post with ID ${post.id} scheduled for deletion.`);
-    }
-
-    res.status(201).json({
-        success: true,
-        data: post,
     });
 });
 
@@ -113,7 +117,7 @@ const getuserpost = asyncWrapper(async (req, res, next) => {
 
     const posts = await Ksocial.findAll({
         order: [['createdAt', 'DESC']],
-        where: { brandId : storeId},
+        where: { brandId: storeId },
         attributes: [
             'id',
             'caption',
@@ -226,7 +230,7 @@ const addPostActivity = asyncWrapper(async (req, res, next) => {
     });
 
     let message;
-    newlike = like ? 'true' : 'false';  
+    newlike = like ? 'true' : 'false';
     if (!activity) {
         await PostActivity.create({
             KsocialId: req.params.id,

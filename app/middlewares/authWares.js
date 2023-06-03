@@ -9,6 +9,7 @@ const basicAuth = asyncWrapper(async (req, res, next) => {
     if (!autho) return next(new BadRequestError('No authorization header found'))
     
     const authtoken = autho.split(' ')[1]
+    console.log('authtoken')
     const decoded = await decodeJWT(authtoken)
     if (!decoded) return next(new BadRequestError('Invalid authorization'))
 

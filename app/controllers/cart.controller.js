@@ -17,6 +17,11 @@ const convertcart = async (cart, type) => {
         where: { id: itemIds }
     });
     let totalAmount = 0;
+    console.log(products)
+
+    if (products.length === 0) {
+        throw new BadRequestError("please add a vlaid product to cart");
+    }
 
     products.forEach(product => {
         let cartquantity;
@@ -193,8 +198,9 @@ const cartcheckout = asyncWrapper(async (req, res) => {
             // update the cart with the user id
             cart.userId = decoded.id;
 
+            console.log(cart.toJSON())
             const converted = await convertcart(cart, 'get')
-
+            console.log(converted.toJSON() )
             // update the cart with the converted items and totalAmount
             cart.items = converted.items;
             cart.totalAmount = converted.totalAmount;
@@ -280,10 +286,15 @@ const groupCartItems = async (items, amt) => {
         attributes: ['id', 'name', 'specifications', 'description'],
     });
 
+    if (products.length === 0) {
+        throw new BadRequestError("Please add a valid product to cart");
+    }
+
     let groupedItems = {};
     Object.values(items).forEach(item => {
         const productId = Object.keys(items).find(key => items[key] === item);
         const product = products.find(product => product.id === productId);
+        console.log(product)
         const { name, specifications, description } = product;
 
         const newItem = {

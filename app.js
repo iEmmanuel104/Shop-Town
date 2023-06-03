@@ -15,7 +15,7 @@ const passport = require('passport');
 const session = require('express-session');
 const SequelizeStore = require('connect-session-sequelize')(session.Store);
 const sessionStore = new SequelizeStore({ db: db.sequelize });
-
+const { serverAdapter } = require('./app/services/task.schedule.service');
 
 require('dotenv').config();
 require('./app/utils/passport.configs')(passport);
@@ -108,6 +108,10 @@ app.use('/address', require('./app/routes/addressRoutes'));
 app.use('/order', require('./app/routes/orderRoutes'));
 app.use('/post', require('./app/routes/ksocialRoutes'));
 app.use('/wallet', require('./app/routes/walletRoutes'));
+
+
+// bull-board
+app.use('/admin/queues', serverAdapter.getRouter());
 
 app.use(errorHandler);
 app.use(notFoundMiddleware);

@@ -5,6 +5,7 @@ const { Server } = require('socket.io');
 const { addClient, removeClient } = require('../utils/clients');
 const app = require("../../app");
 const { randomUUID } = require('crypto');
+require('../utils/redis')
 
 const initializeSocketEventHandlers = (socket) => {
     require('./ws/event-handlers/chat.events')(io, socket);
