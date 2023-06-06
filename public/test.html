@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AUTH TEST</title>
+</head>
+<body>
+  <!-- GOOGLE AUTH TEST -->
+  <h2>Google Auth Test</h2>
+  <a href="/auth/google">Sign in with Google</a>
+
+  <!-- FACEBOOK AUTH TEST -->
+  <h2>Facebook Auth Test</h2>
+  <a href="/auth/facebook">Sign in with Facebook</a>
+
+  <!-- Display extracted key-value pairs -->
+  <div id="query-params"></div>
+
+  <script>
+    // Function to extract query parameters from the URL
+    function getQueryParams(url) {
+      var queryParams = {};
+      var params = new URL(url).searchParams;
+      
+      params.forEach(function (value, key) {
+        queryParams[key] = value;
+      });
+
+      return queryParams;
+    }
+
+    // Get the current URL and extract the query parameters
+    var queryParams = getQueryParams(window.location.href);
+    
+    // Create HTML output with the extracted key-value pairs
+    var keyValuePairs = "";
+    for (var key in queryParams) {
+      keyValuePairs += "<p>" + key + ": " + queryParams[key] + "</p>";
+    }
+
+    // Display the key-value pairs in the div element
+    var queryParamDiv = document.getElementById("query-params");
+    queryParamDiv.innerHTML = keyValuePairs;
+  </script>
+
+  <script>
+    window.intercomSettings = {
+      api_base: "https://api-iam.intercom.io",
+      app_id: "i6bqlx34",
+      name: user.name, // Full name
+      email: user.email, // Email address
+      created_at: user.createdAt, // Signup date as a Unix timestamp
+    };
+  </script>
+
+  <script>
+    // We pre-filled your app ID in the widget URL: 'https://widget.intercom.io/widget/i6bqlx34'
+    (function () {
+      var w = window;
+      var ic = w.Intercom;
+      if (typeof ic === "function") {
+        ic("reattach_activator");
+        ic("update", w.intercomSettings);
+      } else {
+        var d = document;
+        var i = function () {
+          i.c(arguments);
+        };
+        i.q = [];
+        i.c = function (args) {
+          i.q.push(args);
+        };
+        w.Intercom = i;
+        var l = function () {
+          var s = d.createElement("script");
+          s.type = "text/javascript";
+          s.async = true;
+          s.src = "https://widget.intercom.io/widget/i6bqlx34";
+          var x = d.getElementsByTagName("script")[0];
+          x.parentNode.insertBefore(s, x);
+        };
+        if (document.readyState === "complete") {
+          l();
+        } else if (w.attachEvent) {
+          w.attachEvent("onload", l);
+        } else {
+          w.addEventListener("load", l, false);
+        }
+      }
+    })();
+  </script>
+</body>
+</html>
