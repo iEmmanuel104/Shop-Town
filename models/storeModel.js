@@ -1,6 +1,6 @@
 module.exports = (sequelize, DataTypes) => {
     const { Brand } = require('./userModel')(sequelize, DataTypes);
-    
+
     const Product = sequelize.define("Product", {
         id: {
             type: DataTypes.UUID,
@@ -59,17 +59,17 @@ module.exports = (sequelize, DataTypes) => {
         tableName: 'Product',
         timestamps: true,
         scopes: {
-            Brand(brandId) {
+            Brand(storeId) {
                 return {
-                    where: { brandId }
+                    where: { storeId }
                 }
             },
             includeBrand: {
-                where: { status : 'ACTIVE' },
+                where: { status: 'ACTIVE' },
                 include: [
                     {
                         model: Brand,
-                        as: 'brand',
+                        as: 'store',
                         attributes: ['id', 'name', 'businessPhone', 'socials', 'logo'],
                     }
                 ]
@@ -88,8 +88,8 @@ module.exports = (sequelize, DataTypes) => {
             },
 
             includePrice: {
-                where: { status : 'ACTIVE' },
-                attributes: ['id', 'name', 'price', 'quantity', 'discount', 'discountedPrice', 'brandId'],
+                where: { status: 'ACTIVE' },
+                attributes: ['id', 'name', 'price', 'quantity', 'discount', 'discountedPrice', 'storeId'],
             },
 
         }
@@ -102,8 +102,8 @@ module.exports = (sequelize, DataTypes) => {
             const price = parseFloat(product.price);
             const discount = parseFloat(product.discount);
 
-            // Fetch the current store discount for the product's brand
-            const brand = await Brand.findByPk(product.brandId, {
+            // Fetch the current store discount for the product's store
+            const store = await Brand.findByPk(product.storeId, {
                 include: {
                     model: StoreDiscount,
                     as: 'storeDiscounts',
@@ -112,7 +112,7 @@ module.exports = (sequelize, DataTypes) => {
                     }
                 }
             });
-            const storeDiscount = brand?.storeDiscounts; // Assuming the association alias is 'StoreDiscount'
+            const storeDiscount = store?.storeDiscounts; // Assuming the association alias is 'StoreDiscount'
 
             if (storeDiscount) {
                 const discountType = storeDiscount.type;
@@ -179,7 +179,19 @@ module.exports = (sequelize, DataTypes) => {
         totalAmount: {
             type: DataTypes.DECIMAL(10, 2),
             defaultValue: 0
-        }
+        },
+        isWishList: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false
+        },
+        linkedCart: {
+            type: DataTypes.UUID,
+            references: {
+                model: 'Cart',
+                key: 'id'
+            },
+            allowNull: true
+        },
     }, {
         tableName: 'Cart',
         timestamps: true,
@@ -239,6 +251,10 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.INTEGER,
             defaultValue: 1,
         },
+        categoryIds: {
+            type: DataTypes.ARRAY(DataTypes.UUID),
+            defaultValue: []
+        },
     }, {
         tableName: 'StoreDiscount',
         timestamps: true,
@@ -246,7 +262,7 @@ module.exports = (sequelize, DataTypes) => {
             includeStore: {
                 include: [{
                     model: Brand,
-                    as: 'brand'
+                    as: 'store'
                 }]
             }
         }
@@ -254,7 +270,22 @@ module.exports = (sequelize, DataTypes) => {
 
     StoreDiscount.afterUpdate(async (storeDiscount) => {
         if (storeDiscount.status === 'active') {
-            const products = await Product.findAll({ where: { brandId: storeDiscount.brandId } });
+            let products
+            //  check if the store discount is for a specific category
+            if (storeDiscount.categoryIds.length > 0) {
+                console.log('categoryIds', storeDiscount.categoryIds);
+                //  get all products in the category
+                products = await Product.findAll({
+                    where: {
+                        categoryId: storeDiscount.categoryIds,
+                        storeId: storeDiscount.storeId
+                    }
+                });
+            } else {
+                products = await Product.findAll({ where: { storeId: storeDiscount.storeId } });
+            }
+
+            console.log('products', JSON.parse(JSON.stringify(products)));
             const productIds = products.map((product) => product.id);
             const discountType = storeDiscount.type;
 
@@ -279,13 +310,49 @@ module.exports = (sequelize, DataTypes) => {
                     }
                 });
             }
+        } else {
+            let products
+            //  check if the store discount is for a specific category
+            if (storeDiscount.categoryIds.length > 0) {
+                console.log('categoryIds', storeDiscount.categoryIds);
+                //  get all products in the category
+                products = await Product.findAll({
+                    where: {
+                        categoryId: storeDiscount.categoryIds,
+                        storeId: storeDiscount.storeId
+                    }
+                });
+            } else {
+                products = await Product.findAll({ where: { storeId: storeDiscount.storeId } });
+            }
+
+            console.log('products', JSON.parse(JSON.stringify(products)));
+            const productIds = products.map((product) => product.id);
+            await Product.update(
+                { discount: 0 }, // Remove the discount by setting it to null or any other appropriate value
+                { where: { id: productIds } }
+            );
         }
     });
 
 
     StoreDiscount.beforeDestroy(async (storeDiscount) => {
         if (storeDiscount.status === 'active') {
-            const products = await Product.findAll({ where: { brandId: storeDiscount.brandId } });
+            let products
+            //  check if the store discount is for a specific category
+            if (storeDiscount.categoryIds.length > 0) {
+                console.log('categoryIds', storeDiscount.categoryIds);
+                //  get all products in the category
+                products = await Product.findAll({
+                    where: {
+                        categoryId: storeDiscount.categoryIds,
+                        storeId: storeDiscount.storeId
+                    }
+                });
+            } else {
+                products = await Product.findAll({ where: { storeId: storeDiscount.storeId } });
+            } 
+            
             const productIds = products.map((product) => product.id);
 
             await Product.update(
@@ -309,8 +376,8 @@ module.exports = (sequelize, DataTypes) => {
             as: 'category'
         });
         Product.belongsTo(models.Brand, {
-            foreignKey: 'brandId',
-            as: 'brand'
+            foreignKey: 'storeId',
+            as: 'store'
         });
         Product.hasMany(models.Review, {
             foreignKey: 'productId',
@@ -326,8 +393,8 @@ module.exports = (sequelize, DataTypes) => {
 
     StoreDiscount.associate = (models) => {
         StoreDiscount.belongsTo(models.Brand, {
-            foreignKey: 'brandId',
-            as: 'brand'
+            foreignKey: 'storeId',
+            as: 'store'
         });
     };
 

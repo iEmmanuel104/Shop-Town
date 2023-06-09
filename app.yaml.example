@@ -1,12 +1,14 @@
 runtime: nodejs16
 
-env: standard
-service: server
+# env: standard
+# service: server
 # beta_settings:
 #   cloud_sql_instances: "royalti-project:us-central1:royalti-db"
 
-instance_class: F1
-automatic_scaling:
-  max_instances: 1
+#instance_class: F1
+#automatic_scaling:
+#  max_instances: 1
+
+
 
 

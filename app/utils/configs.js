@@ -49,6 +49,7 @@ TWILIO_AUTH_TOKEN = process.env.TWILIO_AUTH_TOKEN
 // REDIS CLIENT
 REDIS_CONNECTION_URL = process.env.REDIS_CONNECTION_URL
 
+
 module.exports = {
     refreshTokenExpiry,
     accessTokenExpiry,
@@ -77,7 +78,8 @@ module.exports = {
     KSECURE_FEE,
     TWILIO_ACCOUNT_SID,
     TWILIO_AUTH_TOKEN,
-    REDIS_CONNECTION_URL
+    REDIS_CONNECTION_URL,
+
 }
 
     

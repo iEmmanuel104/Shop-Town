@@ -13,8 +13,10 @@ const { postDeletionQueue } = require('../services/task.schedule.service');
 const createPost = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const { caption, post_type } = req.body;
-        const decoded = req.decoded;
-        const storeId = decoded.storeId;
+        // const decoded = req.decoded;
+        // const storeId = decoded.storeId;
+
+        const { storeId } = req.query;
 
         if (!storeId) {
             return next(new ForbiddenError('You are not authorized to create a post'));
@@ -38,7 +40,7 @@ const createPost = asyncWrapper(async (req, res, next) => {
             caption,
             posttype: post_type,
             contentUrl: fileUrls,
-            brandId: storeId,
+            storeId: storeId,
         }, { transaction: t });
 
         console.log(post.id)
@@ -108,8 +110,10 @@ const getPosts = asyncWrapper(async (req, res, next) => {
 });
 
 const getuserpost = asyncWrapper(async (req, res, next) => {
-    const decoded = req.decoded;
-    const storeId = decoded.storeId;
+    // const decoded = req.decoded;
+    // const storeId = decoded.storeId;
+
+    const { storeId } = req.query;
 
     if (!storeId) {
         return next(new ForbiddenError('You are not authorized to create a post'));
@@ -117,7 +121,7 @@ const getuserpost = asyncWrapper(async (req, res, next) => {
 
     const posts = await Ksocial.findAll({
         order: [['createdAt', 'DESC']],
-        where: { brandId: storeId },
+        where: { storeId: storeId },
         attributes: [
             'id',
             'caption',
@@ -176,8 +180,10 @@ const getPost = asyncWrapper(async (req, res, next) => {
 
 const updatePost = asyncWrapper(async (req, res, next) => {
     const { caption, posttype } = req.body;
-    const decoded = req.decoded;
-    const storeId = decoded.storeId;
+    // const decoded = req.decoded;
+    // const storeId = decoded.storeId;
+
+    const { storeId } = req.query;
     const files = req.files;
     let fileUrls = [];
 
@@ -196,7 +202,7 @@ const updatePost = asyncWrapper(async (req, res, next) => {
         return next(new NotFoundError(`Post with id ${req.params.id} not found`));
     }
 
-    if (post.brandId !== storeId) {
+    if (post.storeId !== storeId) {
         return next(new ForbiddenError('You are not authorized to update this post'));
     }
 
@@ -254,8 +260,10 @@ const addPostActivity = asyncWrapper(async (req, res, next) => {
 });
 
 const deletePost = asyncWrapper(async (req, res, next) => {
-    const decoded = req.decoded;
-    const storeId = decoded.storeId;
+    // const decoded = req.decoded;
+    // const storeId = decoded.storeId;
+
+    const { storeId } = req.query;
 
     const post = await Ksocial.findByPk(req.params.id);
 
@@ -263,7 +271,7 @@ const deletePost = asyncWrapper(async (req, res, next) => {
         return next(new NotFoundError(`Post not found`));
     }
 
-    if (post.brandId !== storeId) {
+    if (post.storeId !== storeId) {
         return next(new ForbiddenError('You are not authorized to delete this post'));
     }
 

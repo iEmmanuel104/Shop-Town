@@ -13,17 +13,19 @@ const path = require('path');
 const createProduct = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const { name, description, price, quantity, specifications, shippingcategory } = req.body;
-        const {category} = req.query
-        // const { category } = req.params
+        const {storeId, category} = req.query
         const decoded = req.decoded;
-        const brandId = decoded.storeId;
-        console.log(brandId);
         const userId = decoded.id;
-        // check if user is authorized to create product
-        const user = await User.findByPk(userId);
-        if (!user) {
-            return next(new NotFoundError("User not found"));
-        }
+
+        const categoryExists = await Category.findByPk(category),
+            user = await User.findByPk(userId),
+            storeExists = await Brand.findByPk(storeId),
+            isAssociated = await storeExists.hasUser(user);
+
+        if (!categoryExists) return next(new NotFoundError('Category not found'));
+        if (!storeExists) return next(new NotFoundError('Store not found'));
+        if (!user) return next(new NotFoundError("User not found"));
+        if (!isAssociated) return next(new ForbiddenError("You are not allowed to access this resource"));
 
         let fileUrls = [];
 
@@ -31,7 +33,7 @@ const createProduct = asyncWrapper(async (req, res, next) => {
             console.log(req.files)
             const details = {
                 folder: 'product',
-                user: brandId
+                user: storeId
             };
 
             console.log('files found for upload')
@@ -43,15 +45,7 @@ const createProduct = asyncWrapper(async (req, res, next) => {
         //     return next(new ForbiddenError("You are not allowed to access this resource"));
         // }
 
-        // check if brand exists
-        const brand = await Brand.findByPk(brandId);
-        if (!brand) {
-            return next(new NotFoundError("Store not found"));
-        }
-        const isAssociated = await brand.hasUser(user);
-        if (!isAssociated) {
-            return next(new ForbiddenError("You are not allowed to access this resource"));
-        }
+
         const product = await Product.create({
             name,
             description,
@@ -60,9 +54,10 @@ const createProduct = asyncWrapper(async (req, res, next) => {
             specifications,
             subcategory: shippingcategory,
             categoryId: category,
-            brandId: brandId,
+            storeId: storeId,
             images: fileUrls
         }, { transaction: t });
+
         res.status(201).json({
             success: true,
             data: product,
@@ -82,11 +77,13 @@ const createBulkProducts = asyncWrapper(async (req, res, next) => {
     const products = req.body;
     const errors = [];
     let processed = 0;
+    let productNames = [];
     const decoded = req.decoded;
-    const brandId = decoded.storeId;
-    // check if brand exists
-    const brand = await Brand.findByPk(brandId);
-    if (!brand) {
+    // const storeId = decoded.storeId;
+    const { storeId } = req.query
+    // check if store exists
+    const store = await Brand.findByPk(storeId);
+    if (!store) {
         return next(new NotFoundError("Store not found"));
     }
 
@@ -103,9 +100,10 @@ const createBulkProducts = asyncWrapper(async (req, res, next) => {
                     specifications: specifications ? specifications : null,
                     subcategory: subcategory ? subcategory : null,
                     categoryId: category,
-                    brandId
+                    storeId
                 }, { transaction: t });
                 processed++;
+                productNames.push(name);
             });
         } catch (err) {
             console.error(`Failed to create product: ${err.message}`);
@@ -128,6 +126,7 @@ const createBulkProducts = asyncWrapper(async (req, res, next) => {
             success: true,
             message: "All products created successfully",
             processed,
+            productNames,
         });
     }
 });
@@ -135,12 +134,36 @@ const createBulkProducts = asyncWrapper(async (req, res, next) => {
 const getProducts = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
 
-        const { category, subcategory, brand } = req.query;
+        const { category, subcategory, store, name, price, quantity, priceDiscount, percentageDiscount } = req.query;
 
         const filters = {
             ...(category && { categoryId: category }),
             ...(subcategory && { subcategory }),
-            ...(brand && { brandId: brand }),
+            ...(store && { storeId: store }),
+            ...(name && { name: { [Op.like]: `%${name}%` } }),
+            ...(price && { price: { [Op.lte]: parseFloat(price) } }),
+            ...(quantity && {
+                quantity: {
+                    [Op.and]: [
+                        sequelize.literal(`(quantity->>'total')::int >= ${parseInt(quantity)}`),
+                        sequelize.literal(`(quantity->>'instock')::int >= ${parseInt(quantity)}`),
+                    ],
+                },
+            }),
+            ...(priceDiscount && {
+                discount: {
+                    [Op.gte]: 200 && parseFloat(priceDiscount),
+                }
+            }),
+            ...(percentageDiscount && {
+                discount: {
+                    [Op.gte]: 0,
+                    [Op.lte]: 100,
+                    [Op.lte]: parseFloat(percentageDiscount)
+                }
+            })
+            // ...(priceDiscount && parseFloat(priceDiscount) >= 200 && { discount: { [Op.gte]: parseFloat(priceDiscount) }}),
+            // ...(percentageDiscount && parseFloat(percentageDiscount) <= 100 && { discount: { [Op.gte]: parseFloat(percentageDiscount) } })
         };
 
         const page = req.query.page ? Number(req.query.page) : 1;
@@ -157,7 +180,20 @@ const getProducts = asyncWrapper(async (req, res, next) => {
             limit,
             offset
         }, {transaction: t});
-        res.status(200).json({ success: true, data: products });
+
+        const specificCount = products.length;
+
+        if (specificCount === 0) {
+            return next(new NotFoundError('No products found'));
+        }
+
+        if (specificCount !== products.count) {
+            products.count = specificCount;
+        }
+
+        const response = getPagingData(products, page, limit, 'products');
+
+        res.status(200).json({ success: true, data: response });
     });
 
 });
@@ -177,23 +213,24 @@ const getProduct = asyncWrapper(async (req, res, next) => {
 
 const getStoreProducts = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
-        const decoded = req.decoded;
-        const brandId = decoded.storeId;
-        if (!brandId) {
+        // const decoded = req.decoded;
+        // const storeId = decoded.storeId;
+        const { storeId } = req.query
+        if (!storeId) {
             return next(new ForbiddenError("please ensure you are connected to a store"));
         }
-        const brand = await Brand.findByPk(brandId);
-        if (!brand) {
+        const store = await Brand.findByPk(storeId);
+        if (!store) {
             return next(new NotFoundError("Store not found"));
         }
         const products = await Product.findAll({
             where: {
-                brandId
+                storeId
             }
         });
         res.status(200).json({
             success: true,
-            message: `Products for store: ${brand.name} retrieved successfully`,
+            message: `Products for store: ${store.name} retrieved successfully`,
             data: products,
         });
     })
@@ -202,14 +239,15 @@ const getStoreProducts = asyncWrapper(async (req, res, next) => {
 const toggleProduct = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const decoded = req.decoded;
-        const brandId = decoded.storeId;
+        // const storeId = decoded.storeId;
+        const { storeId } = req.query
         const { id } = req.params
 
-        if (!brandId) {
+        if (!storeId) {
             return next(new ForbiddenError("please ensure you are connected to a store"));
         }
-        const brand = await Brand.findByPk(brandId);
-        if (!brand) {
+        const store = await Brand.findByPk(storeId);
+        if (!store) {
             return next(new NotFoundError("Store not found"));
         }
 
@@ -226,7 +264,7 @@ const toggleProduct = asyncWrapper(async (req, res, next) => {
         }
         await Product.update({
             status: newproductStatus
-        }, { where: { id, brandId }}, { transaction: t });
+        }, { where: { id, storeId }}, { transaction: t });
 
         res.status(200).json({
             success: true,
@@ -242,7 +280,8 @@ const updateProduct = asyncWrapper(async (req, res, next) => {
         const productId = req.params.id;
         const { name, description, price, quantity, specifications, subcategory, discount } = req.body;
         const decoded = req.decoded;
-        const brandId = decoded.storeId;
+        // const storeId = decoded.storeId;
+        const { storeId } = req.query
 
         // Check if the product exists
         const product = await Product.findByPk(productId);
@@ -261,12 +300,12 @@ const updateProduct = asyncWrapper(async (req, res, next) => {
             return next(new NotFoundError("User not found"));
         }
 
-        const brand = await Brand.findByPk(brandId);
-        if (!brand) {
+        const store = await Brand.findByPk(storeId);
+        if (!store) {
             return next(new NotFoundError("Store not found"));
         }
 
-        const isAssociated = await brand.hasUser(user);
+        const isAssociated = await store.hasUser(user);
         if (!isAssociated) {
             return next(new ForbiddenError("You are not allowed to access this resource"));
         }
@@ -276,7 +315,7 @@ const updateProduct = asyncWrapper(async (req, res, next) => {
             console.log(req.files)
             const details = {
                 folder: 'product',
-                user: brandId
+                user: storeId
             };
 
             console.log('files found for upload')
@@ -308,7 +347,8 @@ const updateProductdiscount = asyncWrapper(async (req, res, next) => {
         const { discount } = req.body
         const { id } = req.params
         const decoded = req.decoded
-        const brandId = decoded.storeId
+        // const storeId = decoded.storeId
+        const { storeId } = req.query
         const userId = decoded.id
 
         // check if user is authorized to create product
@@ -321,12 +361,12 @@ const updateProductdiscount = asyncWrapper(async (req, res, next) => {
         //     return next(new ForbiddenError("You are not allowed to access this resource"));
         // }
 
-        // check if brand exists
-        const brand = await Brand.findByPk(brandId);
-        if (!brand) {
+        // check if store exists
+        const store = await Brand.findByPk(storeId);
+        if (!store) {
             return next(new NotFoundError("Store not found"));
         }
-        const isAssociated = await brand.hasUser(user);
+        const isAssociated = await store.hasUser(user);
         if (!isAssociated) {
             return next(new ForbiddenError("You are not allowed to access this resource"));
         }
@@ -405,7 +445,7 @@ const searchProduct = asyncWrapper(async (req, res, next) => {
             include: [
                 {
                     model: Brand,
-                    as: 'brand',
+                    as: 'store',
                 },
                 {
                     model: Category,
@@ -423,7 +463,7 @@ const searchProduct = asyncWrapper(async (req, res, next) => {
 
 
 // const searchProduct = asyncWrapper(async (req, res) => {
-//     const { searchQuery, rating, review, minPrice, maxPrice, category, brand, sortBy, sortOrder, limit, page } = queryString.parse(req.url.split('?')[1]);
+//     const { searchQuery, rating, review, minPrice, maxPrice, category, store, sortBy, sortOrder, limit, page } = queryString.parse(req.url.split('?')[1]);
 
 //     // Validation for query parameters
 //     if (!searchQuery) {
@@ -450,7 +490,7 @@ const searchProduct = asyncWrapper(async (req, res, next) => {
 //         throw new BadRequestError('Category ID should be a positive integer');
 //     }
 
-//     if (brand && !validator.isInt(brand, { min: 1 })) {
+//     if (store && !validator.isInt(store, { min: 1 })) {
 //         throw new BadRequestError('Brand ID should be a positive integer');
 //     }
 
@@ -475,7 +515,7 @@ const searchProduct = asyncWrapper(async (req, res, next) => {
 //         [Op.or]: [
 //             { name: { [Op.iLike]: `%${searchQuery}%` } },
 //             { description: { [Op.iLike]: `%${searchQuery}%` } },
-//             { '$brand.name$': { [Op.iLike]: `%${searchQuery}%` } },
+//             { '$store.name$': { [Op.iLike]: `%${searchQuery}%` } },
 //         ],
 //     };
 
@@ -509,8 +549,8 @@ const searchProduct = asyncWrapper(async (req, res, next) => {
 //         filters.categoryId = category;
 //     }
 
-//     if (brand) {
-//         filters.brandId = brand;
+//     if (store) {
+//         filters.storeId = store;
 //     }
 
 //     // Construct the sorting object
@@ -522,7 +562,7 @@ const searchProduct = asyncWrapper(async (req, res, next) => {
 //     // Perform the search query
 //     const { count, rows } = await Product.findAndCountAll({
 //         where: filters,
-//         include: [{ model: Brand, as: 'brand' }],
+//         include: [{ model: Brand, as: 'store' }],
 //         order,
 //         limit: limit ? parseInt(limit) : 10,
 //         offset: page ? (parseInt(page) - 1) * (limit ? parseInt(limit) : 10) : 0,

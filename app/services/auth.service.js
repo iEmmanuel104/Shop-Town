@@ -21,6 +21,13 @@ const issueToken = async (userid, storeId) => {
         payload.website = mywebsite;
         payload.jti = uuidv4();
 
+        let access_expiry, refresh_expiry
+
+        if (this_user.isActivated === false) {
+            access_expiry = '30m' ? '30m' : accessTokenExpiry
+            refresh_expiry = '1h' ? '1h' : refreshTokenExpiry
+        }
+
         if (storeId) payload.storeId = storeId
 
         const access_token = jwt.sign(payload, secret2, { expiresIn: accessTokenExpiry, algorithm: 'HS256' });

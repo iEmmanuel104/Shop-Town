@@ -19,7 +19,7 @@ const sendverificationEmail = async (details, code) => {
     // options.html = `${options.message}`;    
     await sendEmail(options);
     options.phone = phone;
-    await sendSMS(options);
+    // await sendSMS(options);
 };
 
 const sendForgotPasswordEmail = async (details, code) => {

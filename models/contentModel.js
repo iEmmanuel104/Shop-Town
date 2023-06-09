@@ -65,7 +65,7 @@ module.exports = (sequelize, DataTypes) => {
             onDelete: "CASCADE",
         });
         Ksocial.belongsTo(models.Brand, {
-            foreignKey: "brandId",
+            foreignKey: "storeId",
             onDelete: "CASCADE",
         });
     };

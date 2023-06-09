@@ -5,6 +5,7 @@ module.exports = (sequelize, DataTypes) => {
 
     // imports
     const { Wallet } = require('./walletModel')(sequelize, DataTypes);
+    // const { Cart } = require('./storeModel');
 
     //  ======  User Model  ====== //
     const User = sequelize.define("User", {
@@ -41,6 +42,9 @@ module.exports = (sequelize, DataTypes) => {
                 }
             },
             allowNull: false,
+            set(value) {
+                this.setDataValue('email', value.toLowerCase());
+            }
         },
         role: {
             type: DataTypes.ENUM(["super_admin", "admin", "vendor", "guest"]),
@@ -116,6 +120,19 @@ module.exports = (sequelize, DataTypes) => {
                 },
                 attributes: ['id', 'firstName', 'lastName', 'email', 'phone', 'role', 'status', 'vendorMode', 'createdAt', 'updatedAt']
             }
+        },
+        hooks: {
+            beforeCreate: (user) => {
+                user.email = user.email.toLowerCase();
+            },
+            beforeUpdate: (user) => {
+                user.email = user.email.toLowerCase();
+            },
+            beforeFind: (options) => {
+                if (options.where && options.where.email) {
+                    options.where.email = options.where.email.toLowerCase();
+                }
+            },
         },
     });
 
@@ -325,7 +342,7 @@ module.exports = (sequelize, DataTypes) => {
         scopes: {
             Default(value) {
                 let valuq;
-                value.type === 'store' ? valuq = 'brandId' : valuq = 'userId';
+                value.type === 'store' ? valuq = 'storeId' : valuq = 'userId';
                 return {
                     where: {
                         isDefault: true,
@@ -342,11 +359,11 @@ module.exports = (sequelize, DataTypes) => {
 
             if (address.userId) {
                 whereClause.userId = address.userId;
-            } else if (address.brandId) {
-                whereClause.brandId = address.brandId;
+            } else if (address.storeId) {
+                whereClause.storeId = address.storeId;
             }
 
-            // Find all other delivery addresses for this user or brand and update their isDefault field to false
+            // Find all other delivery addresses for this user or store and update their isDefault field to false
             await DeliveryAddress.update(
                 { isDefault: false },
                 {
@@ -361,14 +378,18 @@ module.exports = (sequelize, DataTypes) => {
     });
 
     User.addScope('fulldetails', {
-        include: [{
-            model: DeliveryAddress,
-            as: 'DeliveryAddresses',
-            where: {
-                isDefault: true,
+        include: [
+            {
+                model: DeliveryAddress,
+                as: 'DeliveryAddresses',
+                where: {
+                    isDefault: true,
+                },
+                attributes: ['id', 'address', 'city', 'state', 'country', 'postal', 'phone', 'type', 'addressCode']
             },
-            attributes: ['id', 'address', 'city', 'state', 'country', 'postal', 'phone', 'type', 'addressCode']
-        }, { model: Wallet, as: 'Wallet', attributes: ['id', 'amount', 'type', 'currency', 'isActive'] }]
+            { model: Wallet, as: 'Wallet', attributes: ['id', 'amount', 'type', 'currency', 'isActive'] },
+            // { model: Cart, as: 'Cart', attributes: ['items', 'checkoutData', 'totalAmouny'] },
+        ]
     });
 
 
@@ -386,6 +407,7 @@ module.exports = (sequelize, DataTypes) => {
             onUpdate: 'CASCADE'
         });
         User.hasMany(models.Order, {
+            foreignKey: 'userId',
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
         });
@@ -395,6 +417,7 @@ module.exports = (sequelize, DataTypes) => {
             onUpdate: 'CASCADE'
         });
         User.hasOne(models.Cart, {
+            foreignKey: 'userId',
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
         });
@@ -403,10 +426,12 @@ module.exports = (sequelize, DataTypes) => {
             onUpdate: 'CASCADE'
         });
         User.hasOne(models.Wallet, {
+            foreignKey: 'userId',
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
         });
         User.hasMany(models.PostActivity, {
+            foreignKey: 'userId',
             onDelete: 'CASCADE',
         });
     };
@@ -416,7 +441,7 @@ module.exports = (sequelize, DataTypes) => {
         Brand.hasMany(models.Product, {
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE',
-            foreignKey: 'brandId',
+            foreignKey: 'storeId',
             as: 'products'
         });
         Brand.belongsToMany(models.User, {
@@ -427,13 +452,13 @@ module.exports = (sequelize, DataTypes) => {
         Brand.hasOne(models.DeliveryAddress, {
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE',
-            foreignKey: 'brandId',
+            foreignKey: 'storeId',
             as: 'deliveryAddress'
         });
         Brand.hasMany(models.StoreDiscount, {
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE',
-            foreignKey: 'brandId',
+            foreignKey: 'storeId',
             as: 'storeDiscounts'
         });
         Brand.hasOne(models.Wallet, {
@@ -443,6 +468,7 @@ module.exports = (sequelize, DataTypes) => {
             onUpdate: 'CASCADE'
         });
         Brand.hasMany(models.Ksocial, {
+            foreignKey: 'storeId',
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
         });
@@ -452,7 +478,7 @@ module.exports = (sequelize, DataTypes) => {
     // ================ USERBRAND ================//
     UserBrand.associate = (models) => {
         UserBrand.belongsTo(models.User)
-        UserBrand.belongsTo(models.Brand)
+        UserBrand.belongsTo(models.Brand, { foreignKey: 'storeId' })
     }
 
     //  =========== PASSWORD ASSOCIATIONS =========== //
@@ -481,7 +507,7 @@ module.exports = (sequelize, DataTypes) => {
             onUpdate: 'CASCADE'
         });
         DeliveryAddress.belongsTo(models.Brand, {
-            foreignKey: 'brandId',
+            foreignKey: 'storeId',
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
         });

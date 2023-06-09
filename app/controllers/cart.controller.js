@@ -1,3 +1,4 @@
+const e = require('express');
 const { Product, User, Brand, Category, Cart, DeliveryAddress } = require('../../models');
 require('dotenv').config();
 const { sequelize, Sequelize } = require('../../models');
@@ -30,7 +31,7 @@ const convertcart = async (cart, type) => {
         } else {
             cartquantity = items[product.id];
         }
-        const brandId = product.brandId
+        const storeId = product.storeId
         if (cartquantity >= 1) {
             const price = product.discountedPrice ? product.discountedPrice : product.price;
             const inStock = product.quantity.instock;
@@ -43,7 +44,7 @@ const convertcart = async (cart, type) => {
                 discount: product.discount,
                 Discountprice: price,
                 status: itemStatus,
-                store: brandId,
+                store: storeId,
             };
             if (itemStatus === 'instock') {
                 totalAmount += price * cartquantity
@@ -70,7 +71,8 @@ const storeCart = asyncWrapper(async (req, res) => {
         const newCart = await Cart.create({
             // userId: null,
             items: converted.items,
-            totalAmount: converted.totalAmount
+            totalAmount: converted.totalAmount,
+            isWishlist: true,
         });
         res.status(200).json({
             success: true,
@@ -134,26 +136,36 @@ const updateCart = asyncWrapper(async (req, res) => {
                 id: id
             }
         });
-        if (cart) {
-            const updatedCart = { items }
-            console.log(items)
-            const converted = await convertcart(updatedCart)
-            cart.items = converted.items;
-            cart.totalAmount = converted.totalAmount;
-            await cart.save({ transaction: t });
-            
-            res.status(200).json({
-                success: true,
-                message: "Cart Updated Succesfully",
-            });
-        }
-        else {
+        const updatedCart = { items }
+        console.log('updatedCart', updatedCart)
+        if (!cart) {
             res.status(200).json({
                 success: true,
                 message: "Cart not found",
                 data: {}
             });
         }
+        console.log('items', items)
+        if (updatedCart.items.length > 0) {
+            const converted = await convertcart(updatedCart)
+            cart.items = converted.items;
+            cart.totalAmount = converted.totalAmount;
+            await cart.save({ transaction: t });
+
+            res.status(200).json({
+                success: true,
+                message: "Cart Updated Succesfully",
+            });
+        } else {
+            cart.items = {};
+            cart.totalAmount = 0;
+            await cart.save({ transaction: t });
+            return res.status(200).json({
+                success: true,
+                message: "Cart Updated Succesfully",
+            });
+        }
+
     });
 });
 
@@ -200,12 +212,12 @@ const cartcheckout = asyncWrapper(async (req, res) => {
 
             console.log(cart.toJSON())
             const converted = await convertcart(cart, 'get')
-            console.log(converted.toJSON() )
+            console.log(converted.toJSON())
             // update the cart with the converted items and totalAmount
             cart.items = converted.items;
             cart.totalAmount = converted.totalAmount;
 
-            // categorise itens by brand
+            // categorise itens by store
             const groupedCartItems = await groupCartItems(cart.items, cart.totalAmount);
             const storeId = {
                 id: Object.keys(groupedCartItems)[0],
@@ -228,7 +240,7 @@ const cartcheckout = asyncWrapper(async (req, res) => {
                     name: item.name,
                     description: item.description,
                     unit_weight: item.specification.weight,
-                    unit_amount: item.Discountprice ,
+                    unit_amount: item.Discountprice,
                     quantity: item.quantity,
                     total_weight: weightsum
                 }
@@ -236,9 +248,9 @@ const cartcheckout = asyncWrapper(async (req, res) => {
 
             const boxSizes = (await getshippingboxes()).data;
             package_dimension = await estimateBoxDimensions(package_items, boxSizes);
-            description = package_dimension.description 
-                        ? `Please handle with care as ${package_dimension.description}` :
-                         `Please handle with care and do not shake`;
+            description = package_dimension.description
+                ? `Please handle with care as ${package_dimension.description}` :
+                `Please handle with care and do not shake`;
 
             const details = {
                 sender_address_code,
@@ -249,15 +261,15 @@ const cartcheckout = asyncWrapper(async (req, res) => {
                 package_dimension,
                 delivery_instructions: description
             }
-             // GET SHIPPING FEE FROM SHIPBUBBLE API
-            const {request_token, cheapest_courier, checkout_data } = await getShippingRates(details);
+            // GET SHIPPING FEE FROM SHIPBUBBLE API
+            const { request_token, cheapest_courier, checkout_data } = await getShippingRates(details);
 
-            console.log (request_token, cheapest_courier, checkout_data)
+            console.log(request_token, cheapest_courier, checkout_data)
 
             // update cart checkout data
             cart.checkoutData = { request_token, cheapest_courier, checkout_data }
 
-            await cart.save( { transaction: t });
+            await cart.save({ transaction: t });
 
             // CREATE A NEW ORDER INSTANCE
 
@@ -266,7 +278,7 @@ const cartcheckout = asyncWrapper(async (req, res) => {
                 message: "Proceed to choose a suitable shipping method",
                 data: cart,
                 courier: cheapest_courier.total
-            });  
+            });
         }
         else {
             res.status(200).json({
@@ -334,7 +346,7 @@ const estimateBoxDimensions = async (items, boxSizes) => {
         const maxfilter = await boxSizes.reduce((max, box) => {
             const volume = box.height * box.width * box.length;
             return volume > max.volume ? { volume, box } : max;
-        } , { volume: 0, box: null });
+        }, { volume: 0, box: null });
 
         selectedBox = maxfilter.box;
     } else {

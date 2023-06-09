@@ -7,17 +7,39 @@ const { sequelize } = require('../../models');
 const path = require('path');
 
 const createCategory = asyncWrapper(async (req, res, next) => {
-    const { name, description } = req.body;
-    await sequelize.transaction(async (t) => {
-        const category = await Category.create({
-            name,
-            description,
-        }, { transaction: t });
+    if (req.query.bulk === 'true') {
+        const {categories} = req.body; // Array of category objects [{ name: 'Category 1', description: 'Description 1' }, { name: 'Category 2', description: 'Description 2' }, ...]
+        console.log(categories)
+
+        if (!categories) {
+            return next(new BadRequestError('use the key "categories" to send the array of categories'));
+        }
+        // Map through the array of categories and create them in bulk
+        const createdCategories = await Category.bulkCreate(categories);
+
         res.status(201).json({
             success: true,
-            data: category,
+            data: createdCategories,
         });
-    });
+    } else {
+        const { name, description } = req.body;
+        if (req.body.categories) {
+            return next(new BadRequestError('use the query param "bulk=true" to create multiple categories'));
+        }
+        if (!name || !description) { 
+            return next(new BadRequestError('name and description are required'));
+        }
+        await sequelize.transaction(async (t) => {
+            const category = await Category.create({
+                name,
+                description,
+            }, { transaction: t });
+            res.status(201).json({
+                success: true,
+                data: category,
+            });
+        });
+    }
 });
 
 // const createCategory = asyncWrapper(async (req, res, next) => {

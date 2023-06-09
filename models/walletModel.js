@@ -7,7 +7,7 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false
         },
         amount: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.DECIMAL(10, 2),
             defaultValue: 0,
             allowNull: false
         },
@@ -41,7 +41,7 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false
         },
         amount: {
-            type: DataTypes.INTEGER,
+            type: DataTypes.DECIMAL(10, 2),
             allowNull: false
         },
         currency: {

@@ -1,4 +1,4 @@
-const {  User, Wallet, WalletTransaction, Brand } = require('../../models')
+const {  User, Wallet, WalletTransaction, Brand, Cart } = require('../../models')
 const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/customErrors');
 const asyncWrapper = require('../middlewares/async')
 
@@ -15,7 +15,7 @@ const generateWallet = async (fields) => {
         return wallet;
     } else if (type === 'store') { 
         const wallet = await Wallet.create({
-            brandId: id,
+            storeId: id,
             balance: 0,
             type: type,
             isActive: true  
@@ -23,6 +23,14 @@ const generateWallet = async (fields) => {
         return wallet;
     }
 };
+
+const createCart = async (userId) => {
+    const cart = await Cart.create({
+        userId: userId,
+    });
+    return cart;
+};
+
 
 // const NewpaymentEntry = async (fields) => {
 //     const { 
@@ -38,4 +46,4 @@ const generateWallet = async (fields) => {
 
 
 
-module.exports = { generateWallet }
+module.exports = { generateWallet, createCart }
