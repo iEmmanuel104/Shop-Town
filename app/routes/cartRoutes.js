@@ -11,7 +11,7 @@ const {
 } = require('../controllers/cart.controller')
 
 router.route('/')
-    .post(storeCart)
+    .post(basicAuth, storeCart)
 
 router.route('/:id')
     .get(getCart)

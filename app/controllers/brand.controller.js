@@ -170,7 +170,7 @@ const AddStoreDiscount = asyncWrapper(async (req, res, next) => {
         }
         const newStoreDiscount = await StoreDiscount.create({
             title,
-            type,
+            type: type ? type : 'percentage',
             value,
             endDate,
             categoryIds: categories,

@@ -183,15 +183,7 @@ module.exports = (sequelize, DataTypes) => {
         isWishList: {
             type: DataTypes.BOOLEAN,
             defaultValue: false
-        },
-        linkedCart: {
-            type: DataTypes.UUID,
-            references: {
-                model: 'Cart',
-                key: 'id'
-            },
-            allowNull: true
-        },
+        }
     }, {
         tableName: 'Cart',
         timestamps: true,
@@ -204,6 +196,11 @@ module.exports = (sequelize, DataTypes) => {
             }
         },
     });
+
+    Cart.prototype.addChild = async function (childCart) {
+        return await this.addChildren(childCart);
+    };
+
 
     const StoreDiscount = sequelize.define("StoreDiscount", {
         id: {
@@ -335,7 +332,6 @@ module.exports = (sequelize, DataTypes) => {
         }
     });
 
-
     StoreDiscount.beforeDestroy(async (storeDiscount) => {
         if (storeDiscount.status === 'active') {
             let products
@@ -351,8 +347,8 @@ module.exports = (sequelize, DataTypes) => {
                 });
             } else {
                 products = await Product.findAll({ where: { storeId: storeDiscount.storeId } });
-            } 
-            
+            }
+
             const productIds = products.map((product) => product.id);
 
             await Product.update(
@@ -388,6 +384,15 @@ module.exports = (sequelize, DataTypes) => {
     Cart.associate = (models) => {
         Cart.belongsTo(models.User, {
             foreignKey: 'userId',
+        });
+        // self association
+        Cart.belongsTo(models.Cart, {
+            foreignKey: 'parentId',
+            as: 'parent'
+        });
+        Cart.hasMany(models.Cart, {
+            foreignKey: 'parentId',
+            as: 'children'
         });
     };
 

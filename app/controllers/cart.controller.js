@@ -59,6 +59,15 @@ const convertcart = async (cart, type) => {
 const storeCart = asyncWrapper(async (req, res) => {
     await sequelize.transaction(async (t) => {
         const { items } = req.body;
+        const decoded = req.decoded;
+        const userId = decoded.id;
+        const usercart = await Cart.findOne({
+            where: {
+                userId: userId,
+                isWishList: false
+            }
+        });
+
         if (!items) {
             return next(new BadRequestError("Items not found"));
         }
@@ -72,8 +81,13 @@ const storeCart = asyncWrapper(async (req, res) => {
             // userId: null,
             items: converted.items,
             totalAmount: converted.totalAmount,
-            isWishlist: true,
+            isWishList: true,
         });
+
+        // Associate the cart with the user
+        await usercart.addChild(newCart, { transaction: t })
+
+        // save wishli
         res.status(200).json({
             success: true,
             data: newCart
