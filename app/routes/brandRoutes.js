@@ -1,6 +1,6 @@
 const express = require('express')
 const router = express.Router()
-const { basicAuth } = require('../middlewares/authWares')
+const {basicAuth} = require('../middlewares/authWares')
 const uploadFile = require('../middlewares/multerobject')
 
 
@@ -12,16 +12,17 @@ const {
     increaseStoreProductPrice
 } = require('../controllers/brand.controller');
 
-router.post('/', basicAuth, createBrand)
-    .get('/', getBrands)
-    .get('/:id', getBrand)
-    .put('/update/:id', basicAuth, uploadFile.single('file'), updateBrand)
-    .delete('/delete/:id', basicAuth, deleteBrand)
-    .get('/staff/:id', basicAuth, getBrandStaff)
-    .post('/discount/:id', basicAuth, AddStoreDiscount)
-    .get('/discount/:id', basicAuth, getStoreDiscounts)
-    .put('/discount/:id', basicAuth, updateStoreDiscount)
-    .delete('/discount/:id', basicAuth, deleteStoreDiscount)
-    .put('/increase/:id', basicAuth, increaseStoreProductPrice)
+router.post('/', basicAuth, createBrand);
+router.get('/', getBrands);
+router.get('/:id', getBrand);
+router.put('/update/:id', basicAuth, uploadFile.single('file'), updateBrand);
+router.delete('/delete/:id', basicAuth, deleteBrand);
+router.get('/staff/:id', basicAuth, getBrandStaff);
+router.post('/discount/:id', basicAuth, AddStoreDiscount);
+router.get('/discount/:id', basicAuth, getStoreDiscounts);
+router.put('/discount/:id', basicAuth, updateStoreDiscount);
+router.delete('/discount/:id', basicAuth, deleteStoreDiscount);
+router.post('/increase/:id', basicAuth, increaseStoreProductPrice);
+
 
 module.exports = router

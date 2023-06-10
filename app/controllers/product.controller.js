@@ -13,18 +13,20 @@ const path = require('path');
 const createProduct = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const { name, description, price, quantity, specifications, shippingcategory } = req.body;
-        const {storeId, category} = req.query
+        const { storeId, category } = req.query
         const decoded = req.decoded;
         const userId = decoded.id;
 
-        const categoryExists = await Category.findByPk(category),
-            user = await User.findByPk(userId),
-            storeExists = await Brand.findByPk(storeId),
-            isAssociated = await storeExists.hasUser(user);
-
+        const categoryExists = await Category.findByPk(category)
         if (!categoryExists) return next(new NotFoundError('Category not found'));
-        if (!storeExists) return next(new NotFoundError('Store not found'));
+
+        const user = await User.findByPk(userId)
         if (!user) return next(new NotFoundError("User not found"));
+
+        const storeExists = await Brand.findByPk(storeId)
+        if (!storeExists) return next(new NotFoundError('Store not found'));
+
+        const isAssociated = await storeExists.hasUser(user)
         if (!isAssociated) return next(new ForbiddenError("You are not allowed to access this resource"));
 
         let fileUrls = [];
@@ -176,10 +178,10 @@ const getProducts = asyncWrapper(async (req, res, next) => {
 
         const products = await Product.scope('includeBrand').findAndCountAll({
             where: filters,
-            include: [{   model: Category, as: 'category', attributes: ['id', 'name'] }],
+            include: [{ model: Category, as: 'category', attributes: ['id', 'name'] }],
             limit,
             offset
-        }, {transaction: t});
+        }, { transaction: t });
 
         const specificCount = products.length;
 
@@ -256,7 +258,7 @@ const toggleProduct = asyncWrapper(async (req, res, next) => {
             return next(new NotFoundError(`Product with id ${req.params.id} not found`));
         }
         const newproductStatus = product.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
-        let messsage; 
+        let messsage;
         if (newproductStatus === 'ACTIVE') {
             messsage = 'Product has been successfully activated'
         } else {
@@ -264,7 +266,7 @@ const toggleProduct = asyncWrapper(async (req, res, next) => {
         }
         await Product.update({
             status: newproductStatus
-        }, { where: { id, storeId }}, { transaction: t });
+        }, { where: { id, storeId } }, { transaction: t });
 
         res.status(200).json({
             success: true,
@@ -326,12 +328,12 @@ const updateProduct = asyncWrapper(async (req, res, next) => {
         // Update the product
         const updated = await product.update({
             name: name ? name : product.name,
-            description : description ? description : product.description,
-            price : price ? price : product.price,
-            quantity : quantity ? quantity : product.quantity,
-            specifications : specifications ? specifications : product.specifications,
-            subcategory : subcategory ? subcategory : product.subcategory,
-            discount : discount ? discount : product.discount,  
+            description: description ? description : product.description,
+            price: price ? price : product.price,
+            quantity: quantity ? quantity : product.quantity,
+            specifications: specifications ? specifications : product.specifications,
+            subcategory: subcategory ? subcategory : product.subcategory,
+            discount: discount ? discount : product.discount,
             images: fileUrls ? fileUrls : product.images
         }, { transaction: t });
 

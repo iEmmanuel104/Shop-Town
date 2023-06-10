@@ -290,7 +290,7 @@ const increaseStoreProductPrice = asyncWrapper(async (req, res, next) => {
             storeId: req.params.id,
         };
         if (category) {
-            filter.category = category;
+            filter.categoryId = category;
         }
 
         // Retrieve the store products based on the filter
@@ -299,16 +299,16 @@ const increaseStoreProductPrice = asyncWrapper(async (req, res, next) => {
         // Increment the price of each product based on the given amount or percentage
         for (const product of products) {
             if (amount) {
-                product.price += amount;
+                product.price = parseFloat(product.price) + parseFloat(amount);
             } else if (percentage) {
                 product.price += (product.price * percentage) / 100;
             }
-            await product.save({ transaction: t });
+            await product.save();
         }
 
         res.status(200).json({
             success: true,
-            message: "Product prices increased successfully",
+            message: `Product prices increased successfully by ${amount ? amount : percentage + '%'}}`,
         });
     });
 });
