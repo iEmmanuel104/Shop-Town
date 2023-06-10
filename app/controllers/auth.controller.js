@@ -68,7 +68,7 @@ const verifyEmail = asyncWrapper(async (req, res, next) => {
     if (token.userId !== userId) return next(new BadRequestError('Unauthorized'))
 
 
-    user.isActivated = true
+    user.isActivated === true
     await user.save()
     const walleti = {
         id: user.id,
@@ -294,9 +294,16 @@ const getloggedInUser = asyncWrapper(async (req, res, next) => {
     const user = await User.scope('verified').findOne(
         {
             where: { id: userId },
-            include: [
-                { model: Cart },
-                { model: Wallet }
+            include: [{
+                model: Cart,
+                as: 'Cart',
+                include: [{
+                    model: Cart,
+                    as: 'Wishlists',
+                    attributes: ['id'],
+                }]
+            },
+            { model: Wallet }
             ]
         }
     );

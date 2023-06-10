@@ -392,7 +392,7 @@ module.exports = (sequelize, DataTypes) => {
         });
         Cart.hasMany(models.Cart, {
             foreignKey: 'parentId',
-            as: 'children'
+            as: 'Wishlists'
         });
     };
 
