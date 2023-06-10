@@ -67,9 +67,13 @@ const verifyEmail = asyncWrapper(async (req, res, next) => {
 
     if (token.userId !== userId) return next(new BadRequestError('Unauthorized'))
 
+    // update user isActivated to true
+    const updatedUser = await User.update({ isActivated: true }, { where: { id: userId } })
 
-    user.isActivated === 'true'
-    await user.save()
+    console.log ('updatedUser', updatedUser)
+
+    // user.isActivated === 'true'
+    // await user.save()
     const walleti = {
         id: user.id,
         type: 'customer'
