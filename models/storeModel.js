@@ -380,7 +380,6 @@ module.exports = (sequelize, DataTypes) => {
             as: 'reviews'
         });
     };
-
     Cart.associate = (models) => {
         Cart.belongsTo(models.User, {
             foreignKey: 'userId',

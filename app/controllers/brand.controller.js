@@ -267,6 +267,53 @@ const deleteStoreDiscount = asyncWrapper(async (req, res, next) => {
     });
 });
 
+// endpoint to increase store product price by amount or percentage
+const increaseStoreProductPrice = asyncWrapper(async (req, res, next) => {
+    await sequelize.transaction(async (t) => {
+        const decoded = req.decoded;
+        const userId = decoded.id;
+        const { amount, percentage } = req.body;
+        const { category } = req.query;
+        
+        const store = await Brand.findByPk(req.params.id, { attributes: ['owner'] });
+
+        if (!store) {
+            return next(new NotFoundError(`Store not found`));
+        }
+
+        if (store.owner !== userId) {
+            return next(new ForbiddenError("You are not allowed to access this resource"));
+        }
+
+        // Define the filter based on the category
+        const filter = {
+            storeId: req.params.id,
+        };
+        if (category) {
+            filter.category = category;
+        }
+
+        // Retrieve the store products based on the filter
+        const products = await Product.findAll({ where: filter });
+
+        // Increment the price of each product based on the given amount or percentage
+        for (const product of products) {
+            if (amount) {
+                product.price += amount;
+            } else if (percentage) {
+                product.price += (product.price * percentage) / 100;
+            }
+            await product.save({ transaction: t });
+        }
+
+        res.status(200).json({
+            success: true,
+            message: "Product prices increased successfully",
+        });
+    });
+});
+
+
 
 module.exports = {
     createBrand,
@@ -278,6 +325,7 @@ module.exports = {
     AddStoreDiscount,
     getStoreDiscounts,
     updateStoreDiscount,
-    deleteStoreDiscount
+    deleteStoreDiscount,
+    increaseStoreProductPrice
 };
 
