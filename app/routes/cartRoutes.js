@@ -14,7 +14,7 @@ router.route('/').post(basicAuth, storeCart)
 router.route('/:id').get(getCart)
 router.route('/delete/:id').delete(deleteCart)
 router.route('/update/:id').put(updateCart)
-router.route('/checkout').post(basicAuth, cartcheckout)
+router.route('/checkout/:id').post(basicAuth, cartcheckout)
 
 
 module.exports = router
