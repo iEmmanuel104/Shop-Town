@@ -114,29 +114,34 @@ const getCart = asyncWrapper(async (req, res) => {
 
         if (cart) {
 
-            // check if the product pice and quantity has changed
-            const converted = await convertcart(cart, 'get')
-            // compare the converted items and totalAmount to the original cart
-            if (
-                JSON.stringify(cart.items) !== JSON.stringify(converted.items) ||
-                cart.totalAmount !== converted.totalAmount
-            ) {
-                cart.items = converted.items;
-                cart.totalAmount = converted.totalAmount;
-                await cart.save({ transaction: t });
+            // check if the cart is empty
+            if (cart.items.length == 0 || cart.totalAmount == 0) {
+                return res.status(200).json({
+                    success: true,
+                    data: {}
+                });
+            } else {
+                // check if the product pice and quantity has changed
+                const converted = await convertcart(cart, 'get')
+                // compare the converted items and totalAmount to the original cart
+                if (
+                    JSON.stringify(cart.items) !== JSON.stringify(converted.items) ||
+                    cart.totalAmount !== converted.totalAmount
+                ) {
+                    cart.items = converted.items;
+                    cart.totalAmount = converted.totalAmount;
+                    await cart.save({ transaction: t });
 
+                }
+
+                res.status(200).json({
+                    success: true,
+                    data: cart
+                });
             }
-
-            res.status(200).json({
-                success: true,
-                data: cart
-            });
         }
-        else if (!cart && cart.items.length == 0) {
-            res.status(200).json({
-                success: true,
-                data: {}
-            });
+        else if (!cart) {
+            return next(new NotFoundError("Cart not found"));
         }
     });
 });
