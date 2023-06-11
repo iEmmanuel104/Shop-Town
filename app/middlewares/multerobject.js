@@ -4,8 +4,8 @@ const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/cus
 const fileFilter = (req, file, cb) => {
   if (
     file.mimetype.startsWith("image/") || // Images
-    file.mimetype === "application/pdf" || // PDFs
     file.mimetype.startsWith("video/") || // Videos
+    file.mimetype === "application/pdf" || // PDFs
     file.mimetype === "text/csv" || // CSVs
     file.mimetype === "application/vnd.ms-excel" // Excel
 

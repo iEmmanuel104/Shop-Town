@@ -10,14 +10,11 @@ const {
     cartcheckout
 } = require('../controllers/cart.controller')
 
-router.route('/')
-    .post(basicAuth, storeCart)
-
-router.route('/:id')
-    .get(getCart)
-    .delete(deleteCart)
-    .put(updateCart)
-    .post(basicAuth, cartcheckout)
+router.route('/').post(basicAuth, storeCart)
+router.route('/:id').get(getCart)
+router.route('/delete/:id').delete(deleteCart)
+router.route('/update/:id').put(updateCart)
+router.route('/checkout').post(basicAuth, cartcheckout)
 
 
 module.exports = router
