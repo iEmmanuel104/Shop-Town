@@ -20,8 +20,8 @@ const convertcart = async (cart, type) => {
     let totalAmount = 0;
     console.log(products)
 
-    if (products.length === 0) {
-        throw new BadRequestError("please add a vlaid product to cart");
+    if (products.length === 0) { // if no product is found
+        throw new BadRequestError("please add a valid product to cart");
     }
 
     products.forEach(product => {
@@ -56,7 +56,7 @@ const convertcart = async (cart, type) => {
     return cart
 }
 
-const storeCart = asyncWrapper(async (req, res) => {
+const storeCart = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const { items } = req.body;
         const decoded = req.decoded;
@@ -95,7 +95,7 @@ const storeCart = asyncWrapper(async (req, res) => {
     });
 });
 
-const getCart = asyncWrapper(async (req, res) => {
+const getCart = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const cart = await Cart.findOne({
             where: {
@@ -103,92 +103,79 @@ const getCart = asyncWrapper(async (req, res) => {
             }
         });
         if (!cart) {
-            return res.status(200).json({
-                success: true,
-                data: {}
-            });
+            return next(new NotFoundError("Cart not found"));
         }
         if (!cart.items) {
             cart.items = {}; // initialize items as empty object if null
         }
+        console.log(cart)
 
-        if (cart) {
-
-            // check if the cart is empty
-            if (cart.items.length == 0 || cart.totalAmount == 0) {
-                return res.status(200).json({
-                    success: true,
-                    data: {}
-                });
-            } else {
-                // check if the product pice and quantity has changed
-                const converted = await convertcart(cart, 'get')
-                // compare the converted items and totalAmount to the original cart
-                if (
-                    JSON.stringify(cart.items) !== JSON.stringify(converted.items) ||
-                    cart.totalAmount !== converted.totalAmount
-                ) {
-                    cart.items = converted.items;
-                    cart.totalAmount = converted.totalAmount;
-                    await cart.save({ transaction: t });
-
-                }
-
-                res.status(200).json({
-                    success: true,
-                    data: cart
-                });
-            }
-        }
-        else if (!cart) {
-            return next(new NotFoundError("Cart not found"));
-        }
-    });
-});
-
-const updateCart = asyncWrapper(async (req, res) => {
-    await sequelize.transaction(async (t) => {
-        const { id } = req.params;
-        const { items } = req.body;
-        const cart = await Cart.findOne({
-            where: {
-                id: id
-            }
-        });
-        const updatedCart = { items }
-        console.log('updatedCart', updatedCart)
-        if (!cart) {
-            res.status(200).json({
+        if (cart.items.length === 0 || cart.items == {} || cart.items == null || cart.totalAmount == 0) {
+            return res.status(200).json({
                 success: true,
-                message: "Cart not found",
+                message: "Cart is empty",
                 data: {}
             });
         }
-        console.log('items', items)
-        if (updatedCart.items.length > 0) {
-            const converted = await convertcart(updatedCart)
+        // check if the product pice and quantity has changed
+        const converted = await convertcart(cart, 'get')
+        // compare the converted items and totalAmount to the original cart
+        if (
+            JSON.stringify(cart.items) !== JSON.stringify(converted.items) ||
+            cart.totalAmount !== converted.totalAmount
+        ) {
             cart.items = converted.items;
             cart.totalAmount = converted.totalAmount;
             await cart.save({ transaction: t });
-
-            res.status(200).json({
-                success: true,
-                message: "Cart Updated Succesfully",
-            });
-        } else {
-            cart.items = {};
-            cart.totalAmount = 0;
-            await cart.save({ transaction: t });
-            return res.status(200).json({
-                success: true,
-                message: "Cart Updated Succesfully",
-            });
         }
 
+        res.status(200).json({
+            success: true,
+            data: cart
+        });
     });
 });
 
-const deleteCart = asyncWrapper(async (req, res) => {
+const updateCart = asyncWrapper(async (req, res, next) => {
+    await sequelize.transaction(async (t) => {
+        const { id } = req.params;
+        const { items } = req.body;
+        console.log(items)
+        const cart = await Cart.findOne({
+            where: {
+                id: id
+            }
+        });
+        let updatefields = {}, message = "";
+        if (!cart) return next(new NotFoundError("Cart not found"));
+
+        const updatedCart = { items }
+        let checkcart = updatedCart.items
+
+        console.log("checkcart", checkcart)
+
+        if (!items || Object.keys(checkcart).length === 0) {
+            updatefields = { items: {}, totalAmount: 0 }
+            message = "Cart is Emptied"
+        } else {
+            const converted = await convertcart(updatedCart)
+            updatefields = {
+                items: converted.items,
+                totalAmount: converted.totalAmount,
+            }
+            message = "Cart Updated Succesfully"
+        }
+
+        await cart.update(updatefields, { transaction: t });
+
+        res.status(200).json({
+            success: true,
+            message,
+        });
+    });
+});
+
+const deleteCart = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const { id } = req.params;
         const cart = await Cart.findOne({
@@ -196,24 +183,24 @@ const deleteCart = asyncWrapper(async (req, res) => {
                 id: id
             }
         });
-        if (cart) {
-            await cart.destroy();
-            res.status(200).json({
-                success: true,
-                message: "Cart deleted",
-                data: {}
-            });
+        if (!cart) {
+            return next(new NotFoundError("Cart not found"));
         }
-        else {
-            res.status(200).json({
-                success: true,
-                data: {}
-            });
+
+        if (cart.isWishList === false) {
+            return next(new ForbiddenError("You can't delete a main cart only a wishlist cart"));
         }
+
+        await cart.destroy();
+        res.status(200).json({
+            success: true,
+            message: "Cart deleted",
+            data: {}
+        });
     });
 });
 
-const cartcheckout = asyncWrapper(async (req, res) => {
+const cartcheckout = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const decoded = req.decoded
         const { id } = req.params;

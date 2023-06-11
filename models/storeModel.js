@@ -130,7 +130,6 @@ module.exports = (sequelize, DataTypes) => {
         }
     });
 
-
     const Category = sequelize.define("Category", {
         id: {
             type: DataTypes.UUID,
@@ -198,9 +197,8 @@ module.exports = (sequelize, DataTypes) => {
     });
 
     Cart.prototype.addChild = async function (childCart) {
-        return await this.addChildren(childCart);
+        return await this.addWishlist(childCart);
     };
-
 
     const StoreDiscount = sequelize.define("StoreDiscount", {
         id: {
