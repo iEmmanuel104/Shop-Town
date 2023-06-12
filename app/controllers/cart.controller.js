@@ -139,7 +139,7 @@ const getCart = asyncWrapper(async (req, res, next) => {
 const updateCart = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const { id } = req.params;
-        const { items } = req.body;
+        const { items } = req.body; 
         console.log(req.body)
         console.log(items)
         const cart = await Cart.findOne({
