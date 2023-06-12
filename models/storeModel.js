@@ -89,7 +89,7 @@ module.exports = (sequelize, DataTypes) => {
 
             includePrice: {
                 where: { status: 'ACTIVE' },
-                attributes: ['id', 'name', 'price', 'quantity', 'discount', 'discountedPrice', 'storeId'],
+                attributes: ['id', 'name', 'price', 'quantity', 'discount', 'discountedPrice', 'storeId', 'images'],
             },
 
         }
