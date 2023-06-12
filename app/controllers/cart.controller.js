@@ -144,7 +144,7 @@ const updateCart = asyncWrapper(async (req, res, next) => {
         console.log(items)
         const cart = await Cart.findOne({
             where: {
-                id: id
+                id: id 
             }
         });
         let updatefields = {}, message = "";
