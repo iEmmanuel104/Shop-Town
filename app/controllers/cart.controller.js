@@ -140,6 +140,7 @@ const updateCart = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const { id } = req.params;
         const { items } = req.body;
+        console.log(req.body)
         console.log(items)
         const cart = await Cart.findOne({
             where: {
@@ -298,6 +299,10 @@ const cartcheckout = asyncWrapper(async (req, res, next) => {
 const groupCartItems = async (items, amt) => {
     const itemIds = Object.keys(items);
 
+    if (itemIds.length === 0) {
+        throw new BadRequestError("Cart is empty");
+    }
+
     // Retrieve products based on itemIds
     const products = await Product.scope('defaultScope', 'includePrice').findAll({
         where: { id: itemIds },
@@ -312,7 +317,6 @@ const groupCartItems = async (items, amt) => {
     Object.values(items).forEach(item => {
         const productId = Object.keys(items).find(key => items[key] === item);
         const product = products.find(product => product.id === productId);
-        console.log(product)
         const { name, specifications, description } = product;
 
         const newItem = {
