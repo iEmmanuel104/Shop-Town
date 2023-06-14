@@ -267,6 +267,13 @@ const signIn = asyncWrapper(async (req, res, next) => {
         return next(new BadRequestError('Invalid user Credentials'));
     }
 
+    const DefaultAddress = await DeliveryAddress.findOne({ where: { userId: user.id, isDefault: true } })
+    let hasdefaultAddress = false
+    if (DefaultAddress) {
+        hasdefaultAddress = true
+    }
+
+
     // set user active
     user.status = "ACTIVE"
     await user.save()
@@ -288,6 +295,7 @@ const signIn = asyncWrapper(async (req, res, next) => {
         success: true,
         message: "Sign in successful",
         user,
+        hasdefaultAddress,
         access_token,
         refresh_token
     });
