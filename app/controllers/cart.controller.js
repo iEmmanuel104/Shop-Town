@@ -4,7 +4,7 @@ require('dotenv').config();
 const { sequelize, Sequelize } = require('../../models');
 const asyncWrapper = require('../middlewares/async');
 const { getshippingboxes, getShippingRates } = require('../services/shipbubble.service');
-// const queryString = require('query-string');
+const { KSECURE_FEE } = require('../utils/configs');
 // const validator = require('validator');
 const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/customErrors');
 const { getPagination, getPagingData } = require('../utils/pagination')
@@ -270,12 +270,13 @@ const cartcheckout = asyncWrapper(async (req, res, next) => {
                 delivery_instructions: description
             }
             // GET SHIPPING FEE FROM SHIPBUBBLE API
-            const { request_token, cheapest_courier, checkout_data } = await getShippingRates(details);
+            const { request_token, kship_courier, cheapest_courier, checkout_data } = await getShippingRates(details);
 
-            console.log(request_token, cheapest_courier, checkout_data)
+            console.log(request_token, kship_courier, cheapest_courier, checkout_data)
 
             // update cart checkout data
-            cart.checkoutData = { request_token, cheapest_courier, checkout_data }
+            cart.checkoutData = { request_token, kship_courier, cheapest_courier, checkout_data }
+            console.log(kship_courier)
 
             await cart.save({ transaction: t });
 
@@ -284,8 +285,9 @@ const cartcheckout = asyncWrapper(async (req, res, next) => {
             res.status(200).json({
                 success: true,
                 message: "Proceed to choose a suitable shipping method",
-                data: cart,
-                courier: cheapest_courier.total
+                // data: cart,
+                kship_fee: kship_courier.total ? parseFloat(kship_courier.total) : cheapest_courier.total,
+                ksecure_fee: parseFloat(KSECURE_FEE) + cheapest_courier.total,
             });
         }
         else {
