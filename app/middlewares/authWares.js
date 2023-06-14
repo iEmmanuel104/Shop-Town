@@ -33,7 +33,8 @@ const authenticate =  async (socket) => {
             throw new Error('Authentication token not provided')
         }
 
-        const decoded = await decodeJWT(token);
+        const decoded = access_token
+        // const decoded = await decodeJWT(token);
         const user_doc = await User.findByPk(decoded.id)
 
         socket.user = user_doc;

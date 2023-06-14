@@ -13,8 +13,14 @@ const { validateAddress } = require('../services/shipbubble.service');
 
 const SignUp = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
-        const { email, firstName, lastName, phone, password } = req.body;
+        let { email, firstName, lastName, phone, password } = req.body;
         if (!email | !firstName | !lastName) return next(new BadRequestError('Please fill all required fields'));
+        // remove white spaces from req.body values make email lowercase
+        email = email.trim().toLowerCase();
+        firstName = firstName.trim();
+        lastName = lastName.trim();
+        phone = phone.trim();
+        password = password.trim();
 
         const user = await User.create({
             email,
@@ -313,6 +319,8 @@ const getloggedInUser = asyncWrapper(async (req, res, next) => {
     );
     if (!user) return next(new BadRequestError('Unverified user'))
 
+    const DefaultAddress = await DeliveryAddress.findOne({where: {userId: user.id, isDefault: true}})
+
     // get all stores associated with the user and extract only the id and name fields
     const stores = (await user.getBrands({
         attributes: ['id', 'name', 'logo', 'businessPhone', 'socials'],
@@ -330,7 +338,8 @@ const getloggedInUser = asyncWrapper(async (req, res, next) => {
         success: true,
         message: "User retrieved successfully",
         user,
-        stores: stores
+        stores: stores,
+        DefaultAddress
     });
 });
 
