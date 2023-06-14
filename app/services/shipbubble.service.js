@@ -48,7 +48,7 @@ const getShippingRates = async (details) => {
     });
 
     let config = {
-        method: 'post',
+        method: 'post', 
         maxBodyLength: Infinity,
         url: 'https://api.shipbubble.com/v1/shipping/fetch_rates',
         headers: {
@@ -64,6 +64,7 @@ const getShippingRates = async (details) => {
         const requestobject = {
             request_token: response.data.data.request_token,
             cheapest_courier: response.data.data.cheapest_courier,
+            kship_courier: findCourier(response.data.data),
             checkout_data: response.data.data.checkout_data
         }
         return requestobject;
@@ -276,6 +277,24 @@ const createshipment = async (details) => {
         throw new BadRequestError('Error creating shipment');
     }
 }
+
+function findCourier(data) {
+    const cheapestCourier = data.cheapest_courier;
+    if (cheapestCourier.is_cod_available) {
+        return cheapestCourier;
+    } else {
+        const couriers = data.couriers;
+        const codAvailableCouriers = couriers.filter(courier => courier.is_cod_available);
+        if (codAvailableCouriers.length > 0) {
+            return codAvailableCouriers.reduce((minCourier, courier) => {
+                return courier.total < minCourier.total ? courier : minCourier;
+            });
+        } else {
+            return null;
+        }
+    }
+}
+
 
 module.exports = {
     validateAddress,
