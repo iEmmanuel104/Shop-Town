@@ -148,7 +148,10 @@ const AddStoreDiscount = asyncWrapper(async (req, res, next) => {
         const userId = decoded.id;
         const { title, type, value, endDate } = req.body;
         // split categories from string to array
-        const categories = req.query.categories.split(',');
+        let categories = [];
+        if (req.query.categories) {
+            categories = req.query.categories.split(',');
+        }
         let include = [];
 
         if (categories.length > 0) {
@@ -274,7 +277,7 @@ const increaseStoreProductPrice = asyncWrapper(async (req, res, next) => {
         const userId = decoded.id;
         const { amount, percentage } = req.body;
         const { category } = req.query;
-        
+
         const store = await Brand.findByPk(req.params.id, { attributes: ['owner'] });
 
         if (!store) {

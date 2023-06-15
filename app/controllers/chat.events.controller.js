@@ -1,6 +1,5 @@
 const { randomUUID } = require("crypto")
 const { ChatRoom, Message, User, Brand } = require("../../models")
-const { Ride } = require("../../models/ride.model")
 const { clients, joinRoom } = require("../utils/clients")
 const { join } = require("path")
 
@@ -18,11 +17,12 @@ const sendChatRoomInviteToClient = async (target_user_id, room_id) => {
     return;
 }
 
-
 const initiateChat = async (req, res) => {
+    console.log('req data ============ >', req.data)
     const socket = this;
-    const { storeId, userId } = req.data;
-
+    console.log('sockets ============ >', socket)
+    const { data } = req
+    const { storeId, userId } = data;
     // Check if the store and user exist
     const store = await Brand.findByPk(storeId);
     const user = await User.findByPk(userId);
@@ -76,7 +76,7 @@ const initiateChat = async (req, res) => {
 
     // Create a new chat room
     const newChatRoom = await ChatRoom.create({
-        users: [user.id, socket.user.id],
+        users: [user.id, requser.id],
         storeId: store.id,
     });
 
@@ -89,8 +89,6 @@ const initiateChat = async (req, res) => {
     res.send(null, { chatRoomId: newChatRoom.id });
     return;
 };
-
-
 
 const sendMessageToChatRoom = async (req, res) => {
     const socket = this;
@@ -130,8 +128,6 @@ const sendMessageToChatRoom = async (req, res) => {
 
 };
 
-
-
 const joinChatRoom = async (req, res) => {
     const socket = this;
     const { chatRoomId } = req.data;
@@ -159,8 +155,6 @@ const joinChatRoom = async (req, res) => {
     res.send(null, { chatRoomId });
     return;
 };
-
-
 
 const getPreviousChatRoomMessages = async (req, res) => {
     const socket = this;
@@ -196,7 +190,6 @@ const getPreviousChatRoomMessages = async (req, res) => {
 
 };
 
-
 module.exports = (io, socket) => {
     try {
         global.io = io;
@@ -217,13 +210,14 @@ module.exports = (io, socket) => {
                 // Get request handler from socket_paths
                 const socketRequestHandler = socket_paths[path];
 
-                const req = { user: socket.user, data, path }
+                const req = { requser: socket.user, data, path }
                 res.path = 'response:' + path;
 
                 // Check if user is authenticated 
                 // if authenticated socket.user will be set by auth middleware
                 let response = null;
                 if (socket.user) {
+                    console.log(socket.user)
                     response = await socketRequestHandler.call(socket, req, res);
                     return;
                 }

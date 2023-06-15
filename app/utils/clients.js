@@ -1,3 +1,5 @@
+const { CompositionListInstance } = require("twilio/lib/rest/video/v1/composition");
+
 const clients = new Map();
 
 const addClient = (socket) => {
@@ -12,11 +14,12 @@ const removeClient = (socket) => {
 };
 
 function joinRoom(client, room_id) {
-    room_id = room_id.toString()
+    console.log("client", client);
+    room_id = room_id.toString();
 
-    const client_in_chatroom = room_id in client.rooms
+    const client_in_chatroom = client.rooms.has(room_id);
     if (!client_in_chatroom) {
-        client.join(room_id)
+        client.join(room_id);
     }
 }
 

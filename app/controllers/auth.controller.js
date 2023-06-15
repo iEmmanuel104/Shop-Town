@@ -248,10 +248,10 @@ const signIn = asyncWrapper(async (req, res, next) => {
     const user = await User.findOne(
         {
             where: data,
-            include: [
-                { model: Cart },
-                { model: Wallet }
-            ]
+            // include: [
+            //     { model: Cart },
+            //     { model: Wallet }
+            // ]
         }
     );
     if (!user) return next(new BadRequestError('Invalid user'));
@@ -528,7 +528,17 @@ const selectStore = asyncWrapper(async (req, res, next) => {
 
 const RegisterStore = asyncWrapper(async (req, res, next) => {
     const decoded = req.decoded
-    const { storeName, phone, industry, country, address, state, city, postal } = req.body
+    let { storeName, phone, industry, country, address, state, city, postal } = req.body
+    // trim request body
+    storeName = storeName.trim()
+    phone = phone.trim()
+    industry = industry.trim()
+    country = country.trim()
+    address = address.trim()
+    state = state.trim()
+    city = city.trim()
+    postal = postal.trim()
+    
     const user = await User.findByPk(decoded.id)
     if (!user) return next(new BadRequestError('Invalid user'))
     // if (decoded.vendorMode === false) return next(new BadRequestError('please switch to seller mode'))

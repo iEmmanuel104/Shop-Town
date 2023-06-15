@@ -15,7 +15,6 @@ const path = require('path');
 
 const { v4: uuidv4 } = require('uuid');
 
-
 const createOrder = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const decoded = req.decoded;
@@ -23,31 +22,19 @@ const createOrder = asyncWrapper(async (req, res, next) => {
         const userInfo = await User.findOne({ where: { id: userId } });
         const { shipping_method, storeId, option } = req.body;
         const cart = await Cart.findOne({ where: { userId } });
-        if (!cart) {
-            throw new NotFoundError('Cart not found');
-        }
+        if (!cart) throw new NotFoundError('Cart not found');
+        if (shipping_method !== 'seller' && shipping_method !== 'kship') throw new BadRequestError('Invalid shipping method');
         let shippingMethod = { type: shipping_method }
         // cartdetails for order
-        console.log("cartdetails===",cart)
         let cartdetails = {
             items: cart.items,
             totalAmount: cart.totalAmount,
             info: cart.checkoutData.checkkout_data,
             courier: cart.checkoutData.cheapest_courier,
         }
-
-        console.log("cartdetails============",)
-
-        const store = await Brand.findOne(
-            {
-                where: { id: storeId },
-                attributes: ['socials', 'name', 'logo']
-            })
-        if (!store) {
-            throw new NotFoundError('Store not found');
-        }
+        const store = await Brand.findOne({ where: { id: storeId },attributes: ['socials', 'name', 'logo'] })
+        if (!store) throw new NotFoundError('Store not found');
         let order, socials, kship_order, shippingObject, returnobject;
-
         socials = store.socials;
 
         // create order
@@ -125,7 +112,6 @@ const createOrder = asyncWrapper(async (req, res, next) => {
                 shippingfee: kship_order ? kship_order.deliveryFee : null,
             }
 
-
             if (option === 'CARD') {
                 const link = await FlutterwavePay(paydetails);
                 console.log("return from flutterwave", link.data.link);
@@ -155,6 +141,10 @@ const createOrder = asyncWrapper(async (req, res, next) => {
                 await Wallet.decrement('amount', { by: paymentamt, where: { id: wallet.id }, transaction: t });
                 await Order.update({ status: 'completed' }, { where: { id: order.id }, transaction: t });
                 await Payment.create({ refId: order.id, amount: paymentamt, paymentMethod: "KCREDIT" }, { transaction: t });
+            } else if (option === 'CASH' && shipping_method === 'kship') {
+                // pay on delivery
+                await Order.update({ status: 'pending' }, { where: { id: order.id }, transaction: t });
+                await Payment.create({ refId: order.id, amount: paymentamt, paymentMethod: "CASH" }, { transaction: t });
             }
         }
         // add payment amount to return object
@@ -310,6 +300,8 @@ const validateOrderPayment = asyncWrapper(async (req, res) => {
     })
 
 });
+
+// const validate
 
 
 // tx_ref=Klickorder_e169c91c-add9-41fb-8f3b-c4ad808360c0&transaction_id=4346320

@@ -7,55 +7,10 @@ const { getshippingboxes, getShippingRates } = require('../services/shipbubble.s
 const { KSECURE_FEE } = require('../utils/configs');
 // const validator = require('validator');
 const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/customErrors');
+const { convertcart, groupCartItems, estimateBoxDimensions } = require('../utils/carthelpers');
 const { getPagination, getPagingData } = require('../utils/pagination')
 const Op = require("sequelize").Op;
 const path = require('path');
-
-const convertcart = async (cart, type) => {
-    const { items } = cart
-    const itemIds = Object.keys(items);
-    const products = await Product.scope('defaultScope', 'includePrice').findAll({
-        where: { id: itemIds }
-    });
-    let totalAmount = 0;
-    console.log(products)
-
-    if (products.length === 0) { // if no product is found
-        throw new BadRequestError("please add a valid product to cart");
-    }
-
-    products.forEach(product => {
-        let cartquantity;
-        if (type === 'get') {
-            cartquantity = items[product.id].quantity;
-        } else {
-            cartquantity = items[product.id];
-        }
-        const storeId = product.storeId
-        if (cartquantity >= 1) {
-            const price = product.discountedPrice ? product.discountedPrice : product.price;
-            const inStock = product.quantity.instock;
-            const itemStatus = inStock >= cartquantity ? 'instock' : 'outofstock';
-
-            items[product.id] = {
-                name: product.name,
-                quantity: cartquantity,
-                UnitPrice: product.price,
-                discount: product.discount,
-                image: product.images,
-                Discountprice: price,
-                status: itemStatus,
-                store: storeId,
-            };
-            if (itemStatus === 'instock') {
-                totalAmount += price * cartquantity
-            }
-        }
-    });
-
-    cart.totalAmount = totalAmount;
-    return cart
-}
 
 const storeCart = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
@@ -238,7 +193,10 @@ const cartcheckout = asyncWrapper(async (req, res, next) => {
 
             // Get sender and user address codes 
             sender_address_code = (await DeliveryAddress.scope({ method: ["Default", storeId] }).findOne()).addressCode;
+            if (!sender_address_code) return next(new NotFoundError("Store validation pending"));
+
             receiver_address_code = (await DeliveryAddress.scope({ method: ["Default", userId] }).findOne()).addressCode;
+            if (!receiver_address_code) return next(new NotFoundError("Please add a delivery address"));
             // pickup_date = new Date().toISOString().split('T')[0];
             pickup_date = new Date(new Date().getTime() + 60 * 60 * 1000).toISOString().split('T')[0];
             category_id = groupedCartItems[storeId.id][0].specification.shippingcategory_id;
@@ -261,12 +219,8 @@ const cartcheckout = asyncWrapper(async (req, res, next) => {
                 `Please handle with care and do not shake`;
 
             const details = {
-                sender_address_code,
-                receiver_address_code,
-                pickup_date,
-                category_id,
-                package_items,
-                package_dimension,
+                sender_address_code, receiver_address_code, pickup_date,
+                category_id, package_items, package_dimension,
                 delivery_instructions: description
             }
             // GET SHIPPING FEE FROM SHIPBUBBLE API
@@ -276,7 +230,6 @@ const cartcheckout = asyncWrapper(async (req, res, next) => {
 
             // update cart checkout data
             cart.checkoutData = { request_token, kship_courier, cheapest_courier, checkout_data }
-            console.log(kship_courier)
 
             await cart.save({ transaction: t });
 
@@ -298,95 +251,6 @@ const cartcheckout = asyncWrapper(async (req, res, next) => {
         }
     });
 });
-
-const groupCartItems = async (items, amt) => {
-    const itemIds = Object.keys(items);
-
-    if (itemIds.length === 0) {
-        throw new BadRequestError("Cart is empty");
-    }
-
-    // Retrieve products based on itemIds
-    const products = await Product.scope('defaultScope', 'includePrice').findAll({
-        where: { id: itemIds },
-        attributes: ['id', 'name', 'specifications', 'description'],
-    });
-
-    if (products.length === 0) {
-        throw new BadRequestError("Please add a valid product to cart");
-    }
-
-    let groupedItems = {};
-    Object.values(items).forEach(item => {
-        const productId = Object.keys(items).find(key => items[key] === item);
-        const product = products.find(product => product.id === productId);
-        const { name, specifications, description } = product;
-
-        const newItem = {
-            ...item,
-            productId, // Add the productId to the newItem
-            name,
-            specification: specifications,
-            description
-        };
-
-        if (groupedItems[item.store]) {
-            groupedItems[item.store].push(newItem);
-        } else {
-            groupedItems[item.store] = [newItem];
-        }
-    });
-
-    groupedItems.totalAmount = amt;
-    return groupedItems;
-};
-
-const estimateBoxDimensions = async (items, boxSizes) => {
-    // Calculate the accumulated weight of all items
-    const accumulatedWeight = await items.reduce((sum, item) => sum + item.total_weight, 0);
-
-    // Extract the boxes with their names and weights from boxSizes array
-    const filtered = await boxSizes.filter(box => box.max_weight >= accumulatedWeight)
-    const suitableMaxWeights = await filtered.map(box => ({
-        name: box.name,
-        weight: box.max_weight
-    }));
-
-    // check if the filtered array is empty
-    let selectedBox
-    if (filtered.length === 0) {
-        // get box with highest volume
-        const maxfilter = await boxSizes.reduce((max, box) => {
-            const volume = box.height * box.width * box.length;
-            return volume > max.volume ? { volume, box } : max;
-        }, { volume: 0, box: null });
-
-        selectedBox = maxfilter.box;
-    } else {
-        const closestWeight = await suitableMaxWeights.reduce((closest, weight) => {
-            const weightDifference = Math.abs(weight.weight - accumulatedWeight);
-            const closestDifference = Math.abs(closest.weight - accumulatedWeight);
-            return weightDifference < closestDifference ? weight : closest;
-        });
-
-        // Find the box with the closestWeight in the boxSizes array
-        selectedBox = await boxSizes.find(box => box.name === closestWeight.name && box.max_weight === closestWeight.weight);
-    }
-
-    // Return the dimensions of the selected box
-    const dimensions = {
-        height: selectedBox.height,
-        width: selectedBox.width,
-        length: selectedBox.length
-    };
-
-    // Add description if the max box or shipping container is being used
-    if (filtered.length === 0) {
-        dimensions.description = 'item size exceeds all available boxes, max boxsize used';
-    }
-
-    return dimensions;
-};
 
 
 module.exports = {

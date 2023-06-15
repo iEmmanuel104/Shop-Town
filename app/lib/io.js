@@ -8,12 +8,11 @@ const { randomUUID } = require('crypto');
 require('../utils/redis')
 
 const initializeSocketEventHandlers = (socket) => {
-    require('./ws/event-handlers/chat.events')(io, socket);
+    require('../controllers/chat.events.controller')(io, socket);
 }
 
 const initializeSocketListeners = (socket) => {
     try {
-        console.log(`User connected ${socket.id}`);
         // Initialize socket listeners
         socket.on('message', (message) => {
             console.log(message);
@@ -46,9 +45,8 @@ const initializeSocketListeners = (socket) => {
 let curr_client;
 const onConnection = async (socket) => {
     // Authenticate socket
-    
     const authenticated_socket = await authenticate(socket);
-
+ 
     if (authenticated_socket instanceof Error) {
         // Send error to client
         socket.emit('error', 'Authentication failed');
@@ -56,15 +54,15 @@ const onConnection = async (socket) => {
         // Close connection
         socket.disconnect();
 
-        throw new Error('Authentication failed');
+        // throw new Error('Authentication failed');
     }
-
+  
     socket = authenticated_socket; curr_client = socket;
-    console.log(`${socket.user.email}: connected`);
+    console.log(`User connected ${socket.user.email}`);
 
     // // Add client to clients map
     addClient(curr_client);
-
+    // console.log('initial socket', socket)
     // Initialize socket listeners
     initializeSocketListeners(socket);
 };
@@ -75,14 +73,21 @@ const httpServer = createServer(app);
 // Create socket server with http server
 const io = new Server(httpServer, {
     cors: {
-        origin: 'http://localhost:8082',
+        origin: 'http://localhost:3000',
     }
 });
 
 io.use(socketWrapper((socket, next) => {
+    // console.log('cors')
+    // next();
+    // return
     const { origin } = socket.handshake.headers;
 
-    const allowed_origins = ['http://localhost:8082', 'http://localhost:3001'];
+    // console.log(socket)
+    // console.log(socket.handshake)
+    // console.log(origin)
+
+    const allowed_origins = ['http://localhost:8082', 'http://localhost:3000', 'http://localhost:62699'];
     if (allowed_origins.includes(origin)) {
         next();
     } else {
@@ -90,7 +95,10 @@ io.use(socketWrapper((socket, next) => {
     }
 }));
 
-    io.on('connection', socketWrapper(onConnection));
+    io.on('connection', socketWrapper((socket) => {
+        console.log('socket connected');
+        onConnection(socket);
+    }));
 
     io.on('error', socketWrapper((error) => {
         // Send error to client

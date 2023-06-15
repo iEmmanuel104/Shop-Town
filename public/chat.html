@@ -12,22 +12,29 @@
 
   <body>
     <h1>Socket.IO Chat</h1>
-    <button id="initiateChatButton">
-      Initiate Chat
-    </button>
+    <!-- login input box -->
+    <input type="text" id="loginInput" placeholder="Enter your Email" />
 
-    <br>
-    <br>
+    <button id="login">Login</button>
+
+    <br />
+    <br />
+
+    <button id="initiateChatButton">Initiate Chat</button>
+
+    <button id="joinChatRoomButton">Join Chat</button>
+
+    <br />
+    <br />
 
     <div id="messages"></div>
 
     <input type="text" id="messageInput" placeholder="Type a message" />
     <button id="sendButton">Send</button>
-
-    <!-- <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script> -->
-
-    <script src="/socket.io/socket.io.js"></script>
+    <!-- Axios -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.21.1/axios.min.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <!-- <script src="/socket.io/socket.io.js"></script> -->
     <script src="/script.js"></script>
- 
   </body>
 </html>
