@@ -149,9 +149,10 @@ const AddStoreDiscount = asyncWrapper(async (req, res, next) => {
         const { title, type, value, endDate } = req.body;
         // split categories from string to array
         let categories = [];
-        if (req.query.categories) {
+        if (req.query.categories && typeof req.query.categories === 'string') {
             categories = req.query.categories.split(',');
         }
+
         let include = [];
 
         if (categories.length > 0) {
