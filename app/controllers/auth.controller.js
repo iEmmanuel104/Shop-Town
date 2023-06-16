@@ -76,7 +76,7 @@ const verifyEmail = asyncWrapper(async (req, res, next) => {
     // update user isActivated to true
     const updatedUser = await User.update({ isActivated: true }, { where: { id: userId } })
 
-    console.log ('updatedUser', updatedUser)
+    console.log('updatedUser', updatedUser)
 
     // user.isActivated === 'true'
     // await user.save()
@@ -326,8 +326,12 @@ const getloggedInUser = asyncWrapper(async (req, res, next) => {
         }
     );
     if (!user) return next(new BadRequestError('Unverified user'))
+    let DefaultAddress;
+    DefaultAddress = await DeliveryAddress.findOne({ where: { userId: user.id, isDefault: true } })
 
-    const DefaultAddress = await DeliveryAddress.findOne({where: {userId: user.id, isDefault: true}})
+    if (!DefaultAddress || DefaultAddress.length < 1 || DefaultAddress === null) {
+        DefaultAddress = {}
+    }
 
     // get all stores associated with the user and extract only the id and name fields
     const stores = (await user.getBrands({
@@ -538,7 +542,7 @@ const RegisterStore = asyncWrapper(async (req, res, next) => {
     state = state.trim()
     city = city.trim()
     postal = postal.trim()
-    
+
     const user = await User.findByPk(decoded.id)
     if (!user) return next(new BadRequestError('Invalid user'))
     // if (decoded.vendorMode === false) return next(new BadRequestError('please switch to seller mode'))
