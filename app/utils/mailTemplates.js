@@ -18,8 +18,8 @@ const sendverificationEmail = async (details, code) => {
     options.message = `Your verification code is ${code}`;
     // options.html = `${options.message}`;    
     await sendEmail(options);
-    options.phone = phone;
-    await sendPhoneSMS(options);
+    // options.phone = phone;
+    // await sendPhoneSMS(options);
 };
 
 const sendForgotPasswordEmail = async (details, code) => {

@@ -34,34 +34,23 @@ const createOrder = asyncWrapper(async (req, res, next) => {
         }
         const store = await Brand.findOne({ where: { id: storeId },attributes: ['socials', 'name', 'logo'] })
         if (!store) throw new NotFoundError('Store not found');
-        let order, socials, kship_order, shippingObject, returnobject;
+
+        let order, socials, kship_order, shippingObject, returnobject, orderobj;
+
         socials = store.socials;
 
         // create order
-        order = await Order.create({
-            userId,
-            shippingMethod,
-            cartdetails,
-            storeId,
-        }, { transaction: t });
+        order = await Order.create({ userId,  shippingMethod, cartdetails, storeId }, { transaction: t });
 
-        const orderobj = {
-            orderId: order.id,
-            orderstatus: order.status,
-            orderdate: order.createdAt,
-            orderamount: order.cartdetails.totalAmount,
-            userId: order.userId,
-            storeId: order.storeId,
-            orderNumber: order.orderNumber,
-            shippingMethod: order.shippingMethod
+        orderobj = {
+            orderId: order.id, orderstatus: order.status, orderdate: order.createdAt,
+            orderamount: order.cartdetails.totalAmount, userId: order.userId,
+            storeId: order.storeId, orderNumber: order.orderNumber, shippingMethod: order.shippingMethod
         }
 
         shippingObject = {
-            orderId: order.id,
-            requestToken: cart.checkoutData.request_token,
-            serviceCode: cart.checkoutData.cheapest_courier.service_code,
-            courierId: cart.checkoutData.cheapest_courier.courier_id,
-            packageCost: cart.totalAmount,
+            orderId: order.id, requestToken: cart.checkoutData.request_token, serviceCode: cart.checkoutData.cheapest_courier.service_code,
+            courierId: cart.checkoutData.cheapest_courier.courier_id, packageCost: cart.totalAmount,
             deliveryFee: cart.checkoutData.cheapest_courier.total,
         }
 
@@ -99,14 +88,9 @@ const createOrder = asyncWrapper(async (req, res, next) => {
 
         if (kship_order && kship_order.requestToken) {
             const paydetails = {
-                amount: parseFloat(paymentamt),
-                email: userInfo.email,
-                phone: userInfo.phone,
-                fullName: userInfo.fullName,
-                tx_ref: `Klickorder_${order.id}`,
-                storeName: store.name,
-                storeLogo: store.logo,
-                kshipId: kship_order ? kship_order.id : null,
+                amount: parseFloat(paymentamt), email: userInfo.email, phone: userInfo.phone,
+                fullName: userInfo.fullName, tx_ref: `Klickorder_${order.id}`, storeName: store.name,
+                storeLogo: store.logo, kshipId: kship_order ? kship_order.id : null,
                 isKSecure: kship_order ? kship_order.isKSecure : false,
                 kSecureFee: kship_order ? kship_order.kSecureFee : null,
                 shippingfee: kship_order ? kship_order.deliveryFee : null,
