@@ -5,6 +5,7 @@ const { sequelize, Sequelize } = require('../../models');
 const { validateAddress } = require('../services/shipbubble.service');
 const asyncWrapper = require('../middlewares/async');
 const Op = require("sequelize").Op;
+const { uploadSingleFile, uploadFiles } = require('../services/imageupload.service');
 const { at } = require('lodash');
 
 const createBrand = asyncWrapper(async (req, res, next) => {
@@ -96,10 +97,12 @@ const updateBrand = asyncWrapper(async (req, res, next) => {
         await store.save();
         const addressdetails = address + ',' + city + ',' + state + ',' + country
 
-        console.log(addressdetails)
-
         let url;
         if (req.file) {
+            const details = {
+                user: user.id,
+                folder: `Stores/${storeName}/banner`,
+            }
             url = await uploadSingleFile(req.file, details)
         }
 
@@ -109,8 +112,9 @@ const updateBrand = asyncWrapper(async (req, res, next) => {
             phone: store.businessPhone,
             address: addressdetails,
         }
-        console.log(detailss)
+
         const address_code = await validateAddress(detailss)
+
         Daddress.address = address;
         Daddress.city = city;
         Daddress.state = state;
