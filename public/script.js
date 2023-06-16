@@ -110,7 +110,7 @@ function connectToSocket() {
   // Bind the initiateChatButton click event to initiate a chat room invitation
   initiateChatButton.addEventListener("click", () => {
     console.log('Initiating chat room invitation...');
-    socket.emit('chat:initiate', { userId: localStorage.getItem('userId') , storeId: storeId });
+    socket.emit('chat:initiate', { storeId: storeId });
   });
 
   // Bind the joinChatRoomButton click event to join a chat room

@@ -142,6 +142,9 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false
         },
         description: { type: DataTypes.TEXT },
+        image: {
+            type: DataTypes.STRING,
+        },
         status: {
             type: DataTypes.ENUM(["ACTIVE", "INACTIVE"]),
             defaultValue: "ACTIVE",

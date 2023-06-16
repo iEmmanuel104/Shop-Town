@@ -14,7 +14,7 @@ const removeClient = (socket) => {
 };
 
 function joinRoom(client, room_id) {
-    console.log("client", client);
+    // console.log("client", client);
     room_id = room_id.toString();
 
     const client_in_chatroom = client.rooms.has(room_id);
