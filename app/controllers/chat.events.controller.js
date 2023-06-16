@@ -1,33 +1,70 @@
 const { randomUUID } = require("crypto")
 const { ChatRoom, Message, User, Brand } = require("../../models")
 const { clients, joinRoom } = require("../utils/clients")
-const { join } = require("path")
+const { join } = require("path");
+const { log } = require("console");
 
-const sendChatRoomInviteToClient = async (target_user_id, room_id) => {
-    const target_user_data = await User.findByPk(target_user_id);
+// const sendChatRoomInviteToClient = async function (target_user_id, room_id) {
+//     // check if the target_user_id is an array
+//     if (Array.isArray(target_user_id)) {
+//         // if it is, then send invite to all users in the array
+//     }
 
-    const target_client = clients.get(target_user_data.email)
-    const client_in_chatroom = room_id in target_client.rooms
+//     const target_user_data = await User.findByPk(target_user_id);
 
-    // Send invite to target client if not already in room
-    if (!client_in_chatroom) {
-        target_client.emit("chat:invite", { chat_room_id: room_id });
+//     const target_client = clients.get(target_user_data.email)
+//     const client_in_chatroom = room_id in target_client.rooms
+//     console.log(target_client.user.email)
+
+//     // Send invite to target client if not already in room
+//     if (!client_in_chatroom) {
+//         target_client.emit("chat:invite", { chat_room_id: room_id });
+//     }
+
+//     return;
+// }
+const sendChatRoomInviteToClient = async function (target_user_id, room_id) {
+    // Check if the target_user_id is an array
+    if (Array.isArray(target_user_id)) {
+        console.log("target_user_id is an array");
+        // Iterate over each user ID in the array and send invite
+        for (const user_id of target_user_id) {
+            const target_user_data = await User.findByPk(user_id);
+            const target_client = clients.get(target_user_data.email);
+            const client_in_chatroom = room_id in target_client.rooms;
+            console.log(target_client.user.email);
+
+            // Send invite to target client if not already in room
+            if (!client_in_chatroom) {
+                target_client.emit("chat:invite", { chat_room_id: room_id });
+            }
+        }
+    } else {
+        console,log("target_user_id is not an array");
+        // Handle the case when target_user_id is not an array
+        const target_user_data = await User.findByPk(target_user_id);
+        const target_client = clients.get(target_user_data.email);
+        const client_in_chatroom = room_id in target_client.rooms;
+        console.log(target_client.user.email);
+
+        // Send invite to target client if not already in room
+        if (!client_in_chatroom) {
+            target_client.emit("chat:invite", { chat_room_id: room_id });
+        }
     }
 
     return;
-}
+};
 
-const initiateChat = async (req, res) => {
-    console.log('req data ============ >', req.data)
+
+const initiateChat = async function (req, res) {
     const socket = this;
-    console.log('sockets ============ >', socket)
-    const { data } = req
-    const { storeId, userId } = data;
+    const { storeId } = req.data;
     // Check if the store and user exist
     const store = await Brand.findByPk(storeId);
-    const user = await User.findByPk(userId);
-    if (!store || !user) {
-        res.send('Invalid store or user');
+    // const user = await User.findByPk(socket.user.id);   
+    if (!store) {
+        res.send('Invalid store');
         return;
     }
 
@@ -41,32 +78,41 @@ const initiateChat = async (req, res) => {
                 attributes: [],
                 where: {
                     role: ['owner', 'staff'],
-                }
+                },
+                required: true,
             },
         },
     });
 
-    const storeUsersIdList = storeUsers.map(storeUser => storeUser.id);
+    const storeUsersIdList = storeUsers.flatMap((storeUser) =>
+        storeUser.Users.map((user) => user.id)
+    );
+
+    console.log(storeUsersIdList);
+
     // check if user is part of the store
-    if (!storeUsersIdList.includes(socket.user.id) && user.id !== socket.user.id) {
+    if (storeUsersIdList.includes(socket.user.id)) {
         res.send('Unauthorized');
         return;
     }
 
+
     // Check if a chat room already exists between the store and user
     const existingChatRoom = await ChatRoom.findOne({
         where: {
-            users: [user.id, socket.user.id],
+            users: [ socket.user.id, ...storeUsersIdList ],
             storeId: store.id,
         },
     });
 
     if (existingChatRoom) {
+        console.log('sender', socket.user.email)
+
         // Add the initiator to the chat room
         joinRoom(socket, existingChatRoom.id);
 
         // Send chat room invitation to the user
-        await sendChatRoomInviteToClient(user.id, existingChatRoom.id);
+        await sendChatRoomInviteToClient(store.id, existingChatRoom.id);
 
         // Notify the initiator of the chat room ID
         res.send(null, { chatRoomId: existingChatRoom.id });
@@ -76,7 +122,7 @@ const initiateChat = async (req, res) => {
 
     // Create a new chat room
     const newChatRoom = await ChatRoom.create({
-        users: [user.id, requser.id],
+        users: [ socket.user.id, ...storeUsersIdList ],
         storeId: store.id,
     });
 
@@ -84,13 +130,13 @@ const initiateChat = async (req, res) => {
     joinRoom(socket, newChatRoom.id);
 
     // Send chat room invitation to the user
-    await sendChatRoomInviteToClient(user.id, newChatRoom.id);
+    await sendChatRoomInviteToClient(storeUsersIdList, newChatRoom.id);
 
     res.send(null, { chatRoomId: newChatRoom.id });
     return;
 };
 
-const sendMessageToChatRoom = async (req, res) => {
+const sendMessageToChatRoom = async function (req, res)  {
     const socket = this;
     const { chatRoomId, message } = req.body;
 
@@ -128,7 +174,7 @@ const sendMessageToChatRoom = async (req, res) => {
 
 };
 
-const joinChatRoom = async (req, res) => {
+const joinChatRoom = async function (req, res) {
     const socket = this;
     const { chatRoomId } = req.data;
 
@@ -156,7 +202,7 @@ const joinChatRoom = async (req, res) => {
     return;
 };
 
-const getPreviousChatRoomMessages = async (req, res) => {
+const getPreviousChatRoomMessages = async function (req, res)  {
     const socket = this;
     const { chatRoomId } = req.data;
 
@@ -207,6 +253,7 @@ module.exports = (io, socket) => {
             try {
                 const socket = this;
 
+                // console.log(socket)
                 // Get request handler from socket_paths
                 const socketRequestHandler = socket_paths[path];
 
@@ -217,7 +264,7 @@ module.exports = (io, socket) => {
                 // if authenticated socket.user will be set by auth middleware
                 let response = null;
                 if (socket.user) {
-                    console.log(socket.user)
+                    // console.log(socket.user)
                     response = await socketRequestHandler.call(socket, req, res);
                     return;
                 }

@@ -5,6 +5,7 @@ const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/cus
 const Op = require("sequelize").Op;
 const { sequelize } = require('../../models');
 const path = require('path');
+const { uploadSingleFile, uploadFiles } = require('../services/imageupload.service');
 
 const createCategory = asyncWrapper(async (req, res, next) => {
     if (req.query.bulk === 'true') {
@@ -30,6 +31,12 @@ const createCategory = asyncWrapper(async (req, res, next) => {
             return next(new BadRequestError('name and description are required'));
         }
         await sequelize.transaction(async (t) => {
+            let image = null;
+            if (req.file) {
+                const image = await uploadSingleFile(req.file, 'categories');
+            }
+
+
             const category = await Category.create({
                 name,
                 description,
