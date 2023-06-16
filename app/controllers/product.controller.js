@@ -183,15 +183,11 @@ const getProducts = asyncWrapper(async (req, res, next) => {
             offset
         }, { transaction: t });
 
-        const specificCount = products.length;
+        const specificCount = products.length ? products.length : products.count;
 
-        if (specificCount === 0) {
-            return next(new NotFoundError('No products found'));
-        }
-
-        if (specificCount !== products.count) {
-            products.count = specificCount;
-        }
+        if (specificCount === 0) return next(new NotFoundError('No products found'));
+        
+        if (specificCount !== products.count) { products.count = specificCount;}
 
         const response = getPagingData(products, page, limit, 'products');
 

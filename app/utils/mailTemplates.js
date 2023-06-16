@@ -1,5 +1,5 @@
 const sendEmail = require('../services/email.service');
-const sendSMS = require('../services/sms.service'); 
+const {sendWhatsappSMS, verifyCode, sendPhoneSMS} = require('../services/sms.service'); 
 const {sendPushNotification} = require('../services/firebase.service');   
 let options = {};
 
@@ -19,7 +19,7 @@ const sendverificationEmail = async (details, code) => {
     // options.html = `${options.message}`;    
     await sendEmail(options);
     options.phone = phone;
-    // await sendSMS(options);
+    await sendPhoneSMS(options);
 };
 
 const sendForgotPasswordEmail = async (details, code) => {
