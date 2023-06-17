@@ -20,7 +20,7 @@ const initializeSocketListeners = (socket) => {
         });
 
         socket.on('disconnect', () => {
-            console.log(socket.user.email + ': disconnected');
+            console.log(socket?.user.email + ': disconnected');
 
             // Remove client from clients map
             removeClient(socket);
@@ -58,7 +58,7 @@ const onConnection = async (socket) => {
     }
   
     socket = authenticated_socket; curr_client = socket;
-    console.log(`User connected ${socket.user.email}`);
+    console.log(`User connected ${socket.user?.email}`);
 
     // // Add client to clients map
     addClient(curr_client);
