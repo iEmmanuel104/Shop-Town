@@ -103,13 +103,13 @@ const updateCart = asyncWrapper(async (req, res, next) => {
         } else {
             const converted = await convertcart(updatedCart)
             updatefields = {
-                // items: converted.items,
+                analytics: converted.analytics,
                 // totalAmount: converted.totalAmount,
             }
 
             if ( converted.errors.length > 0 ) {
                 updatefields.errors = converted.errors
-                updatefields.items = converted.items
+                updatefields.processedcount = (converted.items).length // number of items processed
             }
             message = "Cart Updated Succesfully"
         }

@@ -11,8 +11,9 @@ const convertcart = async (cart, type) => {
     const products = await Product.scope('defaultScope', 'includePrice').findAll({
         where: { id: itemIds }
     });
-    let totalAmount = 0;
-    const errors = [];
+    let totalAmount = 0, Itemsprocessed = 0,
+        outofstockItems = 0, errors = [],
+        Itemsnotfound = 0; invalidQuantity = 0;
 
     if (products.length === 0) { // if no product is found
         throw new BadRequestError("Please add a valid product to the cart.");
@@ -21,7 +22,8 @@ const convertcart = async (cart, type) => {
     itemIds.forEach(itemId => {
         const product = products.find(p => p.id === itemId);
         if (!product) {
-            errors.push(`Product with id: ${itemId} not found`); 
+            errors.push(`Product with id: ${itemId} not found`);
+            Itemsnotfound++;
             // remove the item from the cart
             delete items[itemId];
             return; // Move on to the next item
@@ -53,14 +55,27 @@ const convertcart = async (cart, type) => {
 
             if (itemStatus === 'instock') {
                 totalAmount += price * cartquantity;
+                Itemsprocessed++;
             } else if (itemStatus === 'outofstock') {
                 errors.push(`Product - ${product.name} is out of stock`); // Add error message
+                outofstockItems++;
             }
+        } else if (cartquantity < 1 || cartquantity === 0) {
+            errors.push(`Product - ${product.name} has an invalid quantity`); // Add error message
+            invalidQuantity++;
         }
     });
 
     cart.totalAmount = totalAmount;
     cart.errors = errors;
+    cart.analytics = {
+        totalItemsAdded: itemIds.length,
+        totalItemsProcessed: Itemsprocessed,
+        totalItemsNotFound: Itemsnotfound,
+        totalItemsOutOfStock: outofstockItems,
+        totalItemsInvalidQuantity: invalidQuantity,
+    };
+
     return cart;
 }
 
@@ -69,7 +84,7 @@ const groupCartItems = async (items, amt) => {
     const itemIds = Object.keys(items);
 
     if (itemIds.length === 0) throw new BadRequestError("Cart is empty");
-    
+
     // Retrieve products based on itemIds
     const products = await Product.scope('defaultScope', 'includePrice').findAll({
         where: { id: itemIds },
