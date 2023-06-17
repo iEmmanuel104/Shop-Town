@@ -6,26 +6,35 @@ const { BadRequestError, NotFoundError, ForbiddenError } = require('./customErro
 
 
 const convertcart = async (cart, type) => {
-    const { items } = cart
+    const { items } = cart;
     const itemIds = Object.keys(items);
     const products = await Product.scope('defaultScope', 'includePrice').findAll({
         where: { id: itemIds }
     });
     let totalAmount = 0;
-    console.log(products)
+    const errors = [];
 
     if (products.length === 0) { // if no product is found
-        throw new BadRequestError("please add a valid product to cart");
+        throw new BadRequestError("Please add a valid product to the cart.");
     }
 
-    products.forEach(product => {
+    itemIds.forEach(itemId => {
+        const product = products.find(p => p.id === itemId);
+        if (!product) {
+            errors.push(`Product with id: ${itemId} not found`); 
+            // remove the item from the cart
+            delete items[itemId];
+            return; // Move on to the next item
+        }
+
         let cartquantity;
         if (type === 'get') {
             cartquantity = items[product.id].quantity;
         } else {
             cartquantity = items[product.id];
         }
-        const storeId = product.storeId
+        const storeId = product.storeId;
+
         if (cartquantity >= 1) {
             const price = product.discountedPrice ? product.discountedPrice : product.price;
             const inStock = product.quantity.instock;
@@ -41,34 +50,50 @@ const convertcart = async (cart, type) => {
                 status: itemStatus,
                 store: storeId,
             };
+
             if (itemStatus === 'instock') {
-                totalAmount += price * cartquantity
+                totalAmount += price * cartquantity;
+            } else if (itemStatus === 'outofstock') {
+                errors.push(`Product - ${product.name} is out of stock`); // Add error message
             }
         }
     });
 
     cart.totalAmount = totalAmount;
-    return cart
+    cart.errors = errors;
+    return cart;
 }
+
 
 const groupCartItems = async (items, amt) => {
     const itemIds = Object.keys(items);
 
-    if (itemIds.length === 0) {
-        throw new BadRequestError("Cart is empty");
-    }
-
+    if (itemIds.length === 0) throw new BadRequestError("Cart is empty");
+    
     // Retrieve products based on itemIds
     const products = await Product.scope('defaultScope', 'includePrice').findAll({
         where: { id: itemIds },
         attributes: ['id', 'name', 'specifications', 'description'],
     });
 
-    if (products.length === 0) {
-        throw new BadRequestError("Please add a valid product to cart");
+    if (products.length === 0) throw new BadRequestError("Please add a valid product to cart");
+
+    const storeValues = Object.values(items).map(item => item.store);
+    const uniqueStores = [...new Set(storeValues)];
+
+    if (uniqueStores.length !== 1) {
+        const errorStores = uniqueStores.filter(store => !storeValues.includes(store));
+        const storeNames = await Promise.all(errorStores.map(async store => {
+            const storeData = await Brand.findOne({ where: { id: store } });
+            return storeData.name;
+        }));
+        throw new BadRequestError(`Items have different stores: ${storeNames.join(", ")}`);
     }
+    console.log(uniqueStores)
+    const store = uniqueStores[0];
 
     let groupedItems = {};
+
     Object.values(items).forEach(item => {
         const productId = Object.keys(items).find(key => items[key] === item);
         const product = products.find(product => product.id === productId);

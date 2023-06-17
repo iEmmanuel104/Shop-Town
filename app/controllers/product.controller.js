@@ -179,6 +179,7 @@ const getProducts = asyncWrapper(async (req, res, next) => {
         const products = await Product.scope('includeBrand').findAndCountAll({
             where: filters,
             include: [{ model: Category, as: 'category', attributes: ['id', 'name'] }],
+            order: [['updatedAt', 'DESC']],
             limit,
             offset
         }, { transaction: t });
