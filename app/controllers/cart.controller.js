@@ -98,7 +98,7 @@ const updateCart = asyncWrapper(async (req, res, next) => {
         // console.log("checkcart", checkcart)
 
         if (!items || Object.keys(checkcart).length === 0) {
-            updatefields = { items: {}, totalAmount: 0 }
+            cartitems = { items: {}, totalAmount: 0 }
             message = "Cart is Emptied"
         } else {
             const converted = await convertcart(updatedCart)
