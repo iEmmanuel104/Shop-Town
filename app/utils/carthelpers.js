@@ -14,7 +14,7 @@ const convertcart = async (cart, type) => {
     let totalAmount = 0, Itemsprocessed = 0,
         outofstockItems = 0, errors = [],
         Itemsnotfound = 0; invalidQuantity = 0;
-
+    console.log('products', products);
     if (products.length === 0) { // if no product is found
         throw new BadRequestError("Please add a valid product to the cart.");
     }
