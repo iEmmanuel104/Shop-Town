@@ -95,18 +95,18 @@ const groupCartItems = async (items, amt) => {
 
     const storeValues = Object.values(items).map(item => item.store);
     const uniqueStores = [...new Set(storeValues)];
-
+    console.log("uniquestores ======", uniqueStores)
     if (uniqueStores.length !== 1) {
         const errorStores = uniqueStores.filter(store => !storeValues.includes(store));
-        console.log(errorStores)
+        console.log('errorstores ==== ',errorStores)
         const storeNames = await Promise.all(errorStores.map(async store => {
             const storeData = await Brand.findOne({ where: { id: store } });
             return storeData.name;
         }));
-        console.log(storeNames) 
+        console.log("storenames ======",storeNames) 
         throw new BadRequestError(`Items have different stores: ${storeNames.join(", ")}`);
     }
-    console.log(uniqueStores)
+    console.log("uniquestores ======",uniqueStores)
     const store = uniqueStores[0];
 
     let groupedItems = {};

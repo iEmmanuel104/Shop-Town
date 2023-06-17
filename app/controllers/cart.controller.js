@@ -156,6 +156,7 @@ const cartcheckout = asyncWrapper(async (req, res, next) => {
         // }
 
         const userId = decoded.id;
+        console.log("userId", userId)
 
         const cart = await Cart.findOne({
             where: { userId: userId, isWishList: false }
@@ -170,10 +171,15 @@ const cartcheckout = asyncWrapper(async (req, res, next) => {
 
             // categorise itens by store
             const groupedCartItems = await groupCartItems(cart.items, cart.totalAmount);
-            // console.log(groupedCartItems)
+            console.log("grouped =========== ",groupedCartItems)
             const storeId = {
                 id: Object.keys(groupedCartItems)[0],
                 type: 'store'
+            };
+
+            const userobj = {   
+                id: userId,
+                type: 'user'
             };
 
             let sender_address_code, receiver_address_code, pickup_date,
@@ -183,7 +189,7 @@ const cartcheckout = asyncWrapper(async (req, res, next) => {
             sender_address_code = (await DeliveryAddress.scope({ method: ["Default", storeId] }).findOne()).addressCode;
             if (!sender_address_code) return next(new NotFoundError("Store validation pending"));
 
-            receiver_address_code = (await DeliveryAddress.scope({ method: ["Default", userId] }).findOne()).addressCode;
+            receiver_address_code = (await DeliveryAddress.scope({ method: ["Default", userobj] }).findOne()).addressCode;
             if (!receiver_address_code) return next(new NotFoundError("Please add a delivery address"));
 
             // pickup_date = new Date().toISOString().split('T')[0];
