@@ -534,14 +534,14 @@ const RegisterStore = asyncWrapper(async (req, res, next) => {
     const decoded = req.decoded
     let { storeName, phone, industry, country, address, state, city, postal } = req.body
     // trim request body
-    storeName = storeName.trim()
-    phone = phone.trim()
-    industry = industry.trim()
-    country = country.trim()
-    address = address.trim()
-    state = state.trim()
-    city = city.trim()
-    postal = postal.trim()
+    // storeName = storeName.trim()
+    // phone = phone.trim()
+    // industry = industry.trim()
+    // country = country.trim()
+    // address = address.trim()
+    // state = state.trim()
+    // city = city.trim()
+    // postal = postal.trim()
 
     const user = await User.findByPk(decoded.id)
     if (!user) return next(new BadRequestError('Invalid user'))
