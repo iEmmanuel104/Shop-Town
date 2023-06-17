@@ -89,10 +89,7 @@ const updateBrand = asyncWrapper(async (req, res, next) => {
         // if (store.owner !== userId) {
         //     return next(new ForbiddenError("You are not allowed to access this resource"));
         // }
-        // remove whitespaces from req.body values
-        req.body = Object.fromEntries(Object.entries(req.body).map(([key, value]) => [key, value.trim()]));
         const { storeName, socials, businessPhone, industry, address, country, state, city, postal } = req.body;
-
         store.name = storeName ? storeName : store.name;
         store.socials = socials ? socials : store.socials;
         store.businessPhone = businessPhone ? businessPhone : store.businessPhone;
@@ -153,8 +150,6 @@ const AddStoreDiscount = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const decoded = req.decoded;
         const userId = decoded.id;
-        // remove whitespaces from req.body values
-        req.body = Object.fromEntries(Object.entries(req.body).map(([key, value]) => [key, value.trim()]));
         const { title, type, value, endDate } = req.body;
         // split categories from string to array
         let categories = [];
@@ -224,8 +219,6 @@ const updateStoreDiscount = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const decoded = req.decoded;
         const userId = decoded.id;
-        // remove whitespaces from req.body values
-        req.body = Object.fromEntries(Object.entries(req.body).map(([key, value]) => [key, value.trim()]));
         const { title, type, value, endDate, status } = req.body;
         const store = await Brand.findByPk(req.params.id, { attributes: ['owner'] });
 

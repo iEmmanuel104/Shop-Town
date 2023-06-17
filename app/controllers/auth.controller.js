@@ -129,15 +129,7 @@ const resendVerificationCode = asyncWrapper(async (req, res, next) => {
 });
 
 const profileOnboarding = asyncWrapper(async (req, res, next) => {
-    let { location, city, state, country, phone } = req.body
-    // remove white spaces from req.body values
-    location = location.trim()
-    city = city.trim()
-    state = state.trim()
-    country = country.trim()
-    phone = phone.trim()
-
-
+    const { location } = req.body
     const decoded = req.decoded
     const userId = decoded.id
     const user = await User.findByPk(userId)
@@ -147,14 +139,14 @@ const profileOnboarding = asyncWrapper(async (req, res, next) => {
     // check if the user has a facebook or google id and add a phone number field 
     if (user.facebookId || user.googleId) {
         console.log('user has facebook or google id')
-        user.phone = phone
+        user.phone = req.body.phone
         await user.save()
     }
 
     user.address = location
     await user.save()
 
-    const addressdetails = location + ',' + city + ',' + state + ',' + country,
+    const addressdetails = location + ',' + req.body.city + ',' + req.body.state + ',' + req.body.country,
         details = {
             name: user.firstName + ' ' + user.lastName,
             email: user.email,
@@ -166,11 +158,10 @@ const profileOnboarding = asyncWrapper(async (req, res, next) => {
     await DeliveryAddress.create({
         userId,
         address: location,
-        // trim white spaces from req.body values
-        city: city,
-        state: state,
-        country: country,
-        phone: phone ? user.phone : user.phone,
+        city: req.body.city,
+        state: req.body.state,
+        country: req.body.country,
+        phone: req.body.phone ? user.phone : user.phone,
         addressCode: address_code,
         isDefault: true
     })
@@ -221,8 +212,8 @@ const forgotPassword = asyncWrapper(async (req, res, next) => {
 });
 
 const resetPassword = asyncWrapper(async (req, res, next) => {
-    let { password } = req.body
-    password = password.trim()
+    const { password } = req.body
+
     const authHeader = req.headers.authorization
     const token = authHeader.split(' ')[1]
 
@@ -248,13 +239,10 @@ const resetPassword = asyncWrapper(async (req, res, next) => {
 });
 
 const signIn = asyncWrapper(async (req, res, next) => {
-    let { email, phone, password } = req.body;
-    email = email.trim().toLowerCase();
-    phone = phone.trim();
-    password = password.trim();
+    const { password } = req.body;
 
-    const data = email ? { email: email }
-        : phone ? { phone: phone }
+    const data = req.body.email ? { email: req.body.email }
+        : req.body.phone ? { phone: req.body.phone }
             : next(new BadRequestError('Please provide email or phone'));
 
     const user = await User.findOne(

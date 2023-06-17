@@ -89,7 +89,7 @@ const updateCart = asyncWrapper(async (req, res, next) => {
 
         const cart = await Cart.findOne({ where: { id: id } });
 
-        let updatefields = {}, message = "";
+        let updatefields = {}, message = "", cartitems = {}
         if (!cart) return next(new NotFoundError("Cart not found"));
 
         const updatedCart = { items }
@@ -103,25 +103,28 @@ const updateCart = asyncWrapper(async (req, res, next) => {
         } else {
             const converted = await convertcart(updatedCart)
             updatefields = {
-                items: converted.items,
-                totalAmount: converted.totalAmount,
                 analytics: converted.analytics,
                 // totalAmount: converted.totalAmount,
             }
 
-            if ( converted.errors.length > 0 ) {
+            cartitems = {
+                items: converted.items,
+                totalAmount: converted.totalAmount,
+            }
+
+            if (converted.errors.length > 0) {
                 updatefields.errors = converted.errors
                 updatefields.processedcount = (converted.items).length // number of items processed
             }
             message = "Cart Updated Succesfully"
         }
 
-        await cart.update(updatefields, { transaction: t });
+        await cart.update(cartitems, { transaction: t });
 
         res.status(200).json({
             success: true,
             message,
-            data: {...updatefields}
+            data: { ...updatefields }
         });
     });
 });
