@@ -103,6 +103,8 @@ const updateCart = asyncWrapper(async (req, res, next) => {
         } else {
             const converted = await convertcart(updatedCart)
             updatefields = {
+                items: converted.items,
+                totalAmount: converted.totalAmount,
                 analytics: converted.analytics,
                 // totalAmount: converted.totalAmount,
             }
