@@ -21,7 +21,9 @@ const createOrder = asyncWrapper(async (req, res, next) => {
         const userId = decoded.id;
         const userInfo = await User.findOne({ where: { id: userId } });
         const { shipping_method, storeId, option } = req.body;
+
         const cart = await Cart.findOne({ where: { userId } });
+        
         if (!cart) throw new NotFoundError('Cart not found');
         if (shipping_method !== 'seller' && shipping_method !== 'kship') throw new BadRequestError('Invalid shipping method');
         let shippingMethod = { type: shipping_method }
