@@ -68,7 +68,7 @@ const getCart = asyncWrapper(async (req, res, next) => {
         }
         // check if the product pice and quantity has changed
         const converted = await convertcart(cart, 'get')
-        
+
         // compare the converted items and totalAmount to the original cart
         if (
             JSON.stringify(cart.items) !== JSON.stringify(converted.items) ||
@@ -81,7 +81,8 @@ const getCart = asyncWrapper(async (req, res, next) => {
 
         res.status(200).json({
             success: true,
-            data: cart
+            data: cart,
+            sortedcart: converted.sortedItems
         });
     });
 });
