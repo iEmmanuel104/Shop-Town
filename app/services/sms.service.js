@@ -30,13 +30,23 @@ const verifyCode = async (options) => {
     .then(verification_check => console.log(verification_check.status));
 }
 
-const phoneNumberLookup = async (options) => {
-    console.log("verify phone:", options)
-    await client.lookups.v1
-    .phoneNumbers(`+${options.phone}`)
-    .fetch({type: ['carrier']})
-    .then(phone_number => console.log(phone_number.carrier.type));
-}
+const phoneNumberLookup = (options) => {
+    return new Promise((resolve, reject) => {
+        console.log("verify phone:", options);
+        client.lookups.v1.phoneNumbers(`+${options.phone}`)
+            .fetch({ type: ['carrier'] })
+            .then((phone_number) => {
+                // console.log(phone_number);
+                resolve(phone_number);
+            })
+            .catch((error) => {
+                // console.log("Error occurred:", error);
+                reject(error);
+            });
+    });
+};
+
+
 
 
 // sendSms({phone: '+2348062144727', message: 'Hello world FROM EMMANUEL'})
