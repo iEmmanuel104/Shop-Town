@@ -19,6 +19,8 @@ const convertcart = async (cart, type) => {
         throw new BadRequestError("Please add a valid product to the cart.");
     }
 
+    let sortItems = items;
+
     itemIds.forEach(itemId => {
         const product = products.find(p => p.id === itemId);
         if (!product) {
@@ -53,6 +55,8 @@ const convertcart = async (cart, type) => {
                 store: storeId,
             };
 
+            sortItems[product.id] = cartquantity;
+
             if (itemStatus === 'instock') {
                 totalAmount += price * cartquantity;
                 Itemsprocessed++;
@@ -66,6 +70,8 @@ const convertcart = async (cart, type) => {
         }
     });
 
+    console.log('sortItems', sortItems);
+
     cart.totalAmount = totalAmount;
     cart.errors = errors;
     cart.analytics = {
@@ -75,6 +81,7 @@ const convertcart = async (cart, type) => {
         totalItemsOutOfStock: outofstockItems,
         totalItemsInvalidQuantity: invalidQuantity,
     };
+    cart.sortedItems = sortItems;
 
     return cart;
 }

@@ -51,7 +51,10 @@ const storeCart = asyncWrapper(async (req, res, next) => {
 
 const getCart = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
-        const cart = await Cart.findOne({ where: { id: req.params.id } });
+        const cart = await Cart.findOne({ where: { id: req.params.id },
+            // remove checkoutData from cart
+            attributes: { exclude: ['checkoutData'] }
+         });
 
         if (!cart) return next(new NotFoundError("Cart not found"));
         if (!cart.items) { cart.items = {}; }// initialize items as empty object if null
@@ -65,6 +68,7 @@ const getCart = asyncWrapper(async (req, res, next) => {
         }
         // check if the product pice and quantity has changed
         const converted = await convertcart(cart, 'get')
+        
         // compare the converted items and totalAmount to the original cart
         if (
             JSON.stringify(cart.items) !== JSON.stringify(converted.items) ||
