@@ -4,7 +4,7 @@ const { FLW_SECRET_KEY, FLW_PUBLIC_KEY, FLW_REDIRECT_URL, LOGO } = require('../u
 const flw = new Flutterwave(FLW_PUBLIC_KEY, FLW_SECRET_KEY);
 require('dotenv').config();
 const request = require('request');
-const { BadRequestError } = require('../utils/customErrors');
+const { BadRequestError, UnprocessableEntityError } = require('../utils/customErrors');
 
 const FlutterwavePay = async (paydetails) => {
     let StoreLogo = paydetails.storeLogo ? paydetails.storeLogo : LOGO;
@@ -47,6 +47,7 @@ const FlutterwavePay = async (paydetails) => {
         })
 
     };
+    try {
     return new Promise((resolve, reject) => {
         request(options, function (error, response) {
             if (error) {
@@ -58,6 +59,10 @@ const FlutterwavePay = async (paydetails) => {
             }
         });
     });
+    } catch (error) {
+        console.log(error)
+        throw new UnprocessableEntityError('Error initiating payment: ' + error.message);
+    }
 };
 
 const validateFlutterwavePay = async (details) => {
@@ -77,7 +82,7 @@ const validateFlutterwavePay = async (details) => {
         }
     } catch (error) {
         console.log(error)
-        throw new BadRequestError('Error validating payment: ' + error.message);
+        throw new UnprocessableEntityError('Error validating payment: ' + error.message);
     }
 };
 
@@ -89,6 +94,7 @@ const getflutterwavepayoutbanks = async () => {
             'Authorization': `Bearer ${FLW_SECRET_KEY}`
         }
     };
+    try {
     return new Promise((resolve, reject) => {
         request(options, function (error, response) {
             if (error) {
@@ -98,6 +104,9 @@ const getflutterwavepayoutbanks = async () => {
             }
         });
     });
+    } catch (error) {
+        throw new UnprocessableEntityError('Error getting banks: ' + error.message);
+    }
 };
 
 const FlutterwaveTransferfee = async (details) => {
@@ -108,7 +117,7 @@ const FlutterwaveTransferfee = async (details) => {
         });
         return response.data;
     } catch (error) {
-        throw new BadRequestError('Error getting transfer fee: ' + error.message);
+        throw new UnprocessableEntityError('Error getting transfer fee: ' + error.message);
     }
 };
 
@@ -120,6 +129,7 @@ const FlutterwaveTransferStatus = async (details) => {
             'Authorization': `Bearer ${FLW_SECRET_KEY}`
         }
     };
+    try {
     return new Promise((resolve, reject) => {
         request(options, function (error, response) {
             if (error) {
@@ -129,8 +139,12 @@ const FlutterwaveTransferStatus = async (details) => {
             }
         });
     });
+    } catch (error) {
+        throw new UnprocessableEntityError('Error getting transfer status: ' + error.message);
+    }
 };
 
+// add try catch block
 const FlutterwavePayout = async (details) => {
     const detailss = {
         account_bank: details.bankCode,
@@ -196,7 +210,7 @@ const FlutterwaveRefund = async (details) => {
         const response = await flw.Refund.create(details);
         return response.data;
     } catch (error) {
-        throw new BadRequestError('Error refunding payment: ' + error.message);
+        throw new UnprocessableEntityError('Error refunding payment: ' + error.message);
     }
 };
 
