@@ -542,7 +542,7 @@ const RegisterStore = asyncWrapper(async (req, res, next) => {
     postal = postal.trim()
 
     // CHECK FOR VALID PHONE NUMBER
-    phoneNumberLookup({phone})
+    // phoneNumberLookup({phone})
 
     const user = await User.findByPk(decoded.id)
     if (!user) return next(new BadRequestError('Invalid user'))
