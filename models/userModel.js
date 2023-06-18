@@ -133,6 +133,13 @@ module.exports = (sequelize, DataTypes) => {
                     options.where.email = options.where.email.toLowerCase();
                 }
             },
+            beforeCreate: (record, options) => {
+                record.dataValues.createdAt = new Date().toISOString().replace(/T/, ' ').replace(/\..+/g, '');
+                record.dataValues.updatedAt = new Date().toISOString().replace(/T/, ' ').replace(/\..+/g, '');
+            },
+            beforeUpdate: (record, options) => {
+                record.dataValues.updatedAt = new Date().toISOString().replace(/T/, ' ').replace(/\..+/g, '');
+            }
         },
     });
 
@@ -161,7 +168,7 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.BIGINT,
             unique: {
                 args: true,
-                msg: 'Phone number already in use!'
+                msg: 'Business Phone number provided already in use!' 
             },
             allowNull: false
         },
