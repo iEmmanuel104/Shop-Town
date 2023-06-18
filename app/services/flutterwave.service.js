@@ -28,7 +28,6 @@ const FlutterwavePay = async (paydetails) => {
         'headers': {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${FLW_SECRET_KEY}`
-            // 'Authorization': 'Bearer FLWSECK_TEST-524b5ca50966cff5b5afc9729dcdd31e-X'
         },
         body: JSON.stringify({
             "tx_ref": paydetails.tx_ref,
@@ -53,6 +52,7 @@ const FlutterwavePay = async (paydetails) => {
             if (error) {
                 reject(error);
             } else {
+                console.log(response.body)
                 resolve(JSON.parse(response.body));
             }
         });
