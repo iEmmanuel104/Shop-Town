@@ -50,6 +50,7 @@ const FlutterwavePay = async (paydetails) => {
     return new Promise((resolve, reject) => {
         request(options, function (error, response) {
             if (error) {
+                console.log(error)
                 reject(error);
             } else {
                 console.log(response.body)
