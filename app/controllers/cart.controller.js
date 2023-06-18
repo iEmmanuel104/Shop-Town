@@ -52,7 +52,7 @@ const storeCart = asyncWrapper(async (req, res, next) => {
 const getCart = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const cart = await Cart.findOne({ where: { id: req.params.id },
-            // remove checkoutData from cart
+            // remove checkoutData
             attributes: { exclude: ['checkoutData'] }
          });
 
@@ -68,21 +68,21 @@ const getCart = asyncWrapper(async (req, res, next) => {
         }
         // check if the product pice and quantity has changed
         const converted = await convertcart(cart, 'get')
-
+        // console.log("converted", converted)
         // compare the converted items and totalAmount to the original cart
         if (
             JSON.stringify(cart.items) !== JSON.stringify(converted.items) ||
             cart.totalAmount !== converted.totalAmount
         ) {
-            cart.items = converted.items;
-            cart.totalAmount = converted.totalAmount;
-            await cart.save({ transaction: t });
+           let  newcart = {items : converted.items,
+            totalAmount : converted.totalAmount}
+            await Cart.update(newcart, { where: { id: cart.id } });
         }
 
         res.status(200).json({
             success: true,
-            data: cart,
-            sortedcart: converted.sortedItems
+            data: {...cart.toJSON(), 
+                 sortedcart: converted.sortedcart}
         });
     });
 });
