@@ -1,6 +1,7 @@
 const axios = require('axios');
 const { DeliveryAddress } = require('../../models');
 const { BadRequestError } = require('../utils/customErrors');
+const { SHIPBUBBLE_API_KEY } = require('../utils/configs');
 
 const validateAddress = async (details) => {
     console.log('ship bubble api called');
@@ -17,20 +18,20 @@ const validateAddress = async (details) => {
         url: 'https://api.shipbubble.com/v1/shipping/address/validate',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer sb_sandbox_d1736e48887d79f702c29800aa85f858078618ad20679b2a54f46d604d655763'
+            'Authorization': `Bearer ${SHIPBUBBLE_API_KEY}`
         },
         data: data
     };
 
     try {
         const response = await axios.request(config);
-        // console.log(response.data);
+        console.log(response.data);
         const address_code = response.data.data.address_code;
         console.log("address code api", address_code);
         return address_code;
     } catch (error) {
         console.log(error.response.data);
-        throw new BadRequestError('Error validating address: ' + error.response.data.message + " " + error.response.data.errors);
+        throw new BadRequestError('Error validating address: ' + error.response.data.message );
     }
 };
 
@@ -48,12 +49,12 @@ const getShippingRates = async (details) => {
     });
 
     let config = {
-        method: 'post',
+        method: 'post', 
         maxBodyLength: Infinity,
         url: 'https://api.shipbubble.com/v1/shipping/fetch_rates',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer sb_sandbox_d1736e48887d79f702c29800aa85f858078618ad20679b2a54f46d604d655763',
+            'Authorization': `Bearer ${SHIPBUBBLE_API_KEY}`,
             'Cookie': 'connect.sid=s%3A7grPYQxxTQAPVglRsI2jviUSaeOocGbR.Vb40e8CphHenTW7eb9SmjZDVAJmGNciuMEdUz8T8JvE'
         },
         data: data
@@ -64,6 +65,7 @@ const getShippingRates = async (details) => {
         const requestobject = {
             request_token: response.data.data.request_token,
             cheapest_courier: response.data.data.cheapest_courier,
+            kship_courier: findCourier(response.data.data),
             checkout_data: response.data.data.checkout_data
         }
         return requestobject;
@@ -128,7 +130,7 @@ const getshippingcategories = async () => {
         maxBodyLength: Infinity,
         url: 'https://api.shipbubble.com/v1/shipping/labels/categories',
         headers: {
-            'Authorization': 'Bearer sb_sandbox_d1736e48887d79f702c29800aa85f858078618ad20679b2a54f46d604d655763',
+            'Authorization': `Bearer ${SHIPBUBBLE_API_KEY}`,
             'Cookie': 'connect.sid=s%3A7grPYQxxTQAPVglRsI2jviUSaeOocGbR.Vb40e8CphHenTW7eb9SmjZDVAJmGNciuMEdUz8T8JvE'
         }
     };
@@ -229,7 +231,7 @@ const getshippingboxes = async () => {
         maxBodyLength: Infinity,
         url: 'https://api.shipbubble.com/v1/shipping/labels/boxes',
         headers: {
-            'Authorization': 'Bearer sb_sandbox_d1736e48887d79f702c29800aa85f858078618ad20679b2a54f46d604d655763',
+            'Authorization': `Bearer ${SHIPBUBBLE_API_KEY}`,
             'Cookie': 'connect.sid=s%3A3rMlhM0QHhkTvEjmnWpFfLyjnn0tD3zY.jmNfhy0UkGQtxKZGi8bBp7ipAWfLB7RY70NjVyycizY'
         }
     };
@@ -259,7 +261,7 @@ const createshipment = async (details) => {
         url: 'https://api.shipbubble.com/v1/shipping/labels',
         headers: {
             'Content-Type': 'application/json',
-            'Authorization': 'Bearer sb_sandbox_d1736e48887d79f702c29800aa85f858078618ad20679b2a54f46d604d655763',
+            'Authorization': `Bearer ${SHIPBUBBLE_API_KEY}`,
             'Cookie': 'connect.sid=s%3Ag3JurJ5tS6rqUKrKuiUHBW8LM_YpI5hV.mXjdY0E3AqfZ8EeAdbNSrAB%2BnsMyO%2BYKVdTzVIGP80Y'
         },
         data: data
@@ -276,6 +278,24 @@ const createshipment = async (details) => {
         throw new BadRequestError('Error creating shipment');
     }
 }
+
+function findCourier(data) {
+    const cheapestCourier = data.cheapest_courier;
+    if (cheapestCourier.is_cod_available) {
+        return cheapestCourier;
+    } else {
+        const couriers = data.couriers;
+        const codAvailableCouriers = couriers.filter(courier => courier.is_cod_available);
+        if (codAvailableCouriers.length > 0) {
+            return codAvailableCouriers.reduce((minCourier, courier) => {
+                return courier.total < minCourier.total ? courier : minCourier;
+            });
+        } else {
+            return null;
+        }
+    }
+}
+
 
 module.exports = {
     validateAddress,

@@ -1,179 +1,240 @@
 const { randomUUID } = require("crypto")
 const { ChatRoom, Message, User, Brand } = require("../../models")
-const { Ride } = require("../../models/ride.model")
 const { clients, joinRoom } = require("../utils/clients")
+const { join } = require("path");
+const { log } = require("console");
 
-const sendChatRoomInviteToClient = async (target_user_id, room_id) => {
-    const target_user_data = await User.findByPk(target_user_id);
+// const sendChatRoomInviteToClient = async function (target_user_id, room_id) {
+//     // check if the target_user_id is an array
+//     if (Array.isArray(target_user_id)) {
+//         // if it is, then send invite to all users in the array
+//     }
 
-    const target_client = clients.get(target_user_data.email)
-    const client_in_chatroom = room_id in target_client.rooms
+//     const target_user_data = await User.findByPk(target_user_id);
 
-    // Send invite to target client if not already in room
-    if (!client_in_chatroom) {
-        target_client.emit("chat:invite", { chat_room_id: room_id });
+//     const target_client = clients.get(target_user_data.email)
+//     const client_in_chatroom = room_id in target_client.rooms
+//     console.log(target_client.user.email)
+
+//     // Send invite to target client if not already in room
+//     if (!client_in_chatroom) {
+//         target_client.emit("chat:invite", { chat_room_id: room_id });
+//     }
+
+//     return;
+// }
+const sendChatRoomInviteToClient = async function (target_user_id, room_id) {
+    // Check if the target_user_id is an array
+    if (Array.isArray(target_user_id)) {
+        console.log("target_user_id is an array");
+        // Iterate over each user ID in the array and send invite
+        for (const user_id of target_user_id) {
+            const target_user_data = await User.findByPk(user_id);
+            const target_client = clients.get(target_user_data.email);
+            const client_in_chatroom = room_id in target_client.rooms;
+            console.log(target_client.user.email);
+
+            // Send invite to target client if not already in room
+            if (!client_in_chatroom) {
+                target_client.emit("chat:invite", { chat_room_id: room_id });
+            }
+        }
+    } else {
+        console,log("target_user_id is not an array");
+        // Handle the case when target_user_id is not an array
+        const target_user_data = await User.findByPk(target_user_id);
+        const target_client = clients.get(target_user_data.email);
+        const client_in_chatroom = room_id in target_client.rooms;
+        console.log(target_client.user.email);
+
+        // Send invite to target client if not already in room
+        if (!client_in_chatroom) {
+            target_client.emit("chat:invite", { chat_room_id: room_id });
+        }
     }
 
     return;
-}
+};
 
-const initiateChat = async (req, res) =>{
-    const { data } = req
+
+const initiateChat = async function (req, res) {
     const socket = this;
-    const { targetuser_id,store_id } = data;
-
-    // Check for missing requred fields
-    if (!targetuser_id) {
-        res.send("Missing required field: targetuser_id");
-        return;
-    }
-
-    // Check if store exists
-    const store = await Brand.findByPk(store_id, attributes = ['owner']);
+    const { storeId } = req.data;
+    // Check if the store and user exist
+    const store = await Brand.findByPk(storeId);
+    // const user = await User.findByPk(socket.user.id);   
     if (!store) {
-        res.send("Store does not exist");
+        res.send('Invalid store');
         return;
     }
 
-    const chat_room_doc = await ChatRoom.findOne({
-        storeId: store_id,
-        users: { $all: [socket.user.id, data.targetuser_id] },
-    }).populate(populate_config)
-
-    let chat_room = chat_room_doc?.toJSON()
-
-    // If chat room exists, notify initiator of chat room id
-    // and invite target user to chat room
-    if (chat_room) {
-        // Add initiator to chat room
-        joinRoom(socket, chat_room._id)
-
-        // Send invite to target user (i.e invitee)
-        sendChatRoomInviteToClient(targetuser_id, chat_room._id)
-
-        res.send(null, { chat_room_id: chat_room._id });
-        return;
-    }
-
-    // If chat room does not exist, create new chat room
-    const new_chat_room = await ChatRoom.create({
-        users: [socket.user._id, data.targetuser_id],
-        ride: ride_id,
+    // get store users id list
+    const storeUsers = await Brand.findAll({
+        where: { id: storeId },
+        include: {
+            model: User,
+            attributes: ['id'],
+            through: {
+                attributes: [],
+                where: {
+                    role: ['owner', 'staff'],
+                },
+                required: true,
+            },
+        },
     });
 
-    joinRoom(socket, new_chat_room._id)
+    const storeUsersIdList = storeUsers.flatMap((storeUser) =>
+        storeUser.Users.map((user) => user.id)
+    );
 
-    // Invite target user to chat room
-    sendChatRoomInviteToClient(targetuser_id, new_chat_room._id)
+    console.log(storeUsersIdList);
 
-    // Notify initiator of chat room id
-    res.send(null, { chat_room_id: new_chat_room._id });
+    // check if user is part of the store
+    if (storeUsersIdList.includes(socket.user.id)) {
+        res.send('Unauthorized');
+        return;
+    }
 
+
+    // Check if a chat room already exists between the store and user
+    const existingChatRoom = await ChatRoom.findOne({
+        where: {
+            users: [ socket.user.id, ...storeUsersIdList ],
+            storeId: store.id,
+        },
+    });
+
+    if (existingChatRoom) {
+        console.log('sender', socket.user.email)
+
+        // Add the initiator to the chat room
+        joinRoom(socket, existingChatRoom.id);
+
+        // Send chat room invitation to the user
+        await sendChatRoomInviteToClient(store.id, existingChatRoom.id);
+
+        // Notify the initiator of the chat room ID
+        res.send(null, { chatRoomId: existingChatRoom.id });
+
+        return;
+    }
+
+    // Create a new chat room
+    const newChatRoom = await ChatRoom.create({
+        users: [ socket.user.id, ...storeUsersIdList ],
+        storeId: store.id,
+    });
+
+    // Add the initiator to the chat room
+    joinRoom(socket, newChatRoom.id);
+
+    // Send chat room invitation to the user
+    await sendChatRoomInviteToClient(storeUsersIdList, newChatRoom.id);
+
+    res.send(null, { chatRoomId: newChatRoom.id });
     return;
-}
+};
 
-const sendMessageToChatRoom = async function (req, res) {
-    const socket = this
-    const { chat_room_id, message } = req.data
+const sendMessageToChatRoom = async function (req, res)  {
+    const socket = this;
+    const { chatRoomId, message } = req.body;
 
-    // Check if chat room exists
-    const chat_room = await ChatRoom.findById(chat_room_id).populate('messages')
-    if (!chat_room) {
-        res.send('Chat room does not exist')
-        return
+    // Check if the chat room exists
+    const chatRoom = await ChatRoom.findByPk(chatRoomId);
+    if (!chatRoom) {
+        res.send('Chat room not found');
+        return;
     }
 
-    // Check if user is part of chat room
-    const user_in_chat_room = chat_room.users.includes(socket.user._id)
-    if (!user_in_chat_room) {
-        res.send('User is not part of chat room')
-        return
+    // Check if the user is part of the chat room
+    const isUserInChatRoom = chatRoom.users.includes(socket.user.id);
+
+    if (!isUserInChatRoom) {
+        res.send('User is not part of the chat room');
+        return;
     }
 
-    // Create new message
-    let new_message = await Message.create({
-        sender: socket.user._id,
-        chat_room: chat_room_id,
+    // Create a new message
+    const newMessage = await Message.create({
+        chatRoomId: chatRoom.id,
+        senderId: socket.user.id,
         message,
-    })
+    });
 
-    // Add senders data to message
-    const populate_config = {
-        path: 'sender',
-        select: 'firstname lastname email'
-    }
-    new_message = await new_message.populate(populate_config)
+    // Add sender's data to the message
+    newMessage.sender = (await User.findByPk(socket.user.id)).profileImage;
 
-    // Notify all users in chat room of new message
-    let path = chat_room_id + ':chat:message:new'
-    io.to(chat_room_id).emit(path, { message: new_message })
+    // Notify all users in the chat room of the new message
+    let path = `${chatRoomId}:chat:message:new`;
+    io.to(chatRoomId).emit(path, { message: newMessage });
 
-    res.send(null, { message: new_message })
-    return
-}
+    res.send(null, { messageId: newMessage.id });
+    return;
+
+};
 
 const joinChatRoom = async function (req, res) {
-    const socket = this
-    const { chat_room_id } = req.data
+    const socket = this;
+    const { chatRoomId } = req.data;
 
-    const chat_room = await
-        ChatRoom
-            .findById(chat_room_id)
-            .populate({
-                path: 'messages',
-                populate: {
-                    path: 'sender',
-                    select: 'email firstname lastname'
-                }
-            })
-    
-    // Check if chat room exists
-    if (!chat_room) {
-        res.send({ error: 'Chat room not found' }); return;
-    }
-
-    // Check if user is part of chat room
-    if (!chat_room.users.includes(socket.user._id)) {
-        res.send({ error: 'User is not a member of this chatroom' }); return;
-    }
-
-    // Add user to chat room
-    joinRoom(socket, chat_room_id)
-
-    res.send(null, { chat_room })
-    return
-}
-
-const getPreviousChatRoomMessages = async function (req, res) {
-    const socket = this
-    const { chat_room_id } = req.data
-
-    const chat_room = await
-        ChatRoom
-            .findById(chat_room_id)
-            .populate({
-                path: 'messages',
-                populate: {
-                    path: 'sender',
-                    select: 'email firstname lastname'
-                }
-            })
-    
-    // Check if chat room exists
-    if (!chat_room) {
-        res.send({ error: 'Chat room not found' })
+    // Check if the chat room exists
+    const chatRoom = await ChatRoom.findByPk(chatRoomId);
+    if (!chatRoom) {
+        res.send('Chat room not found');
         return;
     }
 
-    // Check if user is part of chat room
-    if (!chat_room.users.includes(socket.user._id)) {
-        res.send({ error: 'User is not a member of this chatroom' })
+    // Check if the user is part of the chat room
+    // const isUserInChatRoom = await chatRoom.hasUser(socket.user.id);
+    const isUserInChatRoom = chatRoom.users.includes(socket.user.id);
+
+
+    if (!isUserInChatRoom) {
+        res.send('User is not part of the chat room');
         return;
     }
 
-    res.send(null, { messages: chat_room })
-    return
-}
+    // Join the user to the chat room
+    joinRoom(socket, chatRoomId);
+
+    res.send(null, { chatRoomId });
+    return;
+};
+
+const getPreviousChatRoomMessages = async function (req, res)  {
+    const socket = this;
+    const { chatRoomId } = req.data;
+
+    // Check if the chat room exists
+    const chatRoom = await ChatRoom.findByPk(chatRoomId);
+    if (!chatRoom) {
+        res.send('Chat room not found');
+        return;
+    }
+
+    // Check if the user is part of the chat room
+    const isUserInChatRoom = chatRoom.users.includes(socket.user.id);
+
+
+    if (!isUserInChatRoom) {
+        res.send('User is not part of the chat room');
+        return;
+    }
+
+    // Get previous messages in the chat room
+    const messages = await Message.findAll({
+        where: {
+            chatRoomId,
+        },
+        order: [['createdAt', 'DESC']],
+        limit: 10,
+    });
+
+    res.send(null, { messages });
+    return;
+
+};
 
 module.exports = (io, socket) => {
     try {
@@ -192,16 +253,18 @@ module.exports = (io, socket) => {
             try {
                 const socket = this;
 
+                // console.log(socket)
                 // Get request handler from socket_paths
                 const socketRequestHandler = socket_paths[path];
 
-                const req = { user: socket.user, data, path }
+                const req = { requser: socket.user, data, path }
                 res.path = 'response:' + path;
 
                 // Check if user is authenticated 
                 // if authenticated socket.user will be set by auth middleware
                 let response = null;
                 if (socket.user) {
+                    // console.log(socket.user)
                     response = await socketRequestHandler.call(socket, req, res);
                     return;
                 }

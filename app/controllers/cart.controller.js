@@ -4,57 +4,13 @@ require('dotenv').config();
 const { sequelize, Sequelize } = require('../../models');
 const asyncWrapper = require('../middlewares/async');
 const { getshippingboxes, getShippingRates } = require('../services/shipbubble.service');
-// const queryString = require('query-string');
+const { KSECURE_FEE } = require('../utils/configs');
 // const validator = require('validator');
 const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/customErrors');
+const { convertcart, groupCartItems, estimateBoxDimensions } = require('../utils/carthelpers');
 const { getPagination, getPagingData } = require('../utils/pagination')
 const Op = require("sequelize").Op;
 const path = require('path');
-
-const convertcart = async (cart, type) => {
-    const { items } = cart
-    const itemIds = Object.keys(items);
-    const products = await Product.scope('defaultScope', 'includePrice').findAll({
-        where: { id: itemIds }
-    });
-    let totalAmount = 0;
-    console.log(products)
-
-    if (products.length === 0) { // if no product is found
-        throw new BadRequestError("please add a valid product to cart");
-    }
-
-    products.forEach(product => {
-        let cartquantity;
-        if (type === 'get') {
-            cartquantity = items[product.id].quantity;
-        } else {
-            cartquantity = items[product.id];
-        }
-        const storeId = product.storeId
-        if (cartquantity >= 1) {
-            const price = product.discountedPrice ? product.discountedPrice : product.price;
-            const inStock = product.quantity.instock;
-            const itemStatus = inStock >= cartquantity ? 'instock' : 'outofstock';
-
-            items[product.id] = {
-                name: product.name,
-                quantity: cartquantity,
-                UnitPrice: product.price,
-                discount: product.discount,
-                Discountprice: price,
-                status: itemStatus,
-                store: storeId,
-            };
-            if (itemStatus === 'instock') {
-                totalAmount += price * cartquantity
-            }
-        }
-    });
-
-    cart.totalAmount = totalAmount;
-    return cart
-}
 
 const storeCart = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
@@ -73,9 +29,7 @@ const storeCart = asyncWrapper(async (req, res, next) => {
         }
 
         const cart = { items }
-        console.log(items)
         const converted = await convertcart(cart)
-        console.log(converted)
 
         const newCart = await Cart.create({
             // userId: null,
@@ -97,18 +51,13 @@ const storeCart = asyncWrapper(async (req, res, next) => {
 
 const getCart = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
-        const cart = await Cart.findOne({
-            where: {
-                id: req.params.id,
-            }
-        });
-        if (!cart) {
-            return next(new NotFoundError("Cart not found"));
-        }
-        if (!cart.items) {
-            cart.items = {}; // initialize items as empty object if null
-        }
-        console.log(cart)
+        const cart = await Cart.findOne({ where: { id: req.params.id },
+            // remove checkoutData
+            attributes: { exclude: ['checkoutData'] }
+         });
+
+        if (!cart) return next(new NotFoundError("Cart not found"));
+        if (!cart.items) { cart.items = {}; }// initialize items as empty object if null
 
         if (cart.items.length === 0 || cart.items == {} || cart.items == null || cart.totalAmount == 0) {
             return res.status(200).json({
@@ -119,19 +68,21 @@ const getCart = asyncWrapper(async (req, res, next) => {
         }
         // check if the product pice and quantity has changed
         const converted = await convertcart(cart, 'get')
+        // console.log("converted", converted)
         // compare the converted items and totalAmount to the original cart
         if (
             JSON.stringify(cart.items) !== JSON.stringify(converted.items) ||
             cart.totalAmount !== converted.totalAmount
         ) {
-            cart.items = converted.items;
-            cart.totalAmount = converted.totalAmount;
-            await cart.save({ transaction: t });
+           let  newcart = {items : converted.items,
+            totalAmount : converted.totalAmount}
+            await Cart.update(newcart, { where: { id: cart.id } });
         }
 
         res.status(200).json({
             success: true,
-            data: cart
+            data: {...cart.toJSON(), 
+                 sortedcart: converted.sortedcart}
         });
     });
 });
@@ -140,37 +91,45 @@ const updateCart = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const { id } = req.params;
         const { items } = req.body;
-        console.log(items)
-        const cart = await Cart.findOne({
-            where: {
-                id: id
-            }
-        });
-        let updatefields = {}, message = "";
+
+        const cart = await Cart.findOne({ where: { id: id } });
+
+        let updatefields = {}, message = "", cartitems = {}
         if (!cart) return next(new NotFoundError("Cart not found"));
 
         const updatedCart = { items }
         let checkcart = updatedCart.items
 
-        console.log("checkcart", checkcart)
+        // console.log("checkcart", checkcart)
 
         if (!items || Object.keys(checkcart).length === 0) {
-            updatefields = { items: {}, totalAmount: 0 }
+            cartitems = { items: {}, totalAmount: 0 }
             message = "Cart is Emptied"
         } else {
             const converted = await convertcart(updatedCart)
             updatefields = {
+                analytics: converted.analytics,
+                // totalAmount: converted.totalAmount,
+            }
+
+            cartitems = {
                 items: converted.items,
                 totalAmount: converted.totalAmount,
+            }
+
+            if (converted.errors.length > 0) {
+                updatefields.errors = converted.errors
+                updatefields.processedcount = (converted.items).length // number of items processed
             }
             message = "Cart Updated Succesfully"
         }
 
-        await cart.update(updatefields, { transaction: t });
+        await cart.update(cartitems, { transaction: t });
 
         res.status(200).json({
             success: true,
             message,
+            data: { ...updatefields }
         });
     });
 });
@@ -178,18 +137,11 @@ const updateCart = asyncWrapper(async (req, res, next) => {
 const deleteCart = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const { id } = req.params;
-        const cart = await Cart.findOne({
-            where: {
-                id: id
-            }
-        });
-        if (!cart) {
-            return next(new NotFoundError("Cart not found"));
-        }
+        const cart = await Cart.findOne({ where: { id: id } });
 
-        if (cart.isWishList === false) {
-            return next(new ForbiddenError("You can't delete a main cart only a wishlist cart"));
-        }
+        if (!cart) return next(new NotFoundError("Cart not found"));
+
+        if (cart.isWishList === false) return next(new ForbiddenError("You can't delete a main cart only a wishlist cart"));
 
         await cart.destroy();
         res.status(200).json({
@@ -203,42 +155,50 @@ const deleteCart = asyncWrapper(async (req, res, next) => {
 const cartcheckout = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const decoded = req.decoded
-        const { id } = req.params;
+        // const { id } = req.params;
         // if (decoded.vendorMode) {
         //     throw new ForbiddenError("Plesae switch to customer mode to checkout");
         // }
 
-        const cart = await Cart.findOne({
-            where: { id }
-        });
-        // console.log(cart.toJSON())
-        if (cart) {
-            // update the cart with the user id
-            cart.userId = decoded.id;
+        const userId = decoded.id;
+        console.log("userId", userId)
 
-            console.log(cart.toJSON())
+        const cart = await Cart.findOne({
+            where: { userId: userId, isWishList: false }
+        });
+
+        if (cart) {
             const converted = await convertcart(cart, 'get')
-            console.log(converted.toJSON())
+
             // update the cart with the converted items and totalAmount
             cart.items = converted.items;
             cart.totalAmount = converted.totalAmount;
 
             // categorise itens by store
             const groupedCartItems = await groupCartItems(cart.items, cart.totalAmount);
+            console.log("grouped =========== ",groupedCartItems)
             const storeId = {
                 id: Object.keys(groupedCartItems)[0],
                 type: 'store'
             };
-            console.log(groupedCartItems)
-            const userId = { id: decoded.id };
 
-            let sender_address_code, receiver_address_code, pickup_date, category_id, package_items, package_dimension, description;
+            const userobj = {   
+                id: userId,
+                type: 'user'
+            };
+
+            let sender_address_code, receiver_address_code, pickup_date,
+                category_id, package_items, package_dimension, description, boxSizes;
 
             // Get sender and user address codes 
             sender_address_code = (await DeliveryAddress.scope({ method: ["Default", storeId] }).findOne()).addressCode;
-            receiver_address_code = (await DeliveryAddress.scope({ method: ["Default", userId] }).findOne()).addressCode;
+            if (!sender_address_code) return next(new NotFoundError("Store validation pending"));
+
+            receiver_address_code = (await DeliveryAddress.scope({ method: ["Default", userobj] }).findOne()).addressCode;
+            if (!receiver_address_code) return next(new NotFoundError("Please add a delivery address"));
+
             // pickup_date = new Date().toISOString().split('T')[0];
-            pickup_date = new Date(new Date().getTime() + 60 * 60 * 1000).toISOString().split('T')[0];
+            pickup_date = new Date(new Date().getTime() + 60 * 60 * 1000).toISOString().split('T')[0]; // add 1 hour to current time
             category_id = groupedCartItems[storeId.id][0].specification.shippingcategory_id;
             package_items = groupedCartItems[storeId.id].map(item => {
                 const weightsum = item.quantity * item.specification.weight;
@@ -252,28 +212,24 @@ const cartcheckout = asyncWrapper(async (req, res, next) => {
                 }
             });
 
-            const boxSizes = (await getshippingboxes()).data;
+            boxSizes = (await getshippingboxes()).data;
             package_dimension = await estimateBoxDimensions(package_items, boxSizes);
             description = package_dimension.description
                 ? `Please handle with care as ${package_dimension.description}` :
                 `Please handle with care and do not shake`;
 
             const details = {
-                sender_address_code,
-                receiver_address_code,
-                pickup_date,
-                category_id,
-                package_items,
-                package_dimension,
+                sender_address_code, receiver_address_code, pickup_date,
+                category_id, package_items, package_dimension,
                 delivery_instructions: description
             }
             // GET SHIPPING FEE FROM SHIPBUBBLE API
-            const { request_token, cheapest_courier, checkout_data } = await getShippingRates(details);
+            const { request_token, kship_courier, cheapest_courier, checkout_data } = await getShippingRates(details);
 
-            console.log(request_token, cheapest_courier, checkout_data)
+            console.log(request_token, kship_courier, cheapest_courier, checkout_data)
 
             // update cart checkout data
-            cart.checkoutData = { request_token, cheapest_courier, checkout_data }
+            cart.checkoutData = { request_token, kship_courier, cheapest_courier, checkout_data }
 
             await cart.save({ transaction: t });
 
@@ -282,8 +238,9 @@ const cartcheckout = asyncWrapper(async (req, res, next) => {
             res.status(200).json({
                 success: true,
                 message: "Proceed to choose a suitable shipping method",
-                data: cart,
-                courier: cheapest_courier.total
+                // data: cart,
+                kship_fee: kship_courier.total ? parseFloat(kship_courier.total) : cheapest_courier.total,
+                ksecure_fee: parseFloat(KSECURE_FEE) + cheapest_courier.total,
             });
         }
         else {
@@ -294,92 +251,6 @@ const cartcheckout = asyncWrapper(async (req, res, next) => {
         }
     });
 });
-
-const groupCartItems = async (items, amt) => {
-    const itemIds = Object.keys(items);
-
-    // Retrieve products based on itemIds
-    const products = await Product.scope('defaultScope', 'includePrice').findAll({
-        where: { id: itemIds },
-        attributes: ['id', 'name', 'specifications', 'description'],
-    });
-
-    if (products.length === 0) {
-        throw new BadRequestError("Please add a valid product to cart");
-    }
-
-    let groupedItems = {};
-    Object.values(items).forEach(item => {
-        const productId = Object.keys(items).find(key => items[key] === item);
-        const product = products.find(product => product.id === productId);
-        console.log(product)
-        const { name, specifications, description } = product;
-
-        const newItem = {
-            ...item,
-            productId, // Add the productId to the newItem
-            name,
-            specification: specifications,
-            description
-        };
-
-        if (groupedItems[item.store]) {
-            groupedItems[item.store].push(newItem);
-        } else {
-            groupedItems[item.store] = [newItem];
-        }
-    });
-
-    groupedItems.totalAmount = amt;
-    return groupedItems;
-};
-
-const estimateBoxDimensions = async (items, boxSizes) => {
-    // Calculate the accumulated weight of all items
-    const accumulatedWeight = await items.reduce((sum, item) => sum + item.total_weight, 0);
-
-    // Extract the boxes with their names and weights from boxSizes array
-    const filtered = await boxSizes.filter(box => box.max_weight >= accumulatedWeight)
-    const suitableMaxWeights = await filtered.map(box => ({
-        name: box.name,
-        weight: box.max_weight
-    }));
-
-    // check if the filtered array is empty
-    let selectedBox
-    if (filtered.length === 0) {
-        // get box with highest volume
-        const maxfilter = await boxSizes.reduce((max, box) => {
-            const volume = box.height * box.width * box.length;
-            return volume > max.volume ? { volume, box } : max;
-        }, { volume: 0, box: null });
-
-        selectedBox = maxfilter.box;
-    } else {
-        const closestWeight = await suitableMaxWeights.reduce((closest, weight) => {
-            const weightDifference = Math.abs(weight.weight - accumulatedWeight);
-            const closestDifference = Math.abs(closest.weight - accumulatedWeight);
-            return weightDifference < closestDifference ? weight : closest;
-        });
-
-        // Find the box with the closestWeight in the boxSizes array
-        selectedBox = await boxSizes.find(box => box.name === closestWeight.name && box.max_weight === closestWeight.weight);
-    }
-
-    // Return the dimensions of the selected box
-    const dimensions = {
-        height: selectedBox.height,
-        width: selectedBox.width,
-        length: selectedBox.length
-    };
-
-    // Add description if the max box or shipping container is being used
-    if (filtered.length === 0) {
-        dimensions.description = 'item size exceeds all available boxes, max boxsize used';
-    }
-
-    return dimensions;
-};
 
 
 module.exports = {

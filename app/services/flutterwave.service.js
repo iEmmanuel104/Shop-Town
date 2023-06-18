@@ -28,7 +28,6 @@ const FlutterwavePay = async (paydetails) => {
         'headers': {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${FLW_SECRET_KEY}`
-            // 'Authorization': 'Bearer FLWSECK_TEST-524b5ca50966cff5b5afc9729dcdd31e-X'
         },
         body: JSON.stringify({
             "tx_ref": paydetails.tx_ref,
@@ -51,8 +50,9 @@ const FlutterwavePay = async (paydetails) => {
     return new Promise((resolve, reject) => {
         request(options, function (error, response) {
             if (error) {
-                reject(error);
+                reject(new UnprocessableEntityError('Error initiating payment: ' + error.message));
             } else {
+                console.log(response.body)
                 resolve(JSON.parse(response.body));
             }
         });
@@ -91,7 +91,7 @@ const getflutterwavepayoutbanks = async () => {
     return new Promise((resolve, reject) => {
         request(options, function (error, response) {
             if (error) {
-                reject(error);
+                reject(new UnprocessableEntityError('Error getting banks: ' + error.message));
             } else {
                 resolve(JSON.parse(response.body));
             }
@@ -122,7 +122,7 @@ const FlutterwaveTransferStatus = async (details) => {
     return new Promise((resolve, reject) => {
         request(options, function (error, response) {
             if (error) {
-                reject(error);
+                reject(new UnprocessableEntityError('Error getting transfer status: ' + error.message));
             } else {
                 resolve(JSON.parse(response.body));
             }

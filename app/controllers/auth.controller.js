@@ -10,11 +10,18 @@ const { generateCode } = require('../utils/StringGenerator');
 const { sendverificationEmail, sendForgotPasswordEmail } = require('../utils/mailTemplates');
 const { issueToken, decodeJWT } = require('../services/auth.service');
 const { validateAddress } = require('../services/shipbubble.service');
+const { phoneNumberLookup } = require('../services/sms.service');
 
 const SignUp = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
-        const { email, firstName, lastName, phone, password } = req.body;
+        let { email, firstName, lastName, phone, password } = req.body;
         if (!email | !firstName | !lastName) return next(new BadRequestError('Please fill all required fields'));
+        // remove white spaces from req.body values make email lowercase
+        email = email.trim().toLowerCase();
+        firstName = firstName.trim();
+        lastName = lastName.trim();
+        phone = phone.trim();
+        password = password.trim();
 
         const user = await User.create({
             email,
@@ -70,7 +77,7 @@ const verifyEmail = asyncWrapper(async (req, res, next) => {
     // update user isActivated to true
     const updatedUser = await User.update({ isActivated: true }, { where: { id: userId } })
 
-    console.log ('updatedUser', updatedUser)
+    console.log('updatedUser', updatedUser)
 
     // user.isActivated === 'true'
     // await user.save()
@@ -123,7 +130,7 @@ const resendVerificationCode = asyncWrapper(async (req, res, next) => {
 });
 
 const profileOnboarding = asyncWrapper(async (req, res, next) => {
-    const { location } = req.body
+    const { location, city, state, country } = req.body
     const decoded = req.decoded
     const userId = decoded.id
     const user = await User.findByPk(userId)
@@ -140,7 +147,7 @@ const profileOnboarding = asyncWrapper(async (req, res, next) => {
     user.address = location
     await user.save()
 
-    const addressdetails = location + ',' + req.body.city + ',' + req.body.state + ',' + req.body.country,
+    const addressdetails = location + ',' + city + ',' + state + ',' + country,
         details = {
             name: user.firstName + ' ' + user.lastName,
             email: user.email,
@@ -152,10 +159,10 @@ const profileOnboarding = asyncWrapper(async (req, res, next) => {
     await DeliveryAddress.create({
         userId,
         address: location,
-        city: req.body.city,
-        state: req.body.state,
-        country: req.body.country,
-        phone: req.body.phone ? user.phone : user.phone,
+        city: city,
+        state: state,
+        country: country,
+        phone: phone ? user.phone : user.phone,
         addressCode: address_code,
         isDefault: true
     })
@@ -242,10 +249,10 @@ const signIn = asyncWrapper(async (req, res, next) => {
     const user = await User.findOne(
         {
             where: data,
-            include: [
-                { model: Cart },
-                { model: Wallet }
-            ]
+            // include: [
+            //     { model: Cart },
+            //     { model: Wallet }
+            // ]
         }
     );
     if (!user) return next(new BadRequestError('Invalid user'));
@@ -260,6 +267,10 @@ const signIn = asyncWrapper(async (req, res, next) => {
     if (!passwordInstance.isValidPassword(password)) {
         return next(new BadRequestError('Invalid user Credentials'));
     }
+
+    const DefaultAddress = await DeliveryAddress.findOne({ where: { userId: user.id, isDefault: true } })
+    let hasdefaultAddress = false
+    if (DefaultAddress) { hasdefaultAddress = true }
 
     // set user active
     user.status = "ACTIVE"
@@ -282,6 +293,7 @@ const signIn = asyncWrapper(async (req, res, next) => {
         success: true,
         message: "Sign in successful",
         user,
+        hasdefaultAddress,
         access_token,
         refresh_token
     });
@@ -312,6 +324,12 @@ const getloggedInUser = asyncWrapper(async (req, res, next) => {
         }
     );
     if (!user) return next(new BadRequestError('Unverified user'))
+    let DefaultAddress;
+    DefaultAddress = await DeliveryAddress.findOne({ where: { userId: user.id, isDefault: true } })
+
+    if (!DefaultAddress || DefaultAddress.length < 1 || DefaultAddress === null) {
+        DefaultAddress = {}
+    }
 
     // get all stores associated with the user and extract only the id and name fields
     const stores = (await user.getBrands({
@@ -330,7 +348,8 @@ const getloggedInUser = asyncWrapper(async (req, res, next) => {
         success: true,
         message: "User retrieved successfully",
         user,
-        stores: stores
+        stores: stores,
+        DefaultAddress
     });
 });
 
@@ -511,14 +530,28 @@ const selectStore = asyncWrapper(async (req, res, next) => {
 
 const RegisterStore = asyncWrapper(async (req, res, next) => {
     const decoded = req.decoded
-    const { storeName, phone, industry, country, address, state, city, postal } = req.body
+    let { storeName, phone, industry, country, address, state, city, postal } = req.body
+    // trim all fields
+    storeName = storeName.trim()
+    phone = phone.trim()
+    industry = industry.trim()
+    country = country.trim()
+    address = address.trim()
+    state = state.trim()
+    city = city.trim()
+    postal = postal.trim()
+
+    // CHECK FOR VALID PHONE NUMBER
+    // phoneNumberLookup({phone})
+
     const user = await User.findByPk(decoded.id)
     if (!user) return next(new BadRequestError('Invalid user'))
-    // if (decoded.vendorMode === false) return next(new BadRequestError('please switch to seller mode'))
 
-    // CHECK IF USER HAS A STORE
-    // const hasStore = await user.getBrands()
-    // if (hasStore.length > 0) return next(new BadRequestError('User already has a store'))
+    const storeExists = storeName ? await Brand.findOne({ where: { name: storeName } })
+        : businessPhone ? await Brand.findOne({ where: { businessPhone: businessPhone } })
+            : null;
+
+    if (storeExists) return next(new BadRequestError(storeName && storeExists.name === storeName ? 'Store name already exists.' : 'Business phone already exists.'));
 
     const details = {
         user: user.id,
@@ -527,7 +560,23 @@ const RegisterStore = asyncWrapper(async (req, res, next) => {
     let url;
     if (req.file) {
         url = await uploadSingleFile(req.file, details)
+        console.log(url)
     }
+
+    const addressdetails = address + ',' + city + ',' + state + ',' + country
+
+    console.log(addressdetails)
+
+    const detailss = {
+        name: storeName,
+        email: user.email,
+        phone: phone,
+        address: addressdetails,
+    }
+    console.log(detailss)
+    const address_code = await validateAddress(detailss)
+    if (!address_code) return next(new BadRequestError('Invalid address'))
+
     // add details to store 
     const store = await Brand.create({
         userId: decoded.id,
@@ -545,19 +594,6 @@ const RegisterStore = asyncWrapper(async (req, res, next) => {
 
     // add user to store 
     await store.addUser(user, { through: { role: 'owner' } })
-
-    const addressdetails = address + ',' + city + ',' + state + ',' + country
-
-    console.log(addressdetails)
-
-    const detailss = {
-        name: storeName,
-        email: user.email,
-        phone: phone,
-        address: addressdetails,
-    }
-    console.log(detailss)
-    const address_code = await validateAddress(detailss)
     // create new address in address table
     await DeliveryAddress.create({
         storeId: store.id,

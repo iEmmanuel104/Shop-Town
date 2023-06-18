@@ -5,6 +5,7 @@ const { sequelize, Sequelize } = require('../../models');
 const { validateAddress } = require('../services/shipbubble.service');
 const asyncWrapper = require('../middlewares/async');
 const Op = require("sequelize").Op;
+const { uploadSingleFile, uploadFiles } = require('../services/imageupload.service');
 const { at } = require('lodash');
 
 const createBrand = asyncWrapper(async (req, res, next) => {
@@ -96,10 +97,12 @@ const updateBrand = asyncWrapper(async (req, res, next) => {
         await store.save();
         const addressdetails = address + ',' + city + ',' + state + ',' + country
 
-        console.log(addressdetails)
-
         let url;
         if (req.file) {
+            const details = {
+                user: user.id,
+                folder: `Stores/${storeName}/banner`,
+            }
             url = await uploadSingleFile(req.file, details)
         }
 
@@ -109,8 +112,9 @@ const updateBrand = asyncWrapper(async (req, res, next) => {
             phone: store.businessPhone,
             address: addressdetails,
         }
-        console.log(detailss)
+
         const address_code = await validateAddress(detailss)
+
         Daddress.address = address;
         Daddress.city = city;
         Daddress.state = state;
@@ -148,7 +152,11 @@ const AddStoreDiscount = asyncWrapper(async (req, res, next) => {
         const userId = decoded.id;
         const { title, type, value, endDate } = req.body;
         // split categories from string to array
-        const categories = req.query.categories.split(',');
+        let categories = [];
+        if (req.query.categories && typeof req.query.categories === 'string') {
+            categories = req.query.categories.split(',');
+        }
+
         let include = [];
 
         if (categories.length > 0) {
@@ -274,7 +282,7 @@ const increaseStoreProductPrice = asyncWrapper(async (req, res, next) => {
         const userId = decoded.id;
         const { amount, percentage } = req.body;
         const { category } = req.query;
-        
+
         const store = await Brand.findByPk(req.params.id, { attributes: ['owner'] });
 
         if (!store) {

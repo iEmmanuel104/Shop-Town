@@ -8,6 +8,7 @@ const Op = require("sequelize").Op;
 const { uploadSingleFile, uploadFiles } = require('../services/imageupload.service');
 // const CronJob = require('cron').CronJob;
 const { postDeletionQueue } = require('../services/task.schedule.service');
+const { post } = require('../routes/authRoutes');
 
 // Controller for creating a post
 const createPost = asyncWrapper(async (req, res, next) => {
@@ -70,14 +71,15 @@ const createPost = asyncWrapper(async (req, res, next) => {
 });
 
 const getPosts = asyncWrapper(async (req, res, next) => {
-    const { page, size, status } = req.query;
-    // const { limit, offset } = getPagination(page, size);
+    const { type } = req.query;
 
-    const posts = await Ksocial.findAndCountAll({
-        // limit,
-        // offset,
+    if (type && type !== 'status' && type !== 'ksocial') return next(new BadRequestError('Invalid post type'));
+    const page = req.query.page ? Number(req.query.page) : 1;
+    const size = req.query.size ? Number(req.query.size) : 10;
+    const { limit, offset } = getPagination(page, size);
+
+    let queryData = {
         order: [['createdAt', 'DESC']],
-        // where: { posttype:  status ? status : 'ksocial' }, 
         attributes: [
             'id',
             'caption',
@@ -92,16 +94,27 @@ const getPosts = asyncWrapper(async (req, res, next) => {
                 model: Brand,
                 attributes: ['id', 'name', 'logo', 'socials'],
             },
-            // {
-            //     model: PostActivity,
-            //     as: 'postActivities',
-            // },
         ],
-    });
-
-    // delete posts.rows.postActivities;
-
-    // const response = getPagingData(posts, page, limit, 'posts');
+    }
+    let posts, fetchedposts;
+    switch (type) {
+        case 'status':
+            queryData.where = { posttype: 'status' };
+            posts = await Ksocial.findAll(queryData);
+            break;
+        case 'ksocial':
+            fetchedposts = await Ksocial.findAndCountAll({
+                where: { posttype: 'ksocial' },
+                ...queryData,
+                limit,
+                offset,
+            });
+            posts = getPagingData(fetchedposts, page, limit, 'posts');
+            break;
+        default:
+            posts = await Ksocial.findAll(queryData);
+            break;
+    }
 
     res.status(200).json({
         success: true,
@@ -109,19 +122,11 @@ const getPosts = asyncWrapper(async (req, res, next) => {
     });
 });
 
-const getuserpost = asyncWrapper(async (req, res, next) => {
-    // const decoded = req.decoded;
-    // const storeId = decoded.storeId;
+const getStorePosts = asyncWrapper(async (req, res, next) => {
+    const { page, size, status } = req.query;
 
-    const { storeId } = req.query;
-
-    if (!storeId) {
-        return next(new ForbiddenError('You are not authorized to create a post'));
-    }
-
-    const posts = await Ksocial.findAll({
+    const posts = await Ksocial.findAndCountAll({
         order: [['createdAt', 'DESC']],
-        where: { storeId: storeId },
         attributes: [
             'id',
             'caption',
@@ -136,15 +141,18 @@ const getuserpost = asyncWrapper(async (req, res, next) => {
                 model: Brand,
                 attributes: ['id', 'name', 'logo', 'socials'],
             },
-            // {
-            //     model: PostActivity,
-            //     as: 'postActivities',
-            // },
+            {
+                model: PostActivity,
+                as: 'postActivities',
+            },
         ],
     });
-})
 
-
+    res.status(200).json({
+        success: true,
+        data: posts,
+    });
+});
 
 const getPost = asyncWrapper(async (req, res, next) => {
     const post = await Ksocial.findByPk(req.params.id, {
@@ -223,10 +231,9 @@ const addPostActivity = asyncWrapper(async (req, res, next) => {
     const userId = decoded.id;
 
     const post = await Ksocial.findByPk(req.params.id);
+    if (!post) return next(new NotFoundError(`Post not found`));
+    if (post.posttype === 'status') return next(new ForbiddenError('You are not authorized to like this post'))
 
-    if (!post) {
-        return next(new NotFoundError(`Post with id ${req.params.id} not found`));
-    }
 
     const activity = await PostActivity.findOne({
         where: {

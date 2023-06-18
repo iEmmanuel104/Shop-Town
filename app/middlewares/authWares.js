@@ -35,8 +35,10 @@ const authenticate =  async (socket) => {
 
         const decoded = await decodeJWT(token);
         const user_doc = await User.findByPk(decoded.id)
+        // get plain object
+        const user = user_doc?.get({ plain: true })
 
-        socket.user = user_doc;
+        socket.user = user;
 
         return socket
     } catch (err) {

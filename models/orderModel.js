@@ -2,6 +2,8 @@ module.exports = (sequelize, DataTypes) => {
     const { generateCode } = require('../app/utils/StringGenerator')
     const { DeliveryAddress } = require('./userModel')(sequelize, DataTypes);
     const { Cart } = require('./storeModel')(sequelize, DataTypes);
+
+    
     const Order = sequelize.define("Order", {
         id: {
             type: DataTypes.UUID,
@@ -123,7 +125,7 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false
         },
         paymentMethod: {
-            type: DataTypes.ENUM(["CARD", "CASH"]),
+            type: DataTypes.ENUM(["CARD", "KCREDIT", "CASH"]),
             defaultValue: "CARD",
             allowNull: false
         },

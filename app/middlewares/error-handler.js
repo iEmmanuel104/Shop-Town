@@ -28,7 +28,8 @@ const errorHandler = (err, req, res, next) => {
   }
   // Handle Sequelize errors
   if (err.name === 'SequelizeUniqueConstraintError') {
-    customError.msg = `Duplicate value entered for ${Object.keys(err.fields || {}).join(', ')}, please choose another value`;
+    const errorItem = err.errors[0] ? err.errors[0] : err.errors.ValidationErrorItem;
+    customError.msg = errorItem ? errorItem.message : `The ${Object.keys(err.fields || {}).join(', ')} value provided has already been registered or taken`;
     customError.statusCode = 400;
   } else if (err.name === 'SequelizeValidationError') {
     customError.msg = err.errors.map((e) => e.message).join(', ');
