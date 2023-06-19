@@ -45,6 +45,7 @@ const convertcart = async (cart, type) => {
             const itemStatus = inStock >= cartquantity ? 'instock' : 'outofstock';
 
             items[product.id] = {
+                id: product.id,
                 name: product.name,
                 quantity: cartquantity,
                 UnitPrice: product.price,
