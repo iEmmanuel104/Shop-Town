@@ -601,7 +601,7 @@ const RegisterStore = asyncWrapper(async (req, res, next) => {
         city,
         state,
         country,
-        phone: req.body.phone ? user.phone : user.phone,
+        phone: phone ? user.phone : user.phone,
         addressCode: address_code,
         isDefault: true
     })
