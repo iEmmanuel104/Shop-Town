@@ -7,90 +7,90 @@ const { BadRequestError, NotFoundError, ForbiddenError } = require('./customErro
 
 const convertcart = async (cart, type) => {
     const { items } = cart;
-    const itemIds = items.map(item => item.id);
+    const itemIds = Object.keys(items);
     const products = await Product.scope('defaultScope', 'includePrice').findAll({
         where: { id: itemIds }
     });
-    let totalAmount = 0,
-        itemsProcessed = 0,
-        outOfStockItems = 0,
-        errors = [],
-        itemsNotFound = 0,
-        invalidQuantity = 0;
-
-    if (products.length === 0) {
+    let totalAmount = 0, Itemsprocessed = 0,
+        outofstockItems = 0, errors = [],
+        Itemsnotfound = 0; invalidQuantity = 0;
+    console.log('products', products);
+    if (products.length === 0) { // if no product is found
         throw new BadRequestError("Please add a valid product to the cart.");
     }
 
-    let sortedCart = {};
+    let sortedcart = { ...items };
 
-    items.forEach(item => {
-        const product = products.find(p => p.id === item.id);
-
+    itemIds.forEach(itemId => {
+        const product = products.find(p => p.id === itemId);
         if (!product) {
-            errors.push(`Product with id: ${item.id} not found`);
-            itemsNotFound++;
-            return;
+            errors.push(`Product with id: ${itemId} not found`);
+            Itemsnotfound++;
+            // remove the item from the cart
+            delete items[itemId];
+            return; // Move on to the next item
         }
 
-        let cartQuantity = item.count;
-        let storeId = product.storeId;
+        let cartquantity;
+        if (type === 'get') {
+            cartquantity = items[product.id].quantity;
+        } else {
+            cartquantity = items[product.id];
+        }
+        const storeId = product.storeId;
 
-        if (cartQuantity >= 1) {
+        if (cartquantity >= 1) {
             const price = product.discountedPrice ? product.discountedPrice : product.price;
             const inStock = product.quantity.instock;
-            const itemStatus = inStock >= cartQuantity ? 'instock' : 'outofstock';
+            const itemStatus = inStock >= cartquantity ? 'instock' : 'outofstock';
 
-            const newItem = {
+            items[product.id] = {
                 id: product.id,
-                count: cartQuantity,
-                info: {
-                    name: product.name,
-                    quantity: cartQuantity,
-                    UnitPrice: product.price,
-                    discount: product.discount,
-                    image: product.images,
-                    Discountprice: price,
-                    status: itemStatus,
-                    store: storeId,
-                }
+                name: product.name,
+                quantity: cartquantity,
+                UnitPrice: product.price,
+                discount: product.discount,
+                image: product.images,
+                Discountprice: price,
+                status: itemStatus,
+                store: storeId,
             };
-
-            sortedCart[product.id] = cartQuantity;
+            // add the product is and quantity to the sorted cart
+            sortedcart[product.id] = cartquantity;
 
             if (itemStatus === 'instock') {
-                totalAmount += price * cartQuantity;
-                itemsProcessed++;
+                totalAmount += price * cartquantity;
+                Itemsprocessed++;
             } else if (itemStatus === 'outofstock') {
-                errors.push(`Product - ${product.name} is out of stock`);
-                outOfStockItems++;
+                errors.push(`Product - ${product.name} is out of stock`); // Add error message
+                outofstockItems++;
             }
-
-            items[items.indexOf(item)] = newItem;
-        } else if (cartQuantity < 1 || cartQuantity === 0) {
-            errors.push(`Product - ${product.name} has an invalid quantity`);
+        } else if (cartquantity < 1 || cartquantity === 0) {
+            errors.push(`Product - ${product.name} has an invalid quantity`); // Add error message
             invalidQuantity++;
         }
     });
+    console.log('items', items);
 
     cart.totalAmount = totalAmount;
     cart.errors = errors;
-    cart.sortedCart = sortedCart;
+    cart.sortedcart = sortedcart;
     cart.analytics = {
         totalItemsAdded: itemIds.length,
-        totalItemsProcessed: itemsProcessed,
-        totalItemsNotFound: itemsNotFound,
-        totalItemsOutOfStock: outOfStockItems,
+        totalItemsProcessed: Itemsprocessed,
+        totalItemsNotFound: Itemsnotfound,
+        totalItemsOutOfStock: outofstockItems,
         totalItemsInvalidQuantity: invalidQuantity,
     };
+    console.log('cart', cart);
 
     return cart;
 }
 
 
+const groupCartItems = async (items, amt) => {
+    const itemIds = Object.keys(items);
 
-const groupCartItems = async (items) => {
-    const itemIds = items.map(item => item.id);
     if (itemIds.length === 0) throw new BadRequestError("Cart is empty");
 
     // Retrieve products based on itemIds
@@ -101,7 +101,7 @@ const groupCartItems = async (items) => {
 
     if (products.length === 0) throw new BadRequestError("Please add a valid product to cart");
 
-    const storeValues = items.map(item => item.info.store);
+    const storeValues = Object.values(items).map(item => item.store);
     const uniqueStores = [...new Set(storeValues)];
     console.log("uniquestores ======", uniqueStores)
     if (uniqueStores.length !== 1) {
@@ -114,36 +114,32 @@ const groupCartItems = async (items) => {
         console.log("storenames ======", storeNames)
         throw new BadRequestError(`Items have different stores: ${storeNames.join(", ")}`);
     }
-    console.log("uniquestoresSingle ======", uniqueStores)
+    console.log("uniquestores ======", uniqueStores)
     const store = uniqueStores[0];
 
-    let groupedItems = {
-        store: store,
-        items: [],
-    };
+    let groupedItems = {};
 
-    items.forEach(item => {
-        const productId = item.id;
+    Object.values(items).forEach(item => {
+        const productId = Object.keys(items).find(key => items[key] === item);
         const product = products.find(product => product.id === productId);
-        const { specifications, description } = product;
+        const { name, specifications, description } = product;
 
-        // update the item with the product details
-        const shipping = {
-            id: productId,
-            name: product.name,
-            weight: specifications.weight,
-            description: description,
-            category: specifications.shippingcategory_id,
-            discountprice: item.info.Discountprice,
-            quantity: item.info.quantity,
+        const newItem = {
+            ...item,
+            productId, // Add the productId to the newItem
+            name,
+            specification: specifications,
+            description
         };
 
-        // add the new item to the groupedItems object
-        groupedItems.items.push(shipping);
-
+        if (groupedItems[item.store]) {
+            groupedItems[item.store].push(newItem);
+        } else {
+            groupedItems[item.store] = [newItem];
+        }
     });
 
-
+    groupedItems.totalAmount = amt;
     return groupedItems;
 };
 
