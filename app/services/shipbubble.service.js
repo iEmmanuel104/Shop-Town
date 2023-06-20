@@ -62,7 +62,6 @@ const getShippingRates = async (details) => {
 
     try {
         const response = await axios.request(config);
-        
         const requestobject = {
             request_token: response.data.data.request_token,
             cheapest_courier: response.data.data.cheapest_courier,
