@@ -67,7 +67,7 @@ const getCart = asyncWrapper(async (req, res, next) => {
             });
         }
         // check if the product pice and quantity has changed
-        const converted = await convertcart(cart, 'get')
+        const converted = await convertcart(cart)
         // console.log("converted", converted)
         // compare the converted items and totalAmount to the original cart
         if (
@@ -102,7 +102,7 @@ const updateCart = asyncWrapper(async (req, res, next) => {
 
         // console.log("checkcart", checkcart)
 
-        if (!items || Object.keys(checkcart).length === 0) {
+        if (!items || checkcart.length === 0) {
             cartitems = { items: {}, totalAmount: 0 }
             message = "Cart is Emptied"
         } else {
@@ -168,7 +168,7 @@ const cartcheckout = asyncWrapper(async (req, res, next) => {
         });
 
         if (cart) {
-            const converted = await convertcart(cart, 'get')
+            const converted = await convertcart(cart)
 
             // update the cart with the converted items and totalAmount
             cart.items = converted.items;
@@ -177,15 +177,9 @@ const cartcheckout = asyncWrapper(async (req, res, next) => {
             // categorise itens by store
             const groupedCartItems = await groupCartItems(cart.items, cart.totalAmount);
             console.log("grouped =========== ",groupedCartItems)
-            const storeId = {
-                id: Object.keys(groupedCartItems)[0],
-                type: 'store'
-            };
-
-            const userobj = {   
-                id: userId,
-                type: 'user'
-            };
+            const cartItems = cart.items
+            const storeId = { id: groupedCartItems.store,  type: 'store' };
+            const userobj = { id: userId, type: 'user' };
 
             let sender_address_code, receiver_address_code, pickup_date,
                 category_id, package_items, package_dimension, description, boxSizes;
@@ -199,14 +193,16 @@ const cartcheckout = asyncWrapper(async (req, res, next) => {
 
             // pickup_date = new Date().toISOString().split('T')[0];
             pickup_date = new Date(new Date().getTime() + 60 * 60 * 1000).toISOString().split('T')[0]; // add 1 hour to current time
-            category_id = groupedCartItems[storeId.id][0].specification.shippingcategory_id;
-            package_items = groupedCartItems[storeId.id].map(item => {
-                const weightsum = item.quantity * item.specification.weight;
+
+            category_id = groupedCartItems.items[0].category; // get category id from first item in cart
+
+            package_items = groupedCartItems.items.map(item => {
+                const weightsum = item.quantity * item.weight;
                 return {
                     name: item.name,
                     description: item.description,
-                    unit_weight: item.specification.weight,
-                    unit_amount: item.Discountprice,
+                    unit_weight: item.weight,
+                    unit_amount: item.discountprice,
                     quantity: item.quantity,
                     total_weight: weightsum
                 }
@@ -223,6 +219,7 @@ const cartcheckout = asyncWrapper(async (req, res, next) => {
                 category_id, package_items, package_dimension,
                 delivery_instructions: description
             }
+            console.log("details", details)
             // GET SHIPPING FEE FROM SHIPBUBBLE API
             const { request_token, kship_courier, cheapest_courier, checkout_data } = await getShippingRates(details);
 
@@ -241,6 +238,7 @@ const cartcheckout = asyncWrapper(async (req, res, next) => {
                 // data: cart,
                 kship_fee: kship_courier.total ? parseFloat(kship_courier.total) : cheapest_courier.total,
                 ksecure_fee: parseFloat(KSECURE_FEE) + cheapest_courier.total,
+                info: `Please note that the shipping fee is subject to change if the package dimensions are different from the estimated dimensions.`
             });
         }
         else {
