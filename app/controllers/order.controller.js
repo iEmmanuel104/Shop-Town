@@ -23,25 +23,27 @@ const createOrder = asyncWrapper(async (req, res, next) => {
         const { shipping_method, storeId, option } = req.body;
 
         const cart = await Cart.findOne({ where: { userId } });
-        
         if (!cart) throw new NotFoundError('Cart not found');
-        if (shipping_method !== 'seller' && shipping_method !== 'kship') throw new BadRequestError('Invalid shipping method');
+
+        if (shipping_method !== 'seller' && shipping_method !== 'kship' && shipping_method !== 'ksecure') throw new BadRequestError('Invalid shipping method');
         let shippingMethod = { type: shipping_method }
         // cartdetails for order
+        let courier = cart.checkoutData.cheapest_courier
+        if (shipping_method === 'kship' && option === 'CASH') { courier = cart.checkoutData.kship_courier ? cart.checkoutData.kship_courier : cart.checkoutData.cheapest_courier }
+
         let cartdetails = {
-            items: cart.items,
-            totalAmount: cart.totalAmount,
-            info: cart.checkoutData.checkkout_data,
-            courier: cart.checkoutData.cheapest_courier,
+            items: cart.items, totalAmount: cart.totalAmount,
+            info: cart.checkoutData.checkkout_data, courier: courier
         }
-        const store = await Brand.findOne({ where: { id: storeId },attributes: ['socials', 'name', 'logo'] })
+
+        const store = await Brand.findOne({ where: { id: storeId }, attributes: ['socials', 'name', 'logo'] })
         if (!store) throw new NotFoundError('Store not found');
 
         let order, socials, kship_order, shippingObject, returnobject, orderobj;
 
-        socials = store.socials;
+        socials = store.socials ? store.socials : store.businessPhone;
 
-        // create order
+        //  ==== create order ==== //
         order = await Order.create({ userId,  shippingMethod, cartdetails, storeId }, { transaction: t });
 
         orderobj = {
@@ -50,29 +52,27 @@ const createOrder = asyncWrapper(async (req, res, next) => {
             storeId: order.storeId, orderNumber: order.orderNumber, shippingMethod: order.shippingMethod
         }
 
-        shippingObject = {
-            orderId: order.id, requestToken: cart.checkoutData.request_token, serviceCode: cart.checkoutData.cheapest_courier.service_code,
-            courierId: cart.checkoutData.cheapest_courier.courier_id, packageCost: cart.totalAmount,
-            deliveryFee: cart.checkoutData.cheapest_courier.total,
-        }
+        shippingObject = {orderId: order.id, requestToken: cart.checkoutData.request_token, deliveryFee: courier.total, }
 
-        returnobject = {
-            order: orderobj,
-            socials,
-            subTotal: cart.totalAmount,
-        }
+        returnobject = { order: orderobj, socials, subTotal: cart.totalAmount }
 
         let paymentamt = parseFloat(cart.totalAmount);
+
         console.log("initial paymentamt===",paymentamt) 
+
+        // ==== sepearate shipping method ==== //
 
         if (shipping_method === 'seller') {
             // send order request notification to seller
         } else if (shipping_method === 'kship') {
+
             kship_order = await ShipbubbleOrder.create(shippingObject, { transaction: t });
             returnobject.deliveryFee = kship_order.deliveryFee;
             // returnobject.kship_order = kship_order;
-            paymentamt += parseFloat(cart.checkoutData.cheapest_courier.total);
+            paymentamt += parseFloat(courier.total);
+
         } else if (shipping_method === 'ksecure') {
+
             kship_order = await ShipbubbleOrder.create({
                 ...shippingObject,
                 isKSecure: true,
@@ -80,14 +80,13 @@ const createOrder = asyncWrapper(async (req, res, next) => {
             }, { transaction: t });
             returnobject.deliveryFee = kship_order.deliveryFee;
             returnobject.kSecureFee = parseFloat(KSECURE_FEE);
-            // returnobject.ksecure_order = kship_order;
-            paymentamt += parseFloat(cart.checkoutData.cheapest_courier.total) + parseFloat(KSECURE_FEE);
-            console.log("ksecure===",paymentamt)
+            paymentamt += parseFloat(courier.total) + parseFloat(KSECURE_FEE);
+
         } else {
             throw new BadRequestError('Invalid shipping method');
         }
 
-
+        // 
         if (kship_order && kship_order.requestToken) {
             const paydetails = {
                 amount: parseFloat(paymentamt), email: userInfo.email, phone: userInfo.phone,
@@ -99,31 +98,36 @@ const createOrder = asyncWrapper(async (req, res, next) => {
             }
 
             if (option === 'CARD') {
-                const link = await FlutterwavePay(paydetails);
-                console.log("return from flutterwave", link.data.link);
-                returnobject.paymentLink = link.data.link;
+                let link 
+                if (service === 'FLUTTERWAVE') {
+                    linkobj = await FlutterwavePay(paydetails);
+                    console.log("return from flutterwave", linkobj.data.link);
+                    link = linkobj.data.link;
+                } else if (service === 'SEERBIT') {
+                    // SEERBIT payment
+                    // link = await SeerbitPay(paydetails);
+                } else { throw new BadRequestError('Invalid payment service') }
+                
+                returnobject.paymentLink = link;
                 await Payment.create({
                     refId: order.id,
                     amount: paymentamt,
-                    paymentMethod: "CARD"
+                    paymentMethod: "CARD",
+                    serviceType: service,
                 }, { transaction: t });
+
             } else if (option === 'KCREDIT') {
                 // pay with wallet
                 const wallet = await Wallet.findOne({ where: { userId } });
-                if (!wallet) {
-                    throw new NotFoundError('Wallet not found');
-                }
-                if (wallet.amount < paymentamt) {
-                    throw new BadRequestError('Insufficient wallet balance');
-                }
+                if (!wallet) throw new NotFoundError('Wallet not found');
+                if (wallet.amount < paymentamt) throw new BadRequestError('Insufficient wallet balance');
+                
                 await WalletTransaction.create({
-                    walletId: wallet.id,
-                    amount: paymentamt,
-                    reference: `KCREDIT_${order.id}`,
-                    status: 'success',
-                    type: 'debit',
-                    description: 'Payment for order',
+                    walletId: wallet.id,  amount: paymentamt,
+                    reference: `KCREDIT_${order.id}`,  status: 'success',
+                    type: 'debit',  description: 'Payment for order',
                 }, { transaction: t });
+
                 await Wallet.decrement('amount', { by: paymentamt, where: { id: wallet.id }, transaction: t });
                 await Order.update({ status: 'completed' }, { where: { id: order.id }, transaction: t });
                 await Payment.create({ refId: order.id, amount: paymentamt, paymentMethod: "KCREDIT" }, { transaction: t });
