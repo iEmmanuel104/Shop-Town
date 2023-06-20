@@ -32,6 +32,9 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING,
             defaultValue: `#K-ID${generateCode(6)}`,
         },
+
+        // shipbubble related fields
+
     }, {
         tableName: 'Order', 
         timestamps: true,
@@ -50,18 +53,6 @@ module.exports = (sequelize, DataTypes) => {
         },
         requestToken: {
             type: DataTypes.STRING,
-            allowNull: false
-        },
-        serviceCode: {
-            type: DataTypes.STRING,
-            allowNull: false
-        },
-        courierId: {
-            type: DataTypes.STRING,
-            allowNull: false
-        },
-        packageCost: {
-            type: DataTypes.DECIMAL(10, 2), // 10 digits in total, 2 after decimal point
             allowNull: false
         },
         isKSecure: {
