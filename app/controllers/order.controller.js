@@ -93,7 +93,7 @@ const createOrder = asyncWrapper(async (req, res, next) => {
             const paydetails = {
                 amount: parseFloat(paymentamt), email: userInfo.email, phone: userInfo.phone,
                 fullName: userInfo.fullName, tx_ref: `Klickorder_${order.id}`,
-                srb_trx_ref: `Klickorder_${generateCode(15)}`, storeName: store.name,
+                srb_trx_ref: `Klickorder_${generateCode(10)}${order.id}`, storeName: store.name,
                 storeLogo: store.logo, kshipId: kship_order ? kship_order.id : null,
                 isKSecure: kship_order ? kship_order.isKSecure : false, orderId : order.id,
                 kSecureFee: kship_order ? kship_order.kSecureFee : null,
@@ -104,11 +104,11 @@ const createOrder = asyncWrapper(async (req, res, next) => {
                 let link; 
                 if (service === 'FLUTTERWAVE') {
                     linkobj = await FlutterwavePay(paydetails);
-                    console.log("return from flutterwave", linkobj.data.link);
+                    // console.log("return from flutterwave", linkobj.data.link);
                     link = linkobj.data.link;
                 } else if (service === 'SEERBIT') {
                     // SEERBIT payment
-                    console.log(await SeerbitPay(paydetails));
+                    // console.log(await SeerbitPay(paydetails));
                     link = await SeerbitPay(paydetails);
                 } else { throw new BadRequestError('Invalid payment service') }
                 console.log("link===",link)
