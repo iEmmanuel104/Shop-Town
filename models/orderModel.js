@@ -120,6 +120,16 @@ module.exports = (sequelize, DataTypes) => {
             defaultValue: "CARD",
             allowNull: false
         },
+        paymentService: {
+            type: DataTypes.STRING, // flutterwave, seerbit, 
+            // restrict to flutterwave or seerbit
+            validate: { 
+                isIn: {
+                    args: [['flutterwave', 'seerbit']],
+                    msg: "Payment service must be flutterwave or seerbit"
+                }
+            },
+        },
         paymentStatus: {
             type: DataTypes.ENUM(["pending", "paid", "failed", "cancelled"]),
             defaultValue: "pending",
