@@ -54,6 +54,11 @@ const EMAIL_HOST_ADDRESS = process.env.EMAIL_HOST_ADDRESS,
     // Shipbubble credentials
     SHIPBUBBLE_API_KEY = process.env.SHIPBUBBLE_API_KEY
 
+    //SEERBIT CONFIGS
+    SEERBIT_PUBLIC_KEY = process.env.SEERBIT_PUBLIC_KEY,
+    SEERBIT_SECRET_KEY = process.env.SEERBIT_SECRET_KEY,
+    SEERBIT_REDIRECT_URL = process.env.SEERBIT_REDIRECT_URL
+
 
     module.exports = {
         refreshTokenExpiry,
@@ -85,6 +90,9 @@ const EMAIL_HOST_ADDRESS = process.env.EMAIL_HOST_ADDRESS,
         TWILIO_AUTH_TOKEN,
         REDIS_CONNECTION_URL,
         TWILIO_PHONE_SERVICE_SID,
-        SHIPBUBBLE_API_KEY
+        SHIPBUBBLE_API_KEY,
+        SEERBIT_PUBLIC_KEY,
+        SEERBIT_SECRET_KEY,
+        SEERBIT_REDIRECT_URL
     }
 
