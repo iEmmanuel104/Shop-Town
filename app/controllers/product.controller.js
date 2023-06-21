@@ -26,6 +26,10 @@ const createProduct = asyncWrapper(async (req, res, next) => {
         const storeExists = await Brand.findByPk(storeId)
         if (!storeExists) return next(new NotFoundError('Store not found'));
 
+        const storehasAddress = await DeliveryAddress.findOne({ where: { storeId: storeId, isDefault: true } })
+
+        if (!storehasAddress) return next(new NotFoundError('Store has no delivery address'));
+
         const isAssociated = await storeExists.hasUser(user)
         if (!isAssociated) return next(new ForbiddenError("You are not allowed to access this resource"));
 
@@ -139,6 +143,11 @@ const getProducts = asyncWrapper(async (req, res, next) => {
         const { category, subcategory, store, name, price, quantity, priceDiscount, percentageDiscount } = req.query;
 
         const filters = {
+
+                [Op.or]: [
+                    { name: { [Op.iLike]: `%${queryfields}%` } },
+                    // Add more fields as needed
+                ],
             ...(category && { categoryId: category }),
             ...(subcategory && { subcategory }),
             ...(store && { storeId: store }),
