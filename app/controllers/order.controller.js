@@ -88,6 +88,8 @@ const createOrder = asyncWrapper(async (req, res, next) => {
             throw new BadRequestError('Invalid shipping method');
         }
 
+        console.log("kship_order===",kship_order.requestToken)
+
         // 
         if (kship_order && kship_order.requestToken) {
             const paydetails = {
@@ -224,15 +226,18 @@ const validateOrderPayment = asyncWrapper(async (req, res) => {
     // }
     const paymentt = await Payment.findOne({ where: { refId: order.id } });
 
+    let details = { transactionId: transaction_id }
     let validtrx;
     await sequelize.transaction(async (t) => {
         if (status === 'successful') {
-            let details = { transactionId: transaction_id }
             validtrx = await validateFlutterwavePay(details);
+            console.log("validtrx",validtrx)
             await Payment.update({
                 paymentStatus: 'paid',
                 paymentReference: transaction_id,
-                amount: validtrx.amount === paymentt.amount ?  paymentt.amount : validtrx.amount
+                amount: validtrx.amount === paymentt.amount 
+                ?  paymentt.amount 
+                : validtrx.amount
             }, { where: { refId: order.id }, transaction: t });
 
             await Order.update({ status: 'completed' }, { where: { id: order.id }, transaction: t });
@@ -244,13 +249,17 @@ const validateOrderPayment = asyncWrapper(async (req, res) => {
             }
 
             const shipbubbledetails = await ShipbubbleOrder.findOne({ where: { orderId: order.id },
-                attributes: ['requestToken', 'serviceCode', 'courierId', 'status', 'deliveryFee'] });
-
+                attributes: ['requestToken', 'status', 'deliveryFee'] });
+                console.log ( "this is fields ====",
+                    shipbubbledetails.requestToken,
+                    order.cartdetails.courier.service_code,
+                    order.cartdetails.courier.courier_id,
+                )
             // shipment request to kship
             const {order_id, status, payment, tracking_url} = await createshipment({
                 request_token: shipbubbledetails.requestToken,
-                service_code: shipbubbledetails.serviceCode,
-                courier_id: shipbubbledetails.courierId,
+                service_code: order.cartdetails.courier.service_code,
+                courier_id: order.cartdetails.courier.courier_id,
             });
 
             console.log(order_id, status, payment, tracking_url)
@@ -279,11 +288,11 @@ const validateOrderPayment = asyncWrapper(async (req, res) => {
             message = 'Order payment validated successfully';
         }
         // send order request notification to seller
-        await sendorderpushNotification({
-            registrationToken: order.store.socials.firebaseToken,
-            phone: order.store.phone,
-            order: order.cartdetails,
-        });
+        // await sendorderpushNotification({
+        //     registrationToken: order.store.socials.firebaseToken,
+        //     phone: order.store.phone,
+        //     order: order.cartdetails,
+        // });
 
 
         // send order request Email to seller
