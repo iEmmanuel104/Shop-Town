@@ -3,6 +3,7 @@ require('dotenv').config();
 const { sequelize, Sequelize } = require('../../models');
 const asyncWrapper = require('../middlewares/async');
 const { FlutterwavePay, validateFlutterwavePay } = require('../services/flutterwave.service');
+const { SeerbitPay, validateSeerbitPay } = require('../services/seerbit.service');
 const { createshipment } = require('../services/shipbubble.service');
 const { KSECURE_FEE } = require('../utils/configs');
 // const queryString = require('query-string');
@@ -10,6 +11,7 @@ const { KSECURE_FEE } = require('../utils/configs');
 const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/customErrors');
 const { sendorderpushNotification } = require('../utils/mailTemplates');
 const { getPagination, getPagingData } = require('../utils/pagination')
+const { generateCode } = require('../utils/StringGenerator')
 const Op = require("sequelize").Op;
 const path = require('path');
 
@@ -20,7 +22,7 @@ const createOrder = asyncWrapper(async (req, res, next) => {
         const decoded = req.decoded;
         const userId = decoded.id;
         const userInfo = await User.findOne({ where: { id: userId } });
-        const { shipping_method, storeId, option } = req.body;
+        const { shipping_method, storeId, option, service } = req.body;
 
         const cart = await Cart.findOne({ where: { userId } });
         if (!cart) throw new NotFoundError('Cart not found');
@@ -90,23 +92,26 @@ const createOrder = asyncWrapper(async (req, res, next) => {
         if (kship_order && kship_order.requestToken) {
             const paydetails = {
                 amount: parseFloat(paymentamt), email: userInfo.email, phone: userInfo.phone,
-                fullName: userInfo.fullName, tx_ref: `Klickorder_${order.id}`, storeName: store.name,
+                fullName: userInfo.fullName, tx_ref: `Klickorder_${order.id}`,
+                srb_trx_ref: `Klickorder_${generateCode(15)}`, storeName: store.name,
                 storeLogo: store.logo, kshipId: kship_order ? kship_order.id : null,
-                isKSecure: kship_order ? kship_order.isKSecure : false,
+                isKSecure: kship_order ? kship_order.isKSecure : false, orderId : order.id,
                 kSecureFee: kship_order ? kship_order.kSecureFee : null,
                 shippingfee: kship_order ? kship_order.deliveryFee : null,
             }
 
             if (option === 'CARD') {
-                let link 
+                let link; 
                 if (service === 'FLUTTERWAVE') {
                     linkobj = await FlutterwavePay(paydetails);
                     console.log("return from flutterwave", linkobj.data.link);
                     link = linkobj.data.link;
                 } else if (service === 'SEERBIT') {
                     // SEERBIT payment
-                    // link = await SeerbitPay(paydetails);
+                    console.log(await SeerbitPay(paydetails));
+                    link = await SeerbitPay(paydetails);
                 } else { throw new BadRequestError('Invalid payment service') }
+                console.log("link===",link)
                 
                 returnobject.paymentLink = link;
                 await Payment.create({
