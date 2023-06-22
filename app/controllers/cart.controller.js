@@ -214,7 +214,7 @@ const cartcheckout = asyncWrapper(async (req, res, next) => {
                     unit_amount: item.Discountprice,
                     quantity: item.quantity,
                     total_weight: weightsum
-                }
+                } 
             });
 
             boxSizes = (await getshippingboxes()).data;
@@ -233,8 +233,16 @@ const cartcheckout = asyncWrapper(async (req, res, next) => {
 
             console.log(request_token, kship_courier, cheapest_courier, checkout_data)
 
+            let checkoutObject = {request_token, cheapest_courier, checkout_data}
+
+            if (kship_courier !== cheapest_courier) { // if kship is not the cheapest courier
+                checkoutObject.kship_courier = kship_courier
+            }
+
+            // Delete the checkout data after 30 minutes
+
             // update cart checkout data
-            cart.checkoutData = { request_token, kship_courier, cheapest_courier, checkout_data }
+            cart.checkoutData = JSON.stringify(checkoutObject);
 
             await cart.save({ transaction: t });
 
