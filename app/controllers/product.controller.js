@@ -141,13 +141,9 @@ const getProducts = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
 
         const { category, subcategory, store, name, price, quantity, priceDiscount, percentageDiscount } = req.query;
-
+        const queryfields = req.query.q;
         const filters = {
 
-                [Op.or]: [
-                    { name: { [Op.iLike]: `%${queryfields}%` } },
-                    // Add more fields as needed
-                ],
             ...(category && { categoryId: category }),
             ...(subcategory && { subcategory }),
             ...(store && { storeId: store }),
@@ -176,6 +172,14 @@ const getProducts = asyncWrapper(async (req, res, next) => {
             // ...(priceDiscount && parseFloat(priceDiscount) >= 200 && { discount: { [Op.gte]: parseFloat(priceDiscount) }}),
             // ...(percentageDiscount && parseFloat(percentageDiscount) <= 100 && { discount: { [Op.gte]: parseFloat(percentageDiscount) } })
         };
+
+        const globalfilters = {
+                [Op.or]: [
+                    { name: { [Op.iLike]: `%${queryfields}%` } },
+                    // Add more fields as needed
+                ],
+        }
+
         // console.log(req.query.page, req.query.size)
 
         const page = req.query.page ? Number(req.query.page) : 1;
@@ -193,7 +197,7 @@ const getProducts = asyncWrapper(async (req, res, next) => {
         // console.log(limit, offset)
 
         const products = await Product.scope('includeBrand').findAndCountAll({
-            where: filters,
+            where: { [Op.or]: [filters, globalfilters]},
             include: [{ model: Category, as: 'category', attributes: ['id', 'name'] }],
             order: [['updatedAt', 'DESC']],
             limit,
