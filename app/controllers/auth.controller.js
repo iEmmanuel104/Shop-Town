@@ -272,6 +272,10 @@ const signIn = asyncWrapper(async (req, res, next) => {
     let hasdefaultAddress = false
     if (DefaultAddress) { hasdefaultAddress = true }
 
+    const cart = (await Cart.findOne({ where: { userId: user.id } })).checkoutData
+    let hascheckoutData = false
+    if (cart) { hascheckoutData = true }    
+
     // set user active
     user.status = "ACTIVE"
     await user.save()
@@ -294,6 +298,7 @@ const signIn = asyncWrapper(async (req, res, next) => {
         message: "Sign in successful",
         user,
         hasdefaultAddress,
+        hascheckoutData,
         access_token,
         refresh_token
     });
@@ -313,6 +318,7 @@ const getloggedInUser = asyncWrapper(async (req, res, next) => {
             include: [{
                 model: Cart,
                 as: 'Cart',
+                attributes: { exclude: ['checkoutData'] },
                 include: [{
                     model: Cart,
                     as: 'Wishlists',
