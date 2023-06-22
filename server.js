@@ -1,5 +1,6 @@
 const db = require('./models');
 const httpServer = require('./app/lib/io');
+const app = require('./app');
 require('dotenv').config();
 const env = process.env.NODE_ENV;
 const redisconnect = require('./app/utils/redis');
@@ -36,6 +37,7 @@ const serverfunctions = async () => {
         // db.sequelize.sync({ force: true }).then(() => {
         console.log('All Tables synchronized successfully');
 
+        // app.listen(PORT, () => { 
         httpServer.listen(PORT, () => {
             console.log(`Server is running on port ${PORT}........`);
         });
