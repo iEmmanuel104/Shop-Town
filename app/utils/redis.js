@@ -8,7 +8,6 @@ if (process.env.NODE_ENV === 'production') {
     client = Redis.createClient({ url: REDIS_CONNECTION_URL })
 }
 
-console.log('Redis client created');
 client.on('connect', function () {
     console.log('Redis client connected');
 });
