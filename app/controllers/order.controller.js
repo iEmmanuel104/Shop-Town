@@ -26,17 +26,15 @@ const createOrder = asyncWrapper(async (req, res, next) => {
 
         const cart = await Cart.findOne({ where: { userId } });
         if (!cart) throw new NotFoundError('Cart not found');
+        let checkoutData = JSON.parse(cart.checkoutData);
 
         if (shipping_method !== 'seller' && shipping_method !== 'kship' && shipping_method !== 'ksecure') throw new BadRequestError('Invalid shipping method');
         let shippingMethod = { type: shipping_method }
         // cartdetails for order
-        let courier = cart.checkoutData.cheapest_courier
-        if (shipping_method === 'kship' && option === 'CASH') { courier = cart.checkoutData.kship_courier ? cart.checkoutData.kship_courier : cart.checkoutData.cheapest_courier }
+        let courier = checkoutData.cheapest_courier
+        if (shipping_method === 'kship' && option === 'CASH') { courier = checkoutData.kship_courier ? checkoutData.kship_courier : checkoutData.cheapest_courier }
 
-        let cartdetails = {
-            items: cart.items, totalAmount: cart.totalAmount,
-            info: cart.checkoutData.checkkout_data, courier: courier
-        }
+        let cartdetails = { items: cart.items, totalAmount: cart.totalAmount }
 
         const store = await Brand.findOne({ where: { id: storeId }, attributes: ['socials', 'name', 'logo'] })
         if (!store) throw new NotFoundError('Store not found');
@@ -54,7 +52,19 @@ const createOrder = asyncWrapper(async (req, res, next) => {
             storeId: order.storeId, orderNumber: order.orderNumber, shippingMethod: order.shippingMethod
         }
 
-        shippingObject = {orderId: order.id, requestToken: cart.checkoutData.request_token, deliveryFee: courier.total, }
+        let { courier_id, courier_name, is_cod_available, waybill, courier_image, 
+            service_type, service_code, insurance, discount, total } = courier; 
+
+
+        shippingObject = {
+            orderId: order.id, 
+            courierInfo: { courierId: courier_id, courierName: courier_name, courierImage: courier_image },
+            courierServiceInfo: { serviceType: service_type, serviceCode: service_code, isCodAvailable: is_cod_available, waybill },
+            courierBenefits: { insurance, discount },    
+            requestToken: checkoutData.request_token, 
+            deliveryFee: total, 
+            checkoutData: checkoutData.checkout_data,
+        }
 
         returnobject = { order: orderobj, socials, subTotal: cart.totalAmount }
 
@@ -218,9 +228,8 @@ const validateOrderPayment = asyncWrapper(async (req, res) => {
     const { tx_ref, transaction_id, status } = req.query;
     console.log(tx_ref.split('_')[1])
     const order = await Order.findOne({ where: { id: tx_ref.split('_')[1], userId } });
-    if (!order) {
-        throw new NotFoundError('Order not found');
-    }
+    if (!order) throw new NotFoundError('Order not found');
+    
     // if (order.status === 'completed') {
     //     throw new BadRequestError('Order already paid for');
     // }
@@ -252,14 +261,14 @@ const validateOrderPayment = asyncWrapper(async (req, res) => {
                 attributes: ['requestToken', 'status', 'deliveryFee'] });
                 console.log ( "this is fields ====",
                     shipbubbledetails.requestToken,
-                    order.cartdetails.courier.service_code,
-                    order.cartdetails.courier.courier_id,
+                    shipbubbledetails.courierServiceInfo.serviceCode,
+                    shipbubbledetails.courierInfo.courierId,
                 )
             // shipment request to kship
             const {order_id, status, payment, tracking_url} = await createshipment({
                 request_token: shipbubbledetails.requestToken,
-                service_code: order.cartdetails.courier.service_code,
-                courier_id: order.cartdetails.courier.courier_id,
+                service_code: shipbubbledetails.courierServiceInfo.serviceCode,
+                courier_id: shipbubbledetails.courierInfo.courierId,
             });
 
             console.log(order_id, status, payment, tracking_url)
@@ -304,11 +313,6 @@ const validateOrderPayment = asyncWrapper(async (req, res) => {
     })
 
 });
-
-// const validate
-
-
-// tx_ref=Klickorder_e169c91c-add9-41fb-8f3b-c4ad808360c0&transaction_id=4346320
 
 
 module.exports = {
