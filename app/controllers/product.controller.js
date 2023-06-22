@@ -137,50 +137,141 @@ const createBulkProducts = asyncWrapper(async (req, res, next) => {
     }
 });
 
+// const getProducts = asyncWrapper(async (req, res, next) => {
+//     await sequelize.transaction(async (t) => {
+
+//         const { category, subcategory, store, name, price, quantity, priceDiscount, percentageDiscount } = req.query;
+//         const queryfields = req.query.q;
+//         let filters = {}
+//         filters = {
+
+//             ...(category && { categoryId: category }),
+//             ...(subcategory && { subcategory }),
+//             ...(store && { storeId: store }),
+//             ...(name && { name: { [Op.like]: `%${name}%` } }),
+//             ...(price && { price: { [Op.lte]: parseFloat(price) } }),
+//             ...(quantity && {
+//                 quantity: {
+//                     [Op.and]: [
+//                         sequelize.literal(`(quantity->>'total')::int >= ${parseInt(quantity)}`),
+//                         sequelize.literal(`(quantity->>'instock')::int >= ${parseInt(quantity)}`),
+//                     ],
+//                 },
+//             }),
+//             ...(priceDiscount && {
+//                 discount: {
+//                     [Op.gte]: 200 && parseFloat(priceDiscount),
+//                 }
+//             }),
+//             ...(percentageDiscount && {
+//                 discount: {
+//                     [Op.gte]: 0,
+//                     [Op.lte]: 100,
+//                     [Op.lte]: parseFloat(percentageDiscount)
+//                 }
+//             })
+//             // ...(priceDiscount && parseFloat(priceDiscount) >= 200 && { discount: { [Op.gte]: parseFloat(priceDiscount) }}),
+//             // ...(percentageDiscount && parseFloat(percentageDiscount) <= 100 && { discount: { [Op.gte]: parseFloat(percentageDiscount) } })
+//         };
+//         let globalfilters = {}
+//         globalfilters = {
+//                 [Op.or]: [
+//                     { name: { [Op.iLike]: `%${queryfields}%` } },
+//                     // Add more fields as needed
+//                 ],
+//         }
+
+//         // console.log(req.query.page, req.query.size)
+
+//         const page = req.query.page ? Number(req.query.page) : 1;
+//         const size = req.query.size ? Number(req.query.size) : 10;
+
+//         if (page < 1 || size < 0) return next(new BadRequestError('Invalid pagination parameters'));
+
+//         let limit = null;
+//         let offset = null;
+
+//         if (req.query.page && req.query.size) {
+//             ({ limit, offset } = getPagination(page, size));
+//         }
+
+//         // console.log(limit, offset)
+
+//         const products = await Product.scope('includeBrand').findAndCountAll({
+//             where: { [Op.or]: [filters, globalfilters]},
+//             include: [{ model: Category, as: 'category', attributes: ['id', 'name'] }],
+//             order: [['updatedAt', 'DESC']],
+//             limit,
+//             offset,
+//         }, { transaction: t });
+
+//         const specificCount = products.length ? products.length : products.count;
+
+//         if (specificCount === 0) return next(new NotFoundError('No products found'));
+
+//         if (specificCount !== products.count) { products.count = specificCount;}
+
+//         let newlimit = limit === null ? products.count : limit;
+//         const response = getPagingData(products, page, newlimit, 'products');
+//         // check if the response.totalPages is null
+//         if (response.totalPages === null) { response.totalPages = 1;}
+
+//         res.status(200).json({ success: true, data: response });
+//     });
+
+// });
+
 const getProducts = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
-
         const { category, subcategory, store, name, price, quantity, priceDiscount, percentageDiscount } = req.query;
         const queryfields = req.query.q;
-        const filters = {
+        const filters = {};
+        const globalfilters = {};
 
-            ...(category && { categoryId: category }),
-            ...(subcategory && { subcategory }),
-            ...(store && { storeId: store }),
-            ...(name && { name: { [Op.like]: `%${name}%` } }),
-            ...(price && { price: { [Op.lte]: parseFloat(price) } }),
-            ...(quantity && {
-                quantity: {
-                    [Op.and]: [
-                        sequelize.literal(`(quantity->>'total')::int >= ${parseInt(quantity)}`),
-                        sequelize.literal(`(quantity->>'instock')::int >= ${parseInt(quantity)}`),
-                    ],
-                },
-            }),
-            ...(priceDiscount && {
-                discount: {
-                    [Op.gte]: 200 && parseFloat(priceDiscount),
-                }
-            }),
-            ...(percentageDiscount && {
-                discount: {
-                    [Op.gte]: 0,
-                    [Op.lte]: 100,
-                    [Op.lte]: parseFloat(percentageDiscount)
-                }
-            })
-            // ...(priceDiscount && parseFloat(priceDiscount) >= 200 && { discount: { [Op.gte]: parseFloat(priceDiscount) }}),
-            // ...(percentageDiscount && parseFloat(percentageDiscount) <= 100 && { discount: { [Op.gte]: parseFloat(percentageDiscount) } })
-        };
+        if (category) { filters.categoryId = category; }
 
-        const globalfilters = {
-                [Op.or]: [
-                    { name: { [Op.iLike]: `%${queryfields}%` } },
-                    // Add more fields as needed
-                ],
+        if (subcategory) { filters.subcategory = subcategory; }
+
+        if (store) { filters.storeId = store; }
+
+        if (price) {
+            filters.price = { [Op.lte]: parseFloat(price) };
         }
 
-        // console.log(req.query.page, req.query.size)
+        if (quantity) {
+            filters.quantity = {
+                [Op.and]: [
+                    sequelize.literal(`(quantity->>'total')::int >= ${parseInt(quantity)}`),
+                    sequelize.literal(`(quantity->>'instock')::int >= ${parseInt(quantity)}`),
+                ],
+            };
+        }
+
+        if (priceDiscount && parseFloat(priceDiscount) >= 200) {
+            filters.discount = { [Op.gte]: parseFloat(priceDiscount) };
+        }
+
+        if (percentageDiscount && parseFloat(percentageDiscount) >= 0 && parseFloat(percentageDiscount) <= 100) {
+            filters.discount = {
+                [Op.and]: [
+                    { [Op.gte]: 0 },
+                    { [Op.lte]: 100 },
+                    { [Op.lte]: parseFloat(percentageDiscount) },
+                ],
+            };
+        }
+
+        let whereClause = {};
+        if (Object.keys(filters).length > 0 && queryfields) {
+            const fieldFilters = Object.entries(filters).map(([key, value]) => ({ [key]: value })); // convert filters object to array of objects
+            const queryFilter = { name: { [Op.iLike]: `%${queryfields}%` } }; // filter by name using query field
+            whereClause = { [Op.and]: [...fieldFilters, queryFilter] }; // combine the filters and query field
+        } else if (Object.keys(filters).length > 0) {
+            whereClause = filters;
+        } else if (queryfields) {
+            whereClause = { name: { [Op.iLike]: `%${queryfields}%` } };
+        }
+
 
         const page = req.query.page ? Number(req.query.page) : 1;
         const size = req.query.size ? Number(req.query.size) : 10;
@@ -194,31 +285,33 @@ const getProducts = asyncWrapper(async (req, res, next) => {
             ({ limit, offset } = getPagination(page, size));
         }
 
-        // console.log(limit, offset)
-
         const products = await Product.scope('includeBrand').findAndCountAll({
-            where: { [Op.or]: [filters, globalfilters]},
+            where: whereClause,
             include: [{ model: Category, as: 'category', attributes: ['id', 'name'] }],
             order: [['updatedAt', 'DESC']],
             limit,
             offset,
         }, { transaction: t });
 
-        const specificCount = products.length ? products.length : products.count;
+        const specificCount = products.rows.length;
 
         if (specificCount === 0) return next(new NotFoundError('No products found'));
-        
-        if (specificCount !== products.count) { products.count = specificCount;}
-        
-        let newlimit = limit === null ? products.count : limit;
+
+        if (specificCount !== products.count) {
+            products.count = specificCount;
+        }
+
+        const newlimit = limit === null ? products.count : limit;
         const response = getPagingData(products, page, newlimit, 'products');
-        // check if the response.totalPages is null
-        if (response.totalPages === null) { response.totalPages = 1;}
+
+        if (response.totalPages === null) {
+            response.totalPages = 1;
+        }
 
         res.status(200).json({ success: true, data: response });
     });
-
 });
+
 
 const getProduct = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
