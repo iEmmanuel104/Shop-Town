@@ -1,5 +1,5 @@
 module.exports = (sequelize, DataTypes) => {
-    const { Brand } = require('./userModel')(sequelize, DataTypes);
+    const { Brand } = require('./entityModel')(sequelize, DataTypes);
 
     const Product = sequelize.define("Product", {
         id: {
