@@ -1,6 +1,6 @@
 module.exports = (sequelize, DataTypes) => {
     const { generateCode } = require('../app/utils/StringGenerator')
-    const { DeliveryAddress } = require('./userModel')(sequelize, DataTypes);
+    const { DeliveryAddress } = require('./entityModel')(sequelize, DataTypes);
     const { Cart } = require('./storeModel')(sequelize, DataTypes);
 
     
@@ -24,8 +24,8 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false,
         },
         status: {
-            type: DataTypes.ENUM(["active", "completed", "cancelled"]),
-            defaultValue: "active",
+            type: DataTypes.ENUM(["pending", "active", "completed", "cancelled"]),
+            defaultValue: "pending",
             allowNull: false
         },
         orderNumber: {
@@ -54,6 +54,18 @@ module.exports = (sequelize, DataTypes) => {
         requestToken: {
             type: DataTypes.STRING,
             allowNull: false
+        },
+        courierInfo: {
+            type: DataTypes.JSONB, // { courierId: 0, courierName: "", courierImage: ""  }
+        },
+        courierServiceInfo: {
+            type: DataTypes.JSONB, // { serviceCode: 0, serviceType: "", isCodAvailable: false, waybill:false  }
+        },
+        courierBenefits: {
+            type: DataTypes.JSONB, // {  insurance: {code: "", fee: 0}, discount: {percentage: 0, discounted: 0}, }
+        },
+        checkoutData: {
+            type: DataTypes.JSONB, 
         },
         isKSecure: {
             type: DataTypes.BOOLEAN,
