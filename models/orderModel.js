@@ -34,7 +34,6 @@ module.exports = (sequelize, DataTypes) => {
         },
 
         // shipbubble related fields
-
     }, {
         tableName: 'Order', 
         timestamps: true,
