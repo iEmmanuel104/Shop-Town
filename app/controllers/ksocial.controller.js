@@ -13,15 +13,25 @@ const { post } = require('../routes/authRoutes');
 // Controller for creating a post
 const createPost = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
-        const { caption, post_type } = req.body;
-        // const decoded = req.decoded;
-        // const storeId = decoded.storeId;
+        const { caption, post_type } = req.body,
+            decoded = req.decoded,
+            useremail = decoded.email
+
+
 
         const { storeId } = req.query;
 
-        if (!storeId) {
-            return next(new ForbiddenError('You are not authorized to create a post'));
-        }
+        if (!caption) return next(new BadRequestError('Please provide a caption'));
+        if (!post_type) return next(new BadRequestError('Please provide a post type'));
+        if (post_type !== 'status' && post_type !== 'ksocial') return next(new BadRequestError('Invalid post type'));
+        const store = await Brand.scope('includeUsers').findByPk(storeId,
+            { attributes: ['name', 'businessPhone', 'socials', 'owner'] }
+        ); 
+        console.log("storessss ===== ", JSON.parse(JSON.stringify(store)))
+        const userEmails = store.Users.map(user => user.email),
+            isEmailInStoreUsers = userEmails.includes(useremail);
+
+        if (!isEmailInStoreUsers) { return next(new ForbiddenError('You are not authorized to create a post')) }
 
         let fileUrls = [];
 
@@ -54,7 +64,7 @@ const createPost = asyncWrapper(async (req, res, next) => {
                 {
                     // delay: 1000 * 60 * 60 * 24 , // 1 day
                     // 1 minute
-                    delay: 1000 * 60 * 1,
+                    delay: 1000 * 60 * 2, // 2 minutes
                     removeOnComplete: true,
                     // removeOnFail: true,
                 }
