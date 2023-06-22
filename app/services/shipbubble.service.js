@@ -65,7 +65,7 @@ const getShippingRates = async (details) => {
         const requestobject = {
             request_token: response.data.data.request_token,
             cheapest_courier: response.data.data.cheapest_courier,
-            kship_courier: findCourier(response.data.data),
+            kship_courier: await findCourier(response.data.data),
             checkout_data: response.data.data.checkout_data
         }
         return requestobject;
@@ -287,8 +287,8 @@ function findCourier(data) {
         const couriers = data.couriers;
         const codAvailableCouriers = couriers.filter(courier => courier.is_cod_available);
         if (codAvailableCouriers.length > 0) {
-            return codAvailableCouriers.reduce((minCourier, courier) => {
-                return courier.total < minCourier.total ? courier : minCourier;
+            return codAvailableCouriers.reduce((minCourier, courier) => { // find the cheapest courier that supports COD
+                return courier.total < minCourier.total ? courier : minCourier; // return the courier with the lowest total
             });
         } else {
             return null;
