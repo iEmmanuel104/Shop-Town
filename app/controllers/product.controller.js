@@ -1,4 +1,4 @@
-const { Product, User, Brand, Category } = require('../../models');
+const { Product, User, Brand, Category, DeliveryAddress } = require('../../models');
 require('dotenv').config();
 const { sequelize, Sequelize } = require('../../models');
 const asyncWrapper = require('../middlewares/async');
