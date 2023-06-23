@@ -257,7 +257,11 @@ const signIn = asyncWrapper(async (req, res, next) => {
     );
     if (!user) return next(new BadRequestError('Invalid user'));
 
-    if (!user.isActivated) return next(new BadRequestError('User not verified'));
+    if (!user.isActivated) {
+        let code = await generateCode()
+        await Token.create({ userId: user.id, verificationCode: code })
+        return next(new BadRequestError('User not verified'))
+    }
 
     const passwordInstance = await Password.findOne({ where: { id: user.id } });
     if (!passwordInstance) {
