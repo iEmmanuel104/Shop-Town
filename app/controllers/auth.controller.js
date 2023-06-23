@@ -553,15 +553,15 @@ const selectStore = asyncWrapper(async (req, res, next) => {
 const RegisterStore = asyncWrapper(async (req, res, next) => {
     const decoded = req.decoded
     let { storeName, phone, industry, country, address, state, city, postal } = req.body
-    // trim all fields
-    storeName = storeName.trim()
-    phone = phone.trim()
-    industry = industry.trim()
-    country = country.trim()
-    address = address.trim()
-    state = state.trim()
-    city = city.trim()
-    postal = postal.trim()
+   
+    storeName = storeName
+    phone = phone
+    industry = industry
+    country = country
+    address = address
+    state = state
+    city = city
+    postal = postal
 
     // CHECK FOR VALID PHONE NUMBER
     // phoneNumberLookup({phone})
