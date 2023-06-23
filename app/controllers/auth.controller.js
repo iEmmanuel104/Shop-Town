@@ -260,7 +260,19 @@ const signIn = asyncWrapper(async (req, res, next) => {
     if (!user.isActivated) {
         let code = await generateCode()
         await Token.create({ userId: user.id, verificationCode: code })
-        return next(new BadRequestError('User not verified'))
+        let options = {
+            email: user.email,
+            phone: user.phone,
+        }
+
+        const { access_token } = await issueToken(user.id)
+
+        await sendverificationEmail(options, code)
+        return res.status(422).json({
+            success: true,
+            message: 'User not verified, verification code sent successfully',
+            access_token
+        });
     }
 
     const passwordInstance = await Password.findOne({ where: { id: user.id } });
