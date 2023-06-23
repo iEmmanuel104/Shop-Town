@@ -211,7 +211,7 @@ const walletPayout = asyncWrapper(async (req, res, next) => {
         bankCode, 
         accountNumber,
         narration: 'Wallet payout',
-        reference: `WalletPayout_${wallet.id}`,
+        reference: `WalletPayout_${uuidv4()}`,
     }
     // console.log(details)
     const transfer = await FlutterwavePayout(details);
