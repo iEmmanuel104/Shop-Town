@@ -13,28 +13,21 @@ const config = require('../config/config.js')
 let sequelize;
 switch (env) {
   case 'production':
-    // console.log('production')
-    // const isProduction = process.env.NODE_ENV === 'production'
-    // const connectionString = isProduction ? process.env.DATABASE_URL : config.development
-    // const pool = new Pool({
-    //   connectionString: connectionString,
-    // })
-    sequelize = new Sequelize(
-      config.production.database,
-      config.production.username,
-      config.production.password,  
-      {
-        host: config.production.host,
+    const isProduction = process.env.NODE_ENV === 'production'
+    const connectionString = isProduction ? process.env.DATABASE_URL : config.development
+    const pool = new Pool({
+      connectionString: connectionString,
+    })
+    sequelize = new Sequelize(connectionString, {
       dialect: 'postgres',
       protocol: 'postgres',
       logging: false,
-      dialectOptions: config.production.dialectOptions
-      // {
-        // ssl: {
-        //   require: true,
-        //   rejectUnauthorized: false
-        // }
-      // }
+      dialectOptions: {
+        ssl: {
+          require: true,
+          rejectUnauthorized: false
+        }
+      }
     });
     break;
   case 'test':
@@ -55,7 +48,6 @@ switch (env) {
     );
     break;
   default:
-    console.log('development')
     sequelize = new Sequelize(
       config.development.database,
       config.development.username,
@@ -63,15 +55,12 @@ switch (env) {
       {
         host: config.development.host,
         dialect: config.development.dialect,
-        port: config.development.port,
         pool: {
           max: 5,
-          min: 1,
+          min: 0,
           idle: 10000
         },
-        ssl: false,
-        logging: false,
-        dialectOptions: development.dialectOptions,
+        logging: false
       }
     );
 }
