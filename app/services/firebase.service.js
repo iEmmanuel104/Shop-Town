@@ -16,9 +16,11 @@ const sendPushNotification = (registrationToken, title, body) => {
 
     admin.messaging().send(message)
         .then((response) => {
+            // return response
             console.log('Successfully sent notification:', response);
         })
         .catch((error) => {
+            // throw new CustomError.InternalServerError('Error sending notification: ' + error.message);
             console.error('Error sending notification:', error);
         });
 };

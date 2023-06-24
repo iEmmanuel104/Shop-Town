@@ -2,8 +2,6 @@ const { Product, User, Brand, Category, Cart, DeliveryAddress } = require('../..
 require('dotenv').config();
 const { sequelize, Sequelize } = require('../../models');
 const asyncWrapper = require('../middlewares/async')
-// const queryString = require('query-string');
-// const validator = require('validator');
 const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/customErrors');
 const { getPagination, getPagingData } = require('../utils/pagination')
 const Op = require("sequelize").Op;
@@ -12,14 +10,12 @@ const { validateAddress } = require('../services/shipbubble.service');
 
 const AddNewAddress = asyncWrapper(async (req, res) => {
     await sequelize.transaction(async (t) => {
-        const decoded = req.decoded;
-        const userId = decoded.id;
+        const payload = req.decoded;
+        const userId = payload.id;
         const user = await User.findOne({ where: { id: userId } });
         const { address, city, state, country, postal, phone, type, defaults } = req.body;
         const addressdetails = address + ',' + city + ',' + state + ',' + country
         const name = user.fullName
-
-        console.log(addressdetails)
 
         const detailss = {
             name: name,
@@ -27,8 +23,9 @@ const AddNewAddress = asyncWrapper(async (req, res) => {
             phone: phone,
             address: addressdetails,
         }
-        console.log(detailss)
+
         const address_code = await validateAddress(detailss)
+
         const deliveryAddress = await DeliveryAddress.create({
             address: address,
             city,
@@ -41,6 +38,7 @@ const AddNewAddress = asyncWrapper(async (req, res) => {
             addressCode: address_code,
             userId
         });
+
         res.status(200).json({
             success: true,
             data: deliveryAddress
@@ -50,13 +48,13 @@ const AddNewAddress = asyncWrapper(async (req, res) => {
 
 const GetDeliveryAddresses = asyncWrapper(async (req, res) => {
     await sequelize.transaction(async (t) => {
-        const decoded = req.decoded;
-        const userId = decoded.id;
+        const payload = req.decoded;
+        const userId = payload.id;
+
         const deliveryAddresses = await DeliveryAddress.findAll({
-            where: {
-                userId: userId
-            }
+            where: { userId: userId }
         });
+
         res.status(200).json({
             success: true,
             data: deliveryAddresses
@@ -66,18 +64,21 @@ const GetDeliveryAddresses = asyncWrapper(async (req, res) => {
 
 const GetDeliveryAddress = asyncWrapper(async (req, res) => {
     await sequelize.transaction(async (t) => {
-        const decoded = req.decoded;
-        const userId = decoded.id;
+        const payload = req.decoded;
+        const userId = payload.id;
         const { id } = req.params;
+
         const deliveryAddress = await DeliveryAddress.findOne({
             where: {
                 id: id,
                 userId: userId
             }
         });
+
         if (!deliveryAddress) {
             throw new NotFoundError(`Delivery Address not found with id of ${id}`);
         }
+
         res.status(200).json({
             success: true,
             data: deliveryAddress
@@ -87,8 +88,8 @@ const GetDeliveryAddress = asyncWrapper(async (req, res) => {
 
 const UpdateDeliveryAddress = asyncWrapper(async (req, res) => {
     await sequelize.transaction(async (t) => {
-        const decoded = req.decoded;
-        const userId = decoded.id;
+        const payload = req.decoded;
+        const userId = payload.id;
         const { id } = req.params;
         const { address, city, state, country, postal, phone, type, defaults } = req.body;
         const deliveryAddress = await DeliveryAddress.findOne({
@@ -97,9 +98,11 @@ const UpdateDeliveryAddress = asyncWrapper(async (req, res) => {
                 userId: userId
             }
         });
+
         if (!deliveryAddress) {
             throw new NotFoundError(`Delivery Address not found with id of ${id}`);
         }
+
         deliveryAddress.address = address ? address : deliveryAddress.address;
         deliveryAddress.city = city ? city : deliveryAddress.city;
         deliveryAddress.state = state ? state : deliveryAddress.state;
@@ -109,6 +112,7 @@ const UpdateDeliveryAddress = asyncWrapper(async (req, res) => {
         deliveryAddress.type = type ? type : deliveryAddress.type;
         deliveryAddress.isDefault = defaults ? defaults : deliveryAddress.isDefault;
         await deliveryAddress.save();
+
         res.status(200).json({
             success: true,
             message: 'Delivery Address updated successfully',
@@ -119,19 +123,23 @@ const UpdateDeliveryAddress = asyncWrapper(async (req, res) => {
 
 const DeleteDeliveryAddress = asyncWrapper(async (req, res) => {
     await sequelize.transaction(async (t) => {
-        const decoded = req.decoded;
-        const userId = decoded.id;
+        const payload = req.decoded;
+        const userId = payload.id;
         const { id } = req.params;
+
         const deliveryAddress = await DeliveryAddress.findOne({
             where: {
                 id: id,
                 userId: userId
             }
         });
+
         if (!deliveryAddress) {
             throw new NotFoundError(`Delivery Address not found with id of ${id}`);
         }
+
         await deliveryAddress.destroy();
+        
         res.status(200).json({
             success: true,
             message: 'Delivery Address deleted successfully'

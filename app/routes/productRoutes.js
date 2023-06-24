@@ -17,13 +17,6 @@ const {
     updateProductdiscount
 } = require('../controllers/product.controller')
 
-// router.post('/', basicAuth, createProduct),
-// router.post('/bulk', createBulkProducts)
-// router.get('/', getProducts)
-// router.get('/:id', getProduct)
-// router.put('/:id', updateProduct)
-// router.delete('/:id', deleteProduct)
-// router.get('/search', searchProuct)
 router.route('/')
     .post(basicAuth, uploadFile.array('images'), createProduct)
     .get(getProducts)

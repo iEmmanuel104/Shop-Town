@@ -80,4 +80,3 @@ else {
 }
 
 module.exports = sendEmail
-// ru ? LA *% t0No : qO$#

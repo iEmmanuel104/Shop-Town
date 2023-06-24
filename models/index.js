@@ -14,20 +14,26 @@ let sequelize;
 switch (env) {
   case 'production':
     const isProduction = process.env.NODE_ENV === 'production'
-    const connectionString = isProduction ? process.env.DATABASE_URL : config.development
+    // const connectionString = isProduction ? process.env.DATABASE_URL : config.development
     const pool = new Pool({
-      connectionString: connectionString,
+      // connect uing the database username password
+      
     })
-    sequelize = new Sequelize(connectionString, {
+    sequelize = new Sequelize(
+      config.production.database,
+      config.production.username,
+      config.production.password,
+       {
       dialect: 'postgres',
-      protocol: 'postgres',
+      host: config.production.host,
+      // protocol: 'postgres',
       logging: false,
-      dialectOptions: {
-        ssl: {
-          require: true,
-          rejectUnauthorized: false
-        }
-      }
+      // dialectOptions: {
+      //   ssl: {
+      //     require: true,
+      //     rejectUnauthorized: false
+      //   }
+      // }
     });
     break;
   case 'test':

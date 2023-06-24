@@ -17,6 +17,30 @@ const path = require('path');
 
 const { v4: uuidv4 } = require('uuid');
 
+const validateOrderData = async ({userId, shipping_method, option, storeId}) => {
+    const cart = await Cart.findOne({ where: { userId } });
+    if (!cart) throw new NotFoundError('Cart not found');
+    let checkoutData = JSON.parse(cart.checkoutData);
+
+    const validShippingMethods = ['seller', 'kship', 'ksecure'];
+    if (!validShippingMethods.includes(shipping_method)) {
+        throw new BadRequestError('Invalid shipping method');
+    }
+
+    let shippingMethod = { type: shipping_method }
+    // cartdetails for order
+    let courier = checkoutData.cheapest_courier
+    if (shipping_method === 'kship' && option === 'CASH') {
+        courier = checkoutData.kship_courier ? checkoutData.kship_courier : checkoutData.cheapest_courier
+    }
+
+    let cartdetails = { items: cart.items, totalAmount: cart.totalAmount }
+
+
+
+    return {checkoutData, shippingMethod, cartdetails}
+}
+
 const createOrder = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const decoded = req.decoded;
@@ -24,24 +48,16 @@ const createOrder = asyncWrapper(async (req, res, next) => {
         const userInfo = await User.findOne({ where: { id: userId } });
         const { shipping_method, storeId, option, service } = req.body;
 
-        const cart = await Cart.findOne({ where: { userId } });
-        if (!cart) throw new NotFoundError('Cart not found');
-        let checkoutData = JSON.parse(cart.checkoutData);
-
-        if (shipping_method !== 'seller' && shipping_method !== 'kship' && shipping_method !== 'ksecure') throw new BadRequestError('Invalid shipping method');
-        let shippingMethod = { type: shipping_method }
-        // cartdetails for order
-        let courier = checkoutData.cheapest_courier
-        if (shipping_method === 'kship' && option === 'CASH') { courier = checkoutData.kship_courier ? checkoutData.kship_courier : checkoutData.cheapest_courier }
-
-        let cartdetails = { items: cart.items, totalAmount: cart.totalAmount }
+        const { checkoutData, cart, shippingMethod, cartdetails } = validateOrderData({
+            userId, shipping_method, option, storeId
+        })
 
         const store = await Brand.findOne({ where: { id: storeId }, attributes: ['socials', 'name', 'logo'] })
         if (!store) throw new NotFoundError('Store not found');
 
-        let order, socials, kship_order, shippingObject, returnobject, orderobj;
-
         socials = store.socials ? store.socials : store.businessPhone;
+        
+        let order, socials, kship_order, shippingObject, returnobject, orderobj;
 
         //  ==== create order ==== //
         order = await Order.create({ userId,  shippingMethod, cartdetails, storeId }, { transaction: t });
@@ -66,11 +82,9 @@ const createOrder = asyncWrapper(async (req, res, next) => {
             checkoutData: checkoutData.checkout_data,
         }
 
-        returnobject = { order: orderobj, socials, subTotal: cart.totalAmount }
+        returnobject = { order: orderobj, socials, subTotal: cartdetails.totalAmount }
 
-        let paymentamt = parseFloat(cart.totalAmount);
-
-        console.log("initial paymentamt===",paymentamt) 
+        let paymentamt = parseFloat(cartdetails.totalAmount);
 
         // ==== sepearate shipping method ==== //
 

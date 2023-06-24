@@ -5,7 +5,7 @@ const {basicAuth} = require('../middlewares/authWares')
 const uploadFile = require('../middlewares/multerobject')
 
 const {
-    SignUp,
+    signUp,
     verifyEmail,
     profileOnboarding,
     forgotPassword,
@@ -17,14 +17,14 @@ const {
     googleSignIn,
     facebookauth,
     logout,
-    SwitchAccount,
-    RegisterStore,
+    switchAccount,
+    registerStore,
     selectStore
 
 
 } = require('../controllers/auth.controller')
 
-router.post('/signup', SignUp);
+router.post('/signup', signUp);
 router.post('/verify', basicAuth, verifyEmail);
 router.post('/resend', basicAuth, resendVerificationCode);
 router.post('/signin', signIn);
@@ -34,8 +34,8 @@ router.post('/setlocation', basicAuth, profileOnboarding);
 router.get('/user',basicAuth, getloggedInUser);
 router.get('/refresh', getNewAccessToken);
 router.post('/logout',basicAuth, logout);
-router.post('/switch',basicAuth, SwitchAccount);
-router.post('/registerstore',basicAuth, uploadFile.single('file') ,RegisterStore);
+router.post('/switch',basicAuth, switchAccount);
+router.post('/registerstore',basicAuth, uploadFile.single('file') ,registerStore);
 router.post('/selectstore',basicAuth, selectStore);
 
 // Facebook authentication route

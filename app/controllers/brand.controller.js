@@ -8,16 +8,18 @@ const Op = require("sequelize").Op;
 const { uploadSingleFile, uploadFiles } = require('../services/imageupload.service');
 const { at } = require('lodash');
 
+//quick create a store
 const createBrand = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
-        const decoded = req.decoded;
-        const userId = decoded.id;
+        const payload = req.decoded;
+        const userId = payload.id;
         const { name, socials } = req.body;
         const store = await Brand.create({
             name,
             socials,
             userId
         }, { transaction: t });
+
         res.status(201).json({
             success: true,
             data: store,
@@ -50,21 +52,24 @@ const getBrand = asyncWrapper(async (req, res, next) => {
 
 const getBrandStaff = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
-        const decoded = req.decoded;
-        const userId = decoded.id;
+        const payload = req.decoded;
+        const userId = payload.id;
+
         const user = await User.findByPk(userId);
         if (!user) {
             return next(new NotFoundError("User not found"));
         }
+
         const store = await Brand.scope('includeUsers').findByPk(req.params.id,
             { attributes: ['name', 'businessPhone', 'socials', 'owner'] }
         );
-        if (!store) {
-            return next(new NotFoundError(`Brand not found`));
-        }
+
+        if (!store) { return next(new NotFoundError(`Brand not found`)) }
+
         if (store.owner !== userId) {
             return next(new ForbiddenError("You are not allowed to access this resource"));
         }
+
         res.status(200).json({
             success: true,
             data: store,
@@ -75,17 +80,18 @@ const getBrandStaff = asyncWrapper(async (req, res, next) => {
 const updateBrand = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
 
-        const decoded = req.decoded;
-        const userId = decoded.id;
+        const payload = req.decoded;
+        const userId = payload.id;
         const store = await Brand.findByPk(req.params.id);
         const user = await User.findByPk(userId);
-        if (!user) {
-            return next(new NotFoundError("User not found"));
-        }
+
+        if (!user) { return next(new NotFoundError("User not found"))}
+
         if (!store) {
             return next(new NotFoundError(`store not found`));
         }
         const Daddress = await DeliveryAddress.findOne({ where: { storeId: store.id, isDefault: true } });
+        
         // if (store.owner !== userId) {
         //     return next(new ForbiddenError("You are not allowed to access this resource"));
         // }
@@ -148,8 +154,8 @@ const deleteBrand = asyncWrapper(async (req, res, next) => {
 
 const AddStoreDiscount = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
-        const decoded = req.decoded;
-        const userId = decoded.id;
+        const payload = req.decoded;
+        const userId = payload.id;
         const { title, type, value, endDate } = req.body;
         // split categories from string to array
         let categories = [];
@@ -193,8 +199,8 @@ const AddStoreDiscount = asyncWrapper(async (req, res, next) => {
 
 const getStoreDiscounts = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
-        const decoded = req.decoded;
-        const userId = decoded.id;
+        const payload = req.decoded;
+        const userId = payload.id;
         const user = await User.findByPk(userId);
         if (!user) {
             return next(new NotFoundError("User not found"));
@@ -217,8 +223,8 @@ const getStoreDiscounts = asyncWrapper(async (req, res, next) => {
 
 const updateStoreDiscount = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
-        const decoded = req.decoded;
-        const userId = decoded.id;
+        const payload = req.decoded;
+        const userId = payload.id;
         const { title, type, value, endDate, status } = req.body;
         const store = await Brand.findByPk(req.params.id, { attributes: ['owner'] });
 
@@ -234,12 +240,15 @@ const updateStoreDiscount = asyncWrapper(async (req, res, next) => {
         if (!storeDiscount) {
             return next(new NotFoundError(`Store Discount not found`));
         }
+
         storeDiscount.title = title ? title : storeDiscount.title;
         storeDiscount.type = type ? type : storeDiscount.type;
         storeDiscount.value = value ? value : storeDiscount.value;
         storeDiscount.endDate = endDate ? endDate : storeDiscount.endDate;
         storeDiscount.status = status ? status : storeDiscount.status;
+
         await storeDiscount.save({ transaction: t });
+
         // update the product table 
         res.status(200).json({
             success: true,
@@ -250,8 +259,8 @@ const updateStoreDiscount = asyncWrapper(async (req, res, next) => {
 
 const deleteStoreDiscount = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
-        const decoded = req.decoded;
-        const userId = decoded.id;
+        const payload = req.decoded;
+        const userId = payload.id;
         const store = await Brand.findByPk(req.params.id, { attributes: ['owner'] });
 
         if (!store) {
@@ -266,7 +275,9 @@ const deleteStoreDiscount = asyncWrapper(async (req, res, next) => {
         if (!storeDiscount) {
             return next(new NotFoundError(`Store Discount not found`));
         }
+
         await storeDiscount.destroy({ transaction: t });
+
         res.status(200).json({
             success: true,
             message: "Store Discount deleted successfully",
@@ -278,8 +289,8 @@ const deleteStoreDiscount = asyncWrapper(async (req, res, next) => {
 // endpoint to increase store product price by amount or percentage
 const increaseStoreProductPrice = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
-        const decoded = req.decoded;
-        const userId = decoded.id;
+        const payload = req.decoded;
+        const userId = payload.id;
         const { amount, percentage } = req.body;
         const { category } = req.query;
 
@@ -294,9 +305,8 @@ const increaseStoreProductPrice = asyncWrapper(async (req, res, next) => {
         }
 
         // Define the filter based on the category
-        const filter = {
-            storeId: req.params.id,
-        };
+        const filter = { storeId: req.params.id };
+        
         if (category) {
             filter.categoryId = category;
         }
