@@ -526,84 +526,87 @@ const selectStore = asyncWrapper(async (req, res, next) => {
 });
 
 const registerStore = asyncWrapper(async (req, res, next) => {
-    const decoded = req.decoded
-    const { storeName, phone, industry, country, address, state, city, postal } = req.body
+    await sequelize.transaction(async (t) => {
 
-    // CHECK FOR VALID PHONE NUMBER using twilio
-    // phoneNumberLookup({phone})
+        const decoded = req.decoded
+        const { storeName, phone, industry, country, address, state, city, postal } = req.body
 
-    const user = await User.findByPk(decoded.id)
-    if (!user) return next(new BadRequestError('Invalid user'))
+        if (!storeName || !phone || !industry || !country || !address || !state || !city) {
+            return next(new BadRequestError('Please provide all required fields'))
+        }
+        // CHECK FOR VALID PHONE NUMBER using twilio
+        // phoneNumberLookup({phone})
 
-    const storeExists = storeName ? await Brand.findOne({ where: { name: storeName } })
-        : businessPhone ? await Brand.findOne({ where: { businessPhone: businessPhone } })
-            : null;
+        const user = await User.findByPk(decoded.id)
+        if (!user) return next(new BadRequestError('Invalid user'))
 
-    if (storeExists) {
-        return next(new BadRequestError(storeName && storeExists.name === storeName
-            ? 'Store name already exists.' : 'Business phone already exists.'));
-    }
+        const storeExists = await Brand.findOne({ where: { businessPhone: phone } });
 
-    const details = {
-        user: user.id,
-        folder: `Stores/${storeName}/banner`,
-    }
-    let url;
-    if (req.file) {
-        url = await uploadSingleFile(req.file, details)
-    }
+        if (storeExists) {
+            return next(new BadRequestError('A Store with this phone number already exists'));
+        }
 
-    const addressdetails = address + ',' + city + ',' + state + ',' + country
+        const details = {
+            user: user.id,
+            folder: `Stores/${storeName}/banner`,
+        }
+        let url;
+        if (req.file) {
+            url = await uploadSingleFile(req.file, details)
+        }
 
-    const detailss = {
-        name: storeName,
-        email: user.email,
-        phone: phone,
-        address: addressdetails,
-    }
-    const address_code = await validateAddress(detailss)
-    if (!address_code) return next(new BadRequestError('Invalid address'))
+        const addressdetails = address + ',' + city + ',' + state + ',' + country
 
-    // add details to store 
-    const store = await Brand.create({
-        userId: decoded.id,
-        name: storeName,
-        businessPhone: phone,
-        industry: industry,
-        country: country,
-        address,
-        state,
-        owner: decoded.id,
-        city: city,
-        postal,
-        logo: url ? url : LOGO,
-    })
+        const detailss = {
+            name: storeName,
+            email: user.email,
+            phone: phone,
+            address: addressdetails,
+        }
+        const address_code = await validateAddress(detailss)
+        if (!address_code) return next(new BadRequestError('Invalid address'))
 
-    // add user to store 
-    await store.addUser(user, { through: { role: 'owner' } })
+        // add details to store 
+        const store = await Brand.create({
+            userId: decoded.id,
+            name: storeName,
+            businessPhone: phone,
+            industry: industry,
+            country: country,
+            address,
+            state,
+            owner: decoded.id,
+            city: city,
+            postal,
+            logo: url ? url : LOGO,
+        })
 
-    // create new address in address table
-    await DeliveryAddress.create({
-        storeId: store.id,
-        address,
-        city,
-        state,
-        country,
-        phone: req.body.phone ? user.phone : user.phone,
-        addressCode: address_code,
-        isDefault: true
-    })
+        // add user to store 
+        await store.addUser(user, { through: { role: 'owner' } })
 
-    const wallet = {
-        id: store.id,
-        type: 'store'
-    }
-    const wallet_ = await generateWallet(wallet) // generate wallet for store
+        // create new address in address table
+        await DeliveryAddress.create({
+            storeId: store.id,
+            address,
+            city,
+            state,
+            country,
+            phone: req.body.phone ? user.phone : user.phone,
+            addressCode: address_code,
+            isDefault: true
+        })
 
-    res.status(200).json({
-        success: true,
-        message: "Store created successfully",
-        store
+        const wallet = {
+            id: store.id,
+            type: 'store'
+        }
+        const wallet_ = await generateWallet(wallet) // generate wallet for store
+
+        res.status(200).json({
+            success: true,
+            message: "Store created successfully",
+            store
+        });
     });
 });
 
