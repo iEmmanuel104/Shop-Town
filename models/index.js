@@ -14,27 +14,22 @@ let sequelize;
 switch (env) {
   case 'production':
     const isProduction = process.env.NODE_ENV === 'production'
-    // const connectionString = isProduction ? process.env.DATABASE_URL : config.development
-    const pool = new Pool({
-      // connect uing the database username password
-      
-    })
     sequelize = new Sequelize(
       config.production.database,
       config.production.username,
       config.production.password,
-       {
-      dialect: 'postgres',
-      host: config.production.host,
-      // protocol: 'postgres',
-      logging: false,
-      // dialectOptions: {
-      //   ssl: {
-      //     require: true,
-      //     rejectUnauthorized: false
-      //   }
-      // }
-    });
+      {
+        host: config.production.host,
+        dialect: 'postgres',
+        protocol: 'postgres',
+        logging: false,
+        dialectOptions: config.production.dialectOptions
+        //   ssl: {
+        //     require: true,
+        //     rejectUnauthorized: false
+        //   }
+        // }
+      });
     break;
   case 'test':
     sequelize = new Sequelize(
@@ -55,11 +50,9 @@ switch (env) {
     break;
   default:
     sequelize = new Sequelize(
-      config.development.database,
-      config.development.username,
-      config.development.password,
-      {
-        host: config.development.host,
+      'klick_db', 'klick', 'Test@klick1234',
+      { 
+        host: 'localhost',
         dialect: config.development.dialect,
         pool: {
           max: 5,
