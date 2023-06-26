@@ -4,7 +4,7 @@ const app = require('./app');
 require('dotenv').config();
 const env = process.env.NODE_ENV;
 const redisconnect = require('./app/utils/redis');
-
+// start function
 const serverfunctions = async () => {
    
     await redisconnect.connect();
