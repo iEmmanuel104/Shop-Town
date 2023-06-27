@@ -21,7 +21,7 @@ router.get('/staff/:id', basicAuth, getBrandStaff);
 router.post('/discount/add/:id', basicAuth, AddStoreDiscount);
 router.get('/discount/:id', basicAuth, getStoreDiscounts);
 router.put('/discount/update/:id', basicAuth, updateStoreDiscount);
-router.delete('/discount/:id', basicAuth, deleteStoreDiscount);
+router.delete('/discount/delete/:id', basicAuth, deleteStoreDiscount);
 router.post('/increase/:id', basicAuth, increaseStoreProductPrice);
 
 
