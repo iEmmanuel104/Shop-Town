@@ -18,9 +18,9 @@ router.get('/:id', getBrand);
 router.put('/update/:id', basicAuth, uploadFile.single('file'), updateBrand);
 router.delete('/delete/:id', basicAuth, deleteBrand);
 router.get('/staff/:id', basicAuth, getBrandStaff);
-router.post('/discount/:id', basicAuth, AddStoreDiscount);
+router.post('/discount/add/:id', basicAuth, AddStoreDiscount);
 router.get('/discount/:id', basicAuth, getStoreDiscounts);
-router.put('/discount/:id', basicAuth, updateStoreDiscount);
+router.put('/discount/update/:id', basicAuth, updateStoreDiscount);
 router.delete('/discount/:id', basicAuth, deleteStoreDiscount);
 router.post('/increase/:id', basicAuth, increaseStoreProductPrice);
 
