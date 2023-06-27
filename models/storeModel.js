@@ -114,7 +114,7 @@ module.exports = (sequelize, DataTypes) => {
                     }
                 }
             });
-            const storeDiscount = store?.storeDiscounts; // Assuming the association alias is 'StoreDiscount'
+            const storeDiscount = store?.storeDiscounts; // the association alias is 'StoreDiscount'
 
             if (storeDiscount) {
                 const discountType = storeDiscount.type;
