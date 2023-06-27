@@ -190,6 +190,7 @@ const AddStoreDiscount = asyncWrapper(async (req, res, next) => {
             categoryIds: categories,
             storeId: req.params.id
         }, { transaction: t });
+
         res.status(201).json({
             success: true,
             data: newStoreDiscount,
@@ -225,7 +226,7 @@ const updateStoreDiscount = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const payload = req.decoded;
         const userId = payload.id;
-        const { title, type, value, endDate, status } = req.body;
+        const { title, type, value, endDate, status, discountId } = req.body;
         const store = await Brand.findByPk(req.params.id, { attributes: ['owner'] });
 
         if (!store) {
@@ -236,7 +237,7 @@ const updateStoreDiscount = asyncWrapper(async (req, res, next) => {
             return next(new ForbiddenError("You are not allowed to access this resource"));
         }
 
-        const storeDiscount = await StoreDiscount.findByPk(req.query.discountId);
+        const storeDiscount = await StoreDiscount.findByPk(discountId);
         if (!storeDiscount) {
             return next(new NotFoundError(`Store Discount not found`));
         }
@@ -330,6 +331,12 @@ const increaseStoreProductPrice = asyncWrapper(async (req, res, next) => {
         });
     });
 });
+
+const storeAnalytics = asyncWrapper(async (req, res, next) => {
+    await sequelize.transaction(async (t) => {
+
+    });
+    });
 
 
 
