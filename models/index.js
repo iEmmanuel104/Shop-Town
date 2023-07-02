@@ -13,7 +13,7 @@ const config = require('../config/config.js')
 let sequelize;
 
 switch (env) {
-  case 'production':
+  case 'render':
     const isProduction = process.env.NODE_ENV === 'production'
     const connectionString = isProduction ? process.env.DATABASE_URL : config.development
     const pool = new Pool({
@@ -48,6 +48,26 @@ switch (env) {
       }
     );
     break;
+  case 'production':
+    sequelize = new Sequelize(
+      config.gcloud.database,
+      config.gcloud.username,
+      config.gcloud.password,
+      {
+        host: config.gcloud.host,
+        dialect: 'postgres',
+        port: config.gcloud.port,
+        pool: {
+          max: 5, 
+          min: 1,
+          idle: 10000
+        },
+        ssl: false,
+        logging: false,
+        dialectOptions: config.gcloud.dialectOptions
+      }
+    );
+    break;
   default:
     sequelize = new Sequelize(
       config.development.database,
@@ -55,15 +75,18 @@ switch (env) {
       config.development.password,
       {
         host: config.development.host,
-        dialect: config.development.dialect,
+        dialect: config.development.dialect, 
+        port: config.development.port,
         pool: {
           max: 5,
-          min: 0,
+          min: 1,
           idle: 10000
         },
-        logging: false
+        ssl: false,
+        logging: false,
+        dialectOptions: config.development.dialectOptions
       }
-    );
+    ); 
 }
 
 // add global hooks for count queries

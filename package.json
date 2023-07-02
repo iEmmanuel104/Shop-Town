@@ -7,7 +7,7 @@
     "start": "node server.js",
     "dev": "cross-env NODE_ENV=development nodemon server.js",
     "build": "cross-env NODE_ENV=production node server.js",
-    "prod": "cross-env NODE_ENV=production nodemon server.js",
+    "render": "cross-env NODE_ENV=render node server.js",
     "gcloud": "gcloud app deploy",
     "migrate": "npx sequelize-cli db:migrate",
     "migraterender": "npx sequelize-cli db:migrate --url postgres://klick:l7MSZAhsaA6pG1Y1Rebet6CX3UuAn97E@dpg-chmc2lm4dad6k5g80egg-a.oregon-postgres.render.com/klick_db_stav",
