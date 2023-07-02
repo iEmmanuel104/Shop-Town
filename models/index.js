@@ -14,7 +14,7 @@ let sequelize;
 
 switch (env) {
   case 'render':
-    const isProduction = process.env.NODE_ENV === 'production'
+    const isProduction = process.env.NODE_ENV === 'render'
     const connectionString = isProduction ? process.env.DATABASE_URL : config.development
     const pool = new Pool({
       connectionString: connectionString,
@@ -50,21 +50,15 @@ switch (env) {
     break;
   case 'production':
     sequelize = new Sequelize(
-      config.gcloud.database,
-      config.gcloud.username,
-      config.gcloud.password,
+      config.production.database,
+      config.production.username,
+      config.production.password,
       {
-        host: config.gcloud.host,
+        host: config.production.host,
         dialect: 'postgres',
-        port: config.gcloud.port,
-        pool: {
-          max: 5, 
-          min: 1,
-          idle: 10000
-        },
-        ssl: false,
+        protocol: 'postgres',
         logging: false,
-        dialectOptions: config.gcloud.dialectOptions
+        dialectOptions: config.production.dialectOptions
       }
     );
     break;
