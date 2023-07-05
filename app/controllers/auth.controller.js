@@ -17,18 +17,18 @@ const redisClient = require('../utils/redis');
 
 const signUp = asyncWrapper(async (req, res, next) => {
     const { email, firstName, lastName, phone, password, location, city, state, country } = req.body;
-    if (!email | !firstName | !lastName | !location | !city | !state ) return next(new BadRequestError('Please fill all required fields'));
-    
+    if (!email | !firstName | !lastName | !location | !city | !state) return next(new BadRequestError('Please fill all required fields'));
+
     let access_token, address_code;
-    
+
     const addressdetails = location + ',' + city + ',' + state + ',' + country,
-    details = {
-        name: firstName + ' ' + lastName,
-        email: email,
-        phone: phone,
-        address: addressdetails,
-    }
-    address_code = await validateAddress(details) 
+        details = {
+            name: firstName + ' ' + lastName,
+            email: email,
+            phone: phone,
+            address: addressdetails,
+        }
+    address_code = await validateAddress(details)
 
     const user = await User.create({
         email, firstName, lastName, terms: "on", role: "guest", phone
@@ -225,23 +225,22 @@ const resetPassword = asyncWrapper(async (req, res, next) => {
 
     await Password.update(passwordobj, { where: { userId: user.id } })
 
-    return res.status(200).send({success: true, message: 'Password Reset Successful' })
+    return res.status(200).send({ success: true, message: 'Password Reset Successful' })
 });
 
 const signIn = asyncWrapper(async (req, res, next) => {
     const { password } = req.body;
+    const data = req.body.email ? { email: req.body.email }
+        : req.body.phone ? { phone: req.body.phone }
+            : next(new BadRequestError('Please provide email or phone'));
 
-    const { email, phone } = req.body
-    const data = email
-        ? { email } : phone
-            ? { phone } : next(new BadRequestError('Please provide email or phone'));
 
     const user = await User.findOne({
         where: data,
         include: [
-            { model: Cart, as: 'Cart' },
-            { model: Wallet, as: 'Wallet' },
-            { model: DeliveryAddress, where: { isDefault: true }, },
+            { model: Cart, as: 'Cart', attributes: ['checkoutData'] },
+            // { model: Wallet, as: 'Wallet', attributes: [] },
+            { model: DeliveryAddress, where: { isDefault: true } },
         ]
     });
 
@@ -265,23 +264,18 @@ const signIn = asyncWrapper(async (req, res, next) => {
     if (!passwordInstance.isValidPassword(password)) {
         return next(new BadRequestError('Invalid user Credentials'));
     }
-    console.log('cart checkout data ====== ',user.Cart.checkoutData)
 
     const hasdefaultAddress = !!user.DeliveryAddresses[0]; // check if the user has a default address
     const hascheckoutData = Object.keys(user.Cart.checkoutData).length > 0; // check if the user has checkout data
-
-    // set user active
-    user.status = "ACTIVE" 
-    await user.save()
 
     let tokens;
     // check if the user has a store 
     const stores = await user.getBrands()
     if (stores.length > 0) {
-        user.vendorMode = true
+        await user.update({ status: 'ACTIVE', vendorMode: true });
         tokens = await issueToken(user.id, stores[0].id)
-        await user.save()
     } else {
+        await user.update({ status: 'ACTIVE' });
         tokens = await issueToken(user.id)
     }
 
