@@ -241,10 +241,10 @@ const signIn = asyncWrapper(async (req, res, next) => {
         include: [
             { model: Cart, as: 'Cart' },
             { model: Wallet, as: 'Wallet' },
-            // { model: DeliveryAddress, where: { isDefault: true }, },
+            { model: DeliveryAddress, where: { isDefault: true }, },
         ]
     });
-    console.log("user details", user)
+
     if (!user) return next(new BadRequestError('Invalid user'));
 
     if (!user.isActivated) {
@@ -265,12 +265,13 @@ const signIn = asyncWrapper(async (req, res, next) => {
     if (!passwordInstance.isValidPassword(password)) {
         return next(new BadRequestError('Invalid user Credentials'));
     }
+    console.log('cart checkout data ====== ',user.Cart.checkoutData)
 
-    // const hasdefaultAddress = !!user.DeliveryAddresses[0]; // check if the user has a default address
-    const hascheckoutData = !!user.Cart.checkoutData; // check if the user has a checkout data
+    const hasdefaultAddress = !!user.DeliveryAddresses[0]; // check if the user has a default address
+    const hascheckoutData = Object.keys(user.Cart.checkoutData).length > 0; // check if the user has checkout data
 
     // set user active
-    user.status = "ACTIVE"
+    user.status = "ACTIVE" 
     await user.save()
 
     let tokens;
@@ -289,7 +290,7 @@ const signIn = asyncWrapper(async (req, res, next) => {
     res.status(200).json({
         success: true,
         message: "Sign in successful",
-        user,
+        // user,
         hasdefaultAddress,
         hascheckoutData,
         access_token,
