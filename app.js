@@ -64,29 +64,6 @@ app.use(
 app.use(passport.initialize());
 app.use(passport.session());
 
-// log the request session
-// let count = 1;
-
-// showlogs = (req, res, next) => {
-//     console.log("\n==============================")
-//     // console.log(`------------>  ${count++}`)
-
-//     // console.log(`\n req.session.passport -------> `)
-//     // console.log(req.session.passport)
-
-//     // console.log(`\n req.user -------> `)
-//     // console.log(req.body) 
-
-//     console.log("\n Session and Cookie")
-//     console.log(`req.session.id -------> ${req.session.id}`)
-//     console.log(`req.session.cookie -------> `)
-//     console.log(req.session.cookie)
-
-//     console.log("=================================\n")
-//     next();
-// } 
-// app.use(showlogs); 
-
 // serve public files
 app.use(express.static('public'));
 
