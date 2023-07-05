@@ -51,10 +51,11 @@ const storeCart = asyncWrapper(async (req, res, next) => {
 
 const getCart = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
-        const cart = await Cart.findOne({ where: { id: req.params.id },
+        const cart = await Cart.findOne({
+            where: { id: req.params.id },
             // remove checkoutData
             attributes: { exclude: ['checkoutData'] }
-         });
+        });
 
         if (!cart) return next(new NotFoundError("Cart not found"));
         if (!cart.items) { cart.items = {}; }// initialize items as empty object if null
@@ -66,23 +67,27 @@ const getCart = asyncWrapper(async (req, res, next) => {
                 data: {}
             });
         }
+        
         // check if the product pice and quantity has changed
         const converted = await convertcart(cart, 'get')
-        // console.log("converted", converted)
-        // compare the converted items and totalAmount to the original cart
+
         if (
             JSON.stringify(cart.items) !== JSON.stringify(converted.items) ||
             cart.totalAmount !== converted.totalAmount
         ) {
-           let  newcart = {items : converted.items,
-            totalAmount : converted.totalAmount}
+            let newcart = {
+                items: converted.items,
+                totalAmount: converted.totalAmount
+            }
             await Cart.update(newcart, { where: { id: cart.id } });
         }
 
         res.status(200).json({
             success: true,
-            data: {...cart.toJSON(), 
-                 sortedcart: converted.sortedcart}
+            data: {
+                ...cart.toJSON(),
+                sortedcart: converted.sortedcart
+            }
         });
     });
 });
@@ -155,10 +160,6 @@ const deleteCart = asyncWrapper(async (req, res, next) => {
 const cartcheckout = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const decoded = req.decoded
-        // const { id } = req.params;
-        // if (decoded.vendorMode) {
-        //     throw new ForbiddenError("Plesae switch to customer mode to checkout");
-        // }
 
         const userId = decoded.id;
         console.log("userId", userId)
@@ -176,13 +177,12 @@ const cartcheckout = asyncWrapper(async (req, res, next) => {
 
             // categorise itens by store
             const groupedCartItems = await groupCartItems(cart.items, cart.totalAmount);
-            console.log("grouped =========== ",groupedCartItems)
             const storeId = {
                 id: Object.keys(groupedCartItems)[0],
                 type: 'store'
             };
 
-            const userobj = {   
+            const userobj = {
                 id: userId,
                 type: 'user'
             };
@@ -197,7 +197,6 @@ const cartcheckout = asyncWrapper(async (req, res, next) => {
             receiver_address_code = (await DeliveryAddress.scope({ method: ["Default", userobj] }).findOne()).addressCode;
             if (!receiver_address_code) return next(new NotFoundError("Please add a delivery address"));
 
-            // pickup_date = new Date().toISOString().split('T')[0];
             pickup_date = new Date(new Date().getTime() + 60 * 60 * 1000).toISOString().split('T')[0]; // add 1 hour to current time
             category_id = groupedCartItems[storeId.id][0].specification.shippingcategory_id;
             package_items = groupedCartItems[storeId.id].map(item => {
@@ -209,14 +208,14 @@ const cartcheckout = asyncWrapper(async (req, res, next) => {
                     unit_amount: item.Discountprice,
                     quantity: item.quantity,
                     total_weight: weightsum
-                }
+                } 
             });
 
             boxSizes = (await getshippingboxes()).data;
             package_dimension = await estimateBoxDimensions(package_items, boxSizes);
             description = package_dimension.description
-                ? `Please handle with care as ${package_dimension.description}` :
-                `Please handle with care and do not shake`;
+                ? `Please handle with care as ${package_dimension.description}` 
+                : `Please handle with care and do not shake`;
 
             const details = {
                 sender_address_code, receiver_address_code, pickup_date,
@@ -226,19 +225,22 @@ const cartcheckout = asyncWrapper(async (req, res, next) => {
             // GET SHIPPING FEE FROM SHIPBUBBLE API
             const { request_token, kship_courier, cheapest_courier, checkout_data } = await getShippingRates(details);
 
-            console.log(request_token, kship_courier, cheapest_courier, checkout_data)
+            let checkoutObject = {request_token, cheapest_courier, checkout_data}
+
+            if (kship_courier !== cheapest_courier) { // if kship is not the cheapest courier
+                checkoutObject.kship_courier = kship_courier
+            }
+
+            // Delete the checkout data after 30 minutes  // TODO: change to 30 minutes
 
             // update cart checkout data
-            cart.checkoutData = { request_token, kship_courier, cheapest_courier, checkout_data }
+            cart.checkoutData = JSON.stringify(checkoutObject);
 
             await cart.save({ transaction: t });
-
-            // CREATE A NEW ORDER INSTANCE
 
             res.status(200).json({
                 success: true,
                 message: "Proceed to choose a suitable shipping method",
-                // data: cart,
                 kship_fee: kship_courier.total ? parseFloat(kship_courier.total) : cheapest_courier.total,
                 ksecure_fee: parseFloat(KSECURE_FEE) + cheapest_courier.total,
             });

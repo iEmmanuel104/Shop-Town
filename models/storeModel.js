@@ -1,5 +1,5 @@
 module.exports = (sequelize, DataTypes) => {
-    const { Brand } = require('./userModel')(sequelize, DataTypes);
+    const { Brand } = require('./entityModel')(sequelize, DataTypes);
 
     const Product = sequelize.define("Product", {
         id: {
@@ -37,9 +37,11 @@ module.exports = (sequelize, DataTypes) => {
         discountedPrice: {
             type: DataTypes.VIRTUAL,
             get() {
-                const price = parseFloat(this.getDataValue('price'));
-                const discount = parseFloat(this.getDataValue('discount'));
-                return (price * (1 - discount / 100)).toFixed(2);
+                const price = parseFloat(this.getDataValue('price')),
+                    discount = parseFloat(this.getDataValue('discount')),
+                    discountedPrice = price * (1 - discount / 100),
+                    roundedPrice = Math.round(discountedPrice);
+                return roundedPrice;
             }
         },
         specifications: {
@@ -112,7 +114,7 @@ module.exports = (sequelize, DataTypes) => {
                     }
                 }
             });
-            const storeDiscount = store?.storeDiscounts; // Assuming the association alias is 'StoreDiscount'
+            const storeDiscount = store?.storeDiscounts; // the association alias is 'StoreDiscount'
 
             if (storeDiscount) {
                 const discountType = storeDiscount.type;

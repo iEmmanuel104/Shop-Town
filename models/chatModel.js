@@ -1,6 +1,6 @@
 module.exports = (sequelize, DataTypes) => {
-    const { User } = require('./userModel')(sequelize, DataTypes);
-    const { Brand } = require('./userModel')(sequelize, DataTypes);
+    const { User } = require('./entityModel')(sequelize, DataTypes);
+    const { Brand } = require('./entityModel')(sequelize, DataTypes);
 
     const ChatRoom = sequelize.define('ChatRoom', {
         id: {

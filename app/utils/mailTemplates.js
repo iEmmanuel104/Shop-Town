@@ -17,7 +17,7 @@ const sendverificationEmail = async (details, code) => {
     options.subject = 'Email Verification';
     options.message = `Your verification code is ${code}`;
     // options.html = `${options.message}`;    
-    await sendEmail(options);
+     sendEmail(options);
     // options.phone = phone;
     // await sendPhoneSMS(options);
 };

@@ -11,9 +11,10 @@ const db = {};
 const config = require('../config/config.js')
 
 let sequelize;
+
 switch (env) {
-  case 'production':
-    const isProduction = process.env.NODE_ENV === 'production'
+  case 'render':
+    const isProduction = process.env.NODE_ENV === 'render'
     const connectionString = isProduction ? process.env.DATABASE_URL : config.development
     const pool = new Pool({
       connectionString: connectionString,
@@ -21,7 +22,7 @@ switch (env) {
     sequelize = new Sequelize(connectionString, {
       dialect: 'postgres',
       protocol: 'postgres',
-      logging: false,
+      logging: false, 
       dialectOptions: {
         ssl: {
           require: true,
@@ -47,6 +48,27 @@ switch (env) {
       }
     );
     break;
+  case 'production':
+    sequelize = new Sequelize(
+      config.production.database,
+      config.production.username,
+      config.production.password,
+      {
+        host: config.production.host,
+        // port: config.production.port,
+        dialect: 'postgres',
+        protocol: 'postgres',
+        logging: false,
+        dialectOptions: config.production.dialectOptions
+        // pool: {
+        //   max: 5,
+        //   min: 1,
+        //   idle: 10000
+        // },
+        // ssl: false,
+      }
+    );
+    break;
   default:
     sequelize = new Sequelize(
       config.development.database,
@@ -54,15 +76,18 @@ switch (env) {
       config.development.password,
       {
         host: config.development.host,
-        dialect: config.development.dialect,
+        dialect: config.development.dialect, 
+        port: config.development.port,
         pool: {
           max: 5,
-          min: 0,
+          min: 1,
           idle: 10000
         },
-        logging: false
+        ssl: false,
+        logging: false,
+        dialectOptions: config.development.dialectOptions
       }
-    );
+    ); 
 }
 
 // add global hooks for count queries
@@ -99,5 +124,9 @@ Object.keys(db).forEach(modelName => {
 
 db.sequelize = sequelize;
 db.Sequelize = Sequelize;
+
+// db.sequelize.sync({ force: true }).then(() => {
+//   console.log("Drop and re-sync db.");
+// });
 
 module.exports = db;

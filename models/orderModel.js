@@ -1,6 +1,6 @@
 module.exports = (sequelize, DataTypes) => {
     const { generateCode } = require('../app/utils/StringGenerator')
-    const { DeliveryAddress } = require('./userModel')(sequelize, DataTypes);
+    const { DeliveryAddress } = require('./utilityModel')(sequelize, DataTypes);
     const { Cart } = require('./storeModel')(sequelize, DataTypes);
 
     
@@ -24,14 +24,16 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false,
         },
         status: {
-            type: DataTypes.ENUM(["active", "completed", "cancelled"]),
-            defaultValue: "active",
+            type: DataTypes.ENUM(["pending", "active", "completed", "cancelled"]),
+            defaultValue: "pending",
             allowNull: false
         },
         orderNumber: {
             type: DataTypes.STRING,
             defaultValue: `#K-ID${generateCode(6)}`,
         },
+
+        // shipbubble related fields
     }, {
         tableName: 'Order', 
         timestamps: true,
@@ -52,17 +54,17 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING,
             allowNull: false
         },
-        serviceCode: {
-            type: DataTypes.STRING,
-            allowNull: false
+        courierInfo: {
+            type: DataTypes.JSONB, // { courierId: 0, courierName: "", courierImage: ""  }
         },
-        courierId: {
-            type: DataTypes.STRING,
-            allowNull: false
+        courierServiceInfo: {
+            type: DataTypes.JSONB, // { serviceCode: 0, serviceType: "", isCodAvailable: false, waybill:false  }
         },
-        packageCost: {
-            type: DataTypes.DECIMAL(10, 2), // 10 digits in total, 2 after decimal point
-            allowNull: false
+        courierBenefits: {
+            type: DataTypes.JSONB, // {  insurance: {code: "", fee: 0}, discount: {percentage: 0, discounted: 0}, }
+        },
+        checkoutData: {
+            type: DataTypes.JSONB, 
         },
         isKSecure: {
             type: DataTypes.BOOLEAN,
@@ -128,6 +130,16 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.ENUM(["CARD", "KCREDIT", "CASH"]),
             defaultValue: "CARD",
             allowNull: false
+        },
+        paymentService: {
+            type: DataTypes.STRING, // flutterwave, seerbit, 
+            // restrict to flutterwave or seerbit
+            validate: { 
+                isIn: {
+                    args: [['flutterwave', 'seerbit']],
+                    msg: "Payment service must be flutterwave or seerbit"
+                }
+            },
         },
         paymentStatus: {
             type: DataTypes.ENUM(["pending", "paid", "failed", "cancelled"]),

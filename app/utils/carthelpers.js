@@ -19,7 +19,7 @@ const convertcart = async (cart, type) => {
         throw new BadRequestError("Please add a valid product to the cart.");
     }
 
-    let sortedcart = {...items};
+    let sortedcart = { ...items };
 
     itemIds.forEach(itemId => {
         const product = products.find(p => p.id === itemId);
@@ -45,6 +45,7 @@ const convertcart = async (cart, type) => {
             const itemStatus = inStock >= cartquantity ? 'instock' : 'outofstock';
 
             items[product.id] = {
+                id: product.id,
                 name: product.name,
                 quantity: cartquantity,
                 UnitPrice: product.price,
@@ -70,7 +71,7 @@ const convertcart = async (cart, type) => {
         }
     });
     console.log('items', items);
-    
+
     cart.totalAmount = totalAmount;
     cart.errors = errors;
     cart.sortedcart = sortedcart;
@@ -81,7 +82,7 @@ const convertcart = async (cart, type) => {
         totalItemsOutOfStock: outofstockItems,
         totalItemsInvalidQuantity: invalidQuantity,
     };
-    console.log('cart', cart);  
+    console.log('cart', cart);
 
     return cart;
 }
@@ -105,15 +106,15 @@ const groupCartItems = async (items, amt) => {
     console.log("uniquestores ======", uniqueStores)
     if (uniqueStores.length !== 1) {
         const errorStores = uniqueStores.filter(store => !storeValues.includes(store));
-        console.log('errorstores ==== ',errorStores)
+        console.log('errorstores ==== ', errorStores)
         const storeNames = await Promise.all(errorStores.map(async store => {
             const storeData = await Brand.findOne({ where: { id: store } });
             return storeData.name;
         }));
-        console.log("storenames ======",storeNames) 
+        console.log("storenames ======", storeNames)
         throw new BadRequestError(`Items have different stores: ${storeNames.join(", ")}`);
     }
-    console.log("uniquestores ======",uniqueStores)
+    console.log("uniquestores ======", uniqueStores)
     const store = uniqueStores[0];
 
     let groupedItems = {};

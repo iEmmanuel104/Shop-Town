@@ -16,12 +16,17 @@ const basicAuth = asyncWrapper(async (req, res, next) => {
     // check if token is blacklisted
     const isBlacklisted = await BlacklistedTokens.findOne({ where: { token: authtoken } })
     if (isBlacklisted) return next(new BadRequestError('Unauthorised Token'))
+
     if (decoded.storeId) {
         console.log('store id found', decoded.storeId)
     }
+    const userId = decoded.id;
+    const user = await User.findByPk(userId)
+    if (!user) return next(new NotFoundError("Unidentified user"))
+
+    console.log('decoded from basicAuth', decoded)
 
     req.decoded = decoded
-    console.log('decoded from basicAuth', decoded)
     next()
     
 })

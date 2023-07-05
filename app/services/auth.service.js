@@ -14,27 +14,20 @@ const issueToken = async (userid, storeId) => {
             id: this_user.id,
             fullName: this_user.fullName,
             email: this_user.email,
+            phone: this_user.phone,
             role: this_user.role,
             isActivated: this_user.isActivated,
             vendorMode: this_user.vendorMode
         }
         payload.website = mywebsite;
         payload.jti = uuidv4();
-
-        // let access_expiry = accessTokenExpiry
-        //  refresh_expiry = refreshTokenExpiry
-        
-        // if (this_user.isActivated === false) {
-            //     access_expiry = 1800 ? 1800 : accessTokenExpiry
-            //     refresh_expiry = 3600 ? 3600 : refreshTokenExpiry
-            // }
             
-            console.log(accessTokenExpiry, refreshTokenExpiry)
         if (storeId) payload.storeId = storeId
 
         const access_token = jwt.sign(payload, secret2, { expiresIn: accessTokenExpiry, algorithm: 'HS256' });
         const refresh_token = jwt.sign(payload, secret1, { expiresIn: refreshTokenExpiry, algorithm: 'HS256' });
         return { access_token, refresh_token }
+
     } catch (error) {
         throw new Error(error);
     }
@@ -55,7 +48,6 @@ const decodeJWT = async (token, type) => {
         return decoded;
             
     } catch (error) {
-        console.log(error)
         if (error instanceof jwt.TokenExpiredError) {
             throw new TokenExpiredError('Token expired');
         }

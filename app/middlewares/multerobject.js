@@ -11,20 +11,9 @@ const fileFilter = (req, file, cb) => {
   ) {
     cb(null, true);
   } else {
-    cb(new Error("Please upload only images, PDFs, or videos."), false);
+    cb(new BadRequestError("Please upload only images, PDFs, or videos."), false);
   }
 };
-
-// const storage = multer.diskStorage({
-//   destination: "uploads",
-//   filename: (req, file, cb) => {
-//     if (!file.originalname
-//       .match(/\.(jpg|jpeg|png|pdf|csv|mp4|mpeg|ogg|quicktime|webm|x-ms-wmv|x-flv|x-msvideo| ms-excel|vnd.ms-excel|vnd.openxmlformats-officedocument.spreadsheetml.sheet)$/)) {
-//       return cb(new Error("File type is not supported"), false);
-//     }
-//     cb(null, `${Date.now()}_EZcart_${file.originalname}`);
-//   },
-// });
 
 const storage = multer.memoryStorage(); // Store file in memory
 
