@@ -55,10 +55,17 @@ switch (env) {
       config.production.password,
       {
         host: config.production.host,
+        // port: config.production.port,
         dialect: 'postgres',
         protocol: 'postgres',
         logging: false,
         dialectOptions: config.production.dialectOptions
+        // pool: {
+        //   max: 5,
+        //   min: 1,
+        //   idle: 10000
+        // },
+        // ssl: false,
       }
     );
     break;
@@ -117,5 +124,9 @@ Object.keys(db).forEach(modelName => {
 
 db.sequelize = sequelize;
 db.Sequelize = Sequelize;
+
+// db.sequelize.sync({ force: true }).then(() => {
+//   console.log("Drop and re-sync db.");
+// });
 
 module.exports = db;

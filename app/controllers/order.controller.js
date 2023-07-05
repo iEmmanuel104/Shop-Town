@@ -153,6 +153,21 @@ const createOrder = asyncWrapper(async (req, res, next) => {
                 await Payment.create({ refId: order.id, amount: paymentamt, paymentMethod: "KCREDIT" }, { transaction: t });
             } else if (option === 'CASH' && shipping_method === 'kship') {
                 // pay on delivery
+                // shipment request to kship
+                const { order_id, status, payment, tracking_url } = await createshipment({
+                    request_token: kship_order.requestToken,
+                    service_code: kship_order.courierServiceInfo.serviceCode,
+                    courier_id: kship_order.courierInfo.courierId,
+                }, { transaction: t });
+
+                console.log("tracking_url===",tracking_url) 
+                await ShipbubbleOrder.update({
+                    status: status,
+                    deliveryFee: payment.shipping_fee = kship_order.deliveryFee ? kship_order.deliveryFee : payment.shipping_fee,
+                    shippingReference: order_id,
+                    trackingUrl: tracking_url
+                }, { where: { orderId: order.id }, transaction: t });
+                returnobject.TrackingUrl = tracking_url;
                 await Order.update({ status: 'pending' }, { where: { id: order.id }, transaction: t });
                 await Payment.create({ refId: order.id, amount: paymentamt, paymentMethod: "CASH" }, { transaction: t });
             }

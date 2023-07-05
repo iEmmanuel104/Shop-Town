@@ -1,10 +1,11 @@
-const bcrypt = require('bcryptjs');
-const Op = require('sequelize').Op;
+const { generateCode } = require('../app/utils/StringGenerator');
+const { sendverificationEmail, sendForgotPasswordEmail } = require('../app/utils/mailTemplates');
 
 module.exports = (sequelize, DataTypes) => {
 
     // imports
     const { Wallet } = require('./walletModel')(sequelize, DataTypes);
+    const { DeliveryAddress, Token } = require('./utilityModel')(sequelize, DataTypes);
     // const { Cart } = require('./storeModel');
 
     //  ======  User Model  ====== //
@@ -57,7 +58,6 @@ module.exports = (sequelize, DataTypes) => {
                 }
             }
         },
-        address: { type: DataTypes.STRING },
         phone: {
             type: DataTypes.BIGINT,
             unique: {
@@ -79,16 +79,16 @@ module.exports = (sequelize, DataTypes) => {
             defaultValue: "INACTIVE",
             allowNull: false
         },
-        terms: {
-            type: DataTypes.ENUM(["on", "off"]),
-            defaultValue: "off",
-            validate: {
-                isIn: {
-                    args: [["on", "off"]],
-                    msg: "invalid Terms inout: Please select correct option"
-                }
-            }
-        },
+        // terms: {
+        //     type: DataTypes.ENUM(["on", "off"]),
+        //     defaultValue: "off",
+        //     validate: {
+        //         isIn: {
+        //             args: [["on", "off"]],
+        //             msg: "invalid Terms inout: Please select correct option"
+        //         }
+        //     }
+        // },
         googleId: {
             type: DataTypes.STRING,
             allowNull: true
@@ -107,16 +107,26 @@ module.exports = (sequelize, DataTypes) => {
             defaultValue: false,
             allowNull: false
         },
+        isVerified: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false,
+            allowNull: false
+        },
         profileImage: { type: DataTypes.STRING },
     }, {
         tableName: 'User',
         timestamps: true,
+        // specify default scope to check for act
+        // defaultScope: {
+        //     attributes: { exclude: ['password'] }
+        // },
 
         scopes: {
             verified: {
                 where: {
                     status: 'ACTIVE',
                     isActivated: true,
+                    isVerified: true
                 },
                 attributes: ['id', 'firstName', 'lastName', 'email', 'phone', 'role', 'status', 'vendorMode', 'createdAt', 'updatedAt']
             }
@@ -124,6 +134,9 @@ module.exports = (sequelize, DataTypes) => {
         hooks: {
             beforeCreate: (user) => {
                 user.email = user.email.toLowerCase();
+                // remove white spaces from email
+                user.email = user.email.replace(/\s/g, '');
+
             },
             beforeUpdate: (user) => {
                 user.email = user.email.toLowerCase();
@@ -139,6 +152,10 @@ module.exports = (sequelize, DataTypes) => {
             },
             beforeUpdate: (record, options) => {
                 record.dataValues.updatedAt = new Date().toISOString().replace(/T/, ' ').replace(/\..+/g, '');
+            },
+            // send email to user after creating account
+            afterCreate: (user) => {
+                user.generateAndSendVerificationCode('verify');
             }
         },
     });
@@ -168,7 +185,7 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.BIGINT,
             unique: {
                 args: true,
-                msg: 'Business Phone number provided already in use!' 
+                msg: 'Business Phone number provided already in use!'
             },
             allowNull: false
         },
@@ -236,153 +253,6 @@ module.exports = (sequelize, DataTypes) => {
         timestamps: true,
     });
 
-    //  ======  Password Model  ====== //
-    const Password = sequelize.define("Password", {
-        id: {
-            type: DataTypes.UUID,
-            defaultValue: DataTypes.UUIDV4,
-            primaryKey: true
-        },
-        password: {
-            type: DataTypes.STRING,
-            allowNull: false
-        }
-    }, {
-        // paranoid: true,
-        tableName: 'Password',
-        // timestamps: false,
-        hooks: {
-            beforeCreate(password) {
-                password.password = bcrypt.hashSync(password.password, bcrypt.genSaltSync(10));
-            },
-            beforeUpdate(password) {
-                password.password = bcrypt.hashSync(password.password, bcrypt.genSaltSync(10));
-            }
-        },
-    });
-
-    Password.prototype.isValidPassword = function (password) {
-        return bcrypt.compareSync(password, this.password);
-    };
-    Password.prototype.toJSON = function () {
-        const values = Object.assign({}, this.get());
-        delete values.password;
-        return values;
-    };
-
-    //  =========== Token Model =========== //
-    const Token = sequelize.define("Token", {
-        id: {
-            type: DataTypes.UUID,
-            defaultValue: DataTypes.UUIDV4,
-            primaryKey: true
-        },
-        passwordResetToken: { type: DataTypes.STRING },
-        activationCode: { type: DataTypes.STRING }, // for phone verification
-        verificationCode: { type: DataTypes.STRING }, // for email verification
-    }, {
-        tableName: 'Token',
-        // timestamps: false,                
-    });
-
-    const BlacklistedTokens = sequelize.define("BlacklistedTokens", {
-        id: {
-            type: DataTypes.UUID,
-            defaultValue: DataTypes.UUIDV4,
-            primaryKey: true
-        },
-        token: { type: DataTypes.TEXT, allowNull: false },
-        expiry: {
-            type: DataTypes.DATE,
-            defaultValue: Date.now() + (24 * 60 * 60 * 1000) // 24 hours in milliseconds
-        },
-    }, {
-        tableName: 'BlacklistedTokens',
-        timestamps: false,
-        // hooks: {
-        //     beforeFind: async (options) => {
-        //         const now = new Date();
-        //         options.where = {
-        //             ...options.where,
-        //             expiry: { [Op.lt]: now }
-        //         };
-        //         const expiredTokens = await BlacklistedTokens.findAll(options);
-        //         if (expiredTokens.length > 0) {
-        //             await BlacklistedTokens.destroy({ where: { id: expiredTokens.map(token => token.id) } });
-        //         }
-        //     }
-        // },        
-    });
-
-    const DeliveryAddress = sequelize.define("DeliveryAddress", {
-        id: {
-            type: DataTypes.UUID,
-            defaultValue: DataTypes.UUIDV4,
-            primaryKey: true
-        },
-        address: { type: DataTypes.STRING, allowNull: false },
-        city: { type: DataTypes.STRING, allowNull: false },
-        state: { type: DataTypes.STRING, allowNull: false },
-        country: { type: DataTypes.STRING, allowNull: false },
-        postal: { type: DataTypes.INTEGER },
-        phone: { type: DataTypes.BIGINT, allowNull: false },
-        type: {
-            type: DataTypes.ENUM(["home", "office", "school", "other"]),
-            defaultValue: "home",
-            allowNull: false,
-            validate: {
-                isIn: {
-                    args: [["home", "office", "school", "other"]],
-                    msg: "invalid Type input: Please select correct option"
-                }
-            }
-        },
-        addressCode: { type: DataTypes.INTEGER },
-        isDefault: {
-            type: DataTypes.BOOLEAN,
-            defaultValue: false,
-            allowNull: false
-        },
-    }, {
-        tableName: 'DeliveryAddress',
-        timestamps: true,
-        scopes: {
-            Default(value) {
-                let valuq;
-                value.type === 'store' ? valuq = 'storeId' : valuq = 'userId';
-                return {
-                    where: {
-                        isDefault: true,
-                        [valuq]: value.id
-                    }
-                }
-            }
-        }
-    });
-
-    DeliveryAddress.addHook('beforeSave', async (address, options) => {
-        if (address.changed('isDefault') && address.isDefault) {
-            const whereClause = {};
-
-            if (address.userId) {
-                whereClause.userId = address.userId;
-            } else if (address.storeId) {
-                whereClause.storeId = address.storeId;
-            }
-
-            // Find all other delivery addresses for this user or store and update their isDefault field to false
-            await DeliveryAddress.update(
-                { isDefault: false },
-                {
-                    where: {
-                        ...whereClause,
-                        id: { [Op.ne]: address.id },
-                    },
-                    transaction: options.transaction,
-                }
-            );
-        }
-    });
 
     User.addScope('fulldetails', {
         include: [
@@ -399,20 +269,44 @@ module.exports = (sequelize, DataTypes) => {
         ]
     });
 
+    User.prototype.generateAndSendVerificationCode = async function (type) {
+        let code = await generateCode();
+
+        
+        const { id, email, phone } = this;
+        const emailData = { email, phone };
+        let emailPromise, codePromise;
+        if (type === 'verify') {
+            emailPromise = sendverificationEmail(emailData, code);
+            codePromise = { verificationCode: code };
+        } else {
+            emailPromise = sendForgotPasswordEmail(emailData, code);
+            codePromise = { passwordResetToken: code };
+        }
+
+        await Promise.all([
+            Token.findOne({ where: { userId: id } }).then((token) => {
+                if (token) {
+                    token.update(codePromise);
+                } else {
+                    Token.create({ userId: id, ...codePromise });
+                }
+            }),
+            emailPromise
+        ]);
+
+        return code;
+    };
+        
 
 
-    //  =========== ASSOCIATIONS =========== //
+
+    // ==================================== //
+    // ============ ASSOCIATIONS =========== //
+    // ==================================== //
 
     //  =========== USER ASSOCIATIONS =========== //
     User.associate = (models) => {
-        User.hasOne(models.Password, {
-            onDelete: 'CASCADE',
-            onUpdate: 'CASCADE'
-        });
-        User.hasOne(models.Token, {
-            onDelete: 'CASCADE',
-            onUpdate: 'CASCADE'
-        });
         User.hasMany(models.Order, {
             foreignKey: 'userId',
             onDelete: 'CASCADE',
@@ -429,6 +323,7 @@ module.exports = (sequelize, DataTypes) => {
             onUpdate: 'CASCADE'
         });
         User.hasMany(models.DeliveryAddress, {
+            foreignKey: 'userId',
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
         });
@@ -441,9 +336,17 @@ module.exports = (sequelize, DataTypes) => {
             foreignKey: 'userId',
             onDelete: 'CASCADE',
         });
+        User.hasOne(models.Password, {
+            foreignKey: 'userId',
+            onDelete: 'CASCADE',
+        });
+        User.hasOne(models.Token, {
+            foreignKey: 'userId',
+            onDelete: 'CASCADE',
+        });
     };
 
-
+    //  =========== BRAND ASSOCIATIONS =========== //
     Brand.associate = (models) => {
         Brand.hasMany(models.Product, {
             onDelete: 'CASCADE',
@@ -486,41 +389,9 @@ module.exports = (sequelize, DataTypes) => {
     UserBrand.associate = (models) => {
         UserBrand.belongsTo(models.User)
         UserBrand.belongsTo(models.Brand, { foreignKey: 'storeId' })
-    }
-
-    //  =========== PASSWORD ASSOCIATIONS =========== //
-    Password.associate = (models) => {
-        Password.belongsTo(models.User, {
-            foreignKey: 'userId',
-            onDelete: 'CASCADE',
-            onUpdate: 'CASCADE'
-        });
     };
 
-    //  =========== TOKEN ASSOCIATIONS =========== //
-    Token.associate = (models) => {
-        Token.belongsTo(models.User, {
-            foreignKey: 'userId',
-            onDelete: 'CASCADE',
-            onUpdate: 'CASCADE'
-        });
-    };
-
-    // ===========  DELIVERY ADDRESS ASSOCIATIONS   =========== //
-    DeliveryAddress.associate = (models) => {
-        DeliveryAddress.belongsTo(models.User, {
-            foreignKey: 'userId',
-            onDelete: 'CASCADE',
-            onUpdate: 'CASCADE'
-        });
-        DeliveryAddress.belongsTo(models.Brand, {
-            foreignKey: 'storeId',
-            onDelete: 'CASCADE',
-            onUpdate: 'CASCADE'
-        });
-    };
-
-    return { User, Brand, Password, Token, BlacklistedTokens, UserBrand, DeliveryAddress };
+    return { User, Brand, UserBrand };
 };
 
 

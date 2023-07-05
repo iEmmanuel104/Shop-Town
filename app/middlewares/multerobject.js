@@ -11,7 +11,7 @@ const fileFilter = (req, file, cb) => {
   ) {
     cb(null, true);
   } else {
-    cb(new Error("Please upload only images, PDFs, or videos."), false);
+    cb(new BadRequestError("Please upload only images, PDFs, or videos."), false);
   }
 };
 

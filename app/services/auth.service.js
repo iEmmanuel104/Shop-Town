@@ -14,6 +14,7 @@ const issueToken = async (userid, storeId) => {
             id: this_user.id,
             fullName: this_user.fullName,
             email: this_user.email,
+            phone: this_user.phone,
             role: this_user.role,
             isActivated: this_user.isActivated,
             vendorMode: this_user.vendorMode

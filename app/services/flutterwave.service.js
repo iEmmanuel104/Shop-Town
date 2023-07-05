@@ -38,7 +38,7 @@ const FlutterwavePay = async (paydetails) => {
             "customer": {
                 "email": paydetails.email,
                 "phonenumber": paydetails.phone,
-                "name": paydetails.fullname
+                "name": paydetails.fullName
             },
             "customizations": {
                 "title": title,
