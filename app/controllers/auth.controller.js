@@ -28,7 +28,7 @@ const signUp = asyncWrapper(async (req, res, next) => {
         phone: phone,
         address: addressdetails,
     }
-    address_code = await validateAddress(details)
+    address_code = await validateAddress(details) 
 
     const user = await User.create({
         email, firstName, lastName, terms: "on", role: "guest", phone
