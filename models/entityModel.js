@@ -388,7 +388,7 @@ module.exports = (sequelize, DataTypes) => {
     // ================ USERBRAND ================//
     UserBrand.associate = (models) => {
         UserBrand.belongsTo(models.User)
-        UserBrand.belongsTo(models.Brand, { foreignKey: 'storeId' })
+        UserBrand.belongsTo(models.Brand)
     };
 
     return { User, Brand, UserBrand };
