@@ -174,7 +174,7 @@ module.exports = (sequelize, DataTypes) => {
         },
         items: {
             type: DataTypes.JSONB,
-            defaultValue: {}
+            defaultValue: {},
         },
         checkoutData: {
             type: DataTypes.JSONB,
