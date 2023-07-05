@@ -1,0 +1,50 @@
+runtime: nodejs18
+
+env: standard
+service: server
+beta_settings:
+  cloud_sql_instances: "maximal-terrain-388910:us-central1:klick-db"
+
+instance_class: F1
+automatic_scaling:
+  max_instances: 1
+
+env_variables:
+  DB_NAME: platform_data
+  DB_HOST: /cloudsql/maximal-terrain-388910:us-central1:klick-db
+  DB_USER: klick_user
+  DB_PASSWORD: :FxRKtgSnVY8R$rf
+  DB_PORT: 5432
+  NODE_ENV: production
+  ACCESS_TOKEN_EXPIRY: 15552000
+  REFRESH_TOKEN_EXPIRY: 31536000
+  REFRESH_TOKEN_JWT_SECRET: share12345678tribe
+  ACCESS_TOKEN_JWT_SECRET: share87654321tribe
+  MY_WEBISTE: donotmesswithmeIamtaximania.com
+  EMAIL_HOST_ADDRESS: recoaservice@gmail.com
+  SUPER_ADMIN_EMAIL: emmanuel.umukoro1999@yahoo.com
+  OAUTH_CLIENT_ID: 948589025763-o113idd1dtdjm45neaggllt62gj2hmo6.apps.googleusercontent.com
+  OAUTH_CLIENT_SECRET: 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
+  OAUTH_REFRESH_TOKEN: 1//04IPHtKceZ1UpCgYIARAAGAQSNwF-L9IrYIhedKIi-NMDqm-C5WXmPSVKv4C_an11UU5-1wDerP9z_5pYewJ5ytKC5GmeQxxy0uU
+  OAUTH_ACCESS_TOKEN: ya29.a0AeTM1ieUlXr3AO_0KS0gWhkC89GP7nyGwyX4aQTVK8KSfZ7qWedxCa0DBzhF9CDYQL3OycBRh4fgshKMiPsr1zcXNYQpAnExleDaalKZ3Uwd5CCEro629fYVBHvivSQnY0Ay0Hwvv7V_Sn9LloyVWcuTQRlhaCgYKAXsSARISFQHWtWOmBXr6s6apI9rHzecxr7aaDw0163
+  OAUTH_REDIRECT_URI: http://localhost:3000/auth/google/callback
+  GOOGLE_CLIENT_ID: 301028023941-h0dd9fhl9akss8r0qttsb2b86pcprhql.apps.googleusercontent.com
+  GOOGLE_CLIENT_SECRET: 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
+  SESSION_SECRET: YVHGSHDWVCISHDBWJHsahdbib3^hsgdjjsnsdvksgdkbmsbdkgisk
+  CLOUD_NAME: drc6omjqc
+  API_KEY: 416142563744819
+  API_SECRET: y7byd1_nU9XpMAJJZXsnsG8TIbo
+  FLW_SECRET_KEY: FLWSECK-ad402e2f82667fb86943c2c71724a26b-188e8c8fca8vt-X
+  FLW_PUBLIC_KEY: FLWPUBK-30de6e2d5f0ae731f18351e374f7eeeb-X
+  FLW_ENCRYPTION_KEY: ad402e2f826695faec74021f
+  FLW_REDIRECT_URL: http://localhost:8082/test.html
+  SHIPBUBBLE_API_KEY: sb_sandbox_d1736e48887d79f702c29800aa85f858078618ad20679b2a54f46d604d655763
+  FACEBOOK_APP_ID: 613795263712814
+  FACEBOOK_APP_SECRET: 32379b1afa9d6f129cc46a2125b58b23
+  API_URL: http://localhost:8082
+  KSECURE_FEE: 500
+  TWILIO_ACCOUNT_SID: "ACfa36c3aaa5d0471a2b977eb7db1f1e60"
+  TWILIO_AUTH_TOKEN: "baf0dc388a927ebc33cd9f15db134c79"
+  TWILIO_PHONE_SERVICE_SID: "VA3f3d6ccdf529de69a17b5e529603eccf"
+  LOGO: https://cdn.iconscout.com/icon/free/png-256/free-logo-3446031-2882300.png
+

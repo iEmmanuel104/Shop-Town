@@ -37,10 +37,10 @@ lib-cov
 
 # remove app.yaml and appengine_config.py from version control
 # these files are re-generated when you run "npm run build"
-app.yaml
+# app.yaml
 appengine_config.py
 
 # removing migrations from version control
-migrations/
+# migrations/
 
 # app/cloudkeys
