@@ -10,7 +10,7 @@ const serverfunctions = async () => {
     await redisconnect.connect();
 
     // Test the db connection
-    await db.sequelize
+    db.sequelize
         .authenticate()
         .then(() => {
             console.log('postgres connection has been established successfully. -- ' + env);
@@ -25,7 +25,7 @@ const serverfunctions = async () => {
         });
 
     let PORT = process.env.PORT;
-    let drop;
+    let drop; 
 
     if (env === 'test') {
         PORT = process.env.TEST_PORT
@@ -33,12 +33,12 @@ const serverfunctions = async () => {
     };
 
     // sdding {force: true} will drop the table if it already exists 
-    await db.sequelize.sync().then(() => {
+    db.sequelize.sync().then(() => {
         // db.sequelize.sync({ force: true }).then(() => {
         console.log('All Tables synchronized successfully');
 
-        // app.listen(PORT, () => { 
-        httpServer.listen(PORT, () => {
+        app.listen(PORT, () => {
+        // httpServer.listen(PORT, () => {
             console.log(`Server is running on port ${PORT}........`);
         });
     });
