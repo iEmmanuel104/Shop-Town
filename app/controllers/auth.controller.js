@@ -18,6 +18,7 @@ const redisClient = require('../utils/redis');
 const signUp = asyncWrapper(async (req, res, next) => {
     const { email, firstName, lastName, phone, password, location, city, state, country } = req.body;
     if (!email | !firstName | !lastName | !location | !city | !state ) return next(new BadRequestError('Please fill all required fields'));
+    
     let access_token, address_code;
     
     const addressdetails = location + ',' + city + ',' + state + ',' + country,
@@ -49,7 +50,7 @@ const signUp = asyncWrapper(async (req, res, next) => {
             addressCode: address_code,
             isDefault: true
         }),
-        access_token = (issueToken(user.id)).access_token
+        access_token = (await issueToken(user.id)).access_token
     ]);
 
     res.status(201).json({
