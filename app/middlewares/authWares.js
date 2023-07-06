@@ -13,10 +13,6 @@ const basicAuth = asyncWrapper(async (req, res, next) => {
     const decoded = await decodeJWT(authtoken)
     if (!decoded) return next(new BadRequestError('Invalid authorization'))
 
-    // check if token is blacklisted
-    const isBlacklisted = await BlacklistedTokens.findOne({ where: { token: authtoken } })
-    if (isBlacklisted) return next(new BadRequestError('Unauthorised Token'))
-
     if (decoded.storeId) {
         console.log('store id found', decoded.storeId)
     }
