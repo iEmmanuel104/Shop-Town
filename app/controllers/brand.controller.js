@@ -1,4 +1,4 @@
-const { Category, Brand, User, Product, StoreDiscount, DeliveryAddress } = require('../../models');
+const { Category, Brand, User, Product, StoreDiscount, DeliveryAddress, AccountDetails } = require('../../models');
 const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/customErrors');
 require('dotenv').config();
 const { sequelize, Sequelize } = require('../../models');
@@ -7,6 +7,8 @@ const asyncWrapper = require('../middlewares/async');
 const Op = require("sequelize").Op;
 const { uploadSingleFile, uploadFiles } = require('../services/imageupload.service');
 const { at } = require('lodash');
+const { generateWallet } = require('../services/wallet.service');
+
 
 //quick create a store
 const createBrand = asyncWrapper(async (req, res, next) => {
@@ -26,6 +28,42 @@ const createBrand = asyncWrapper(async (req, res, next) => {
         });
     });
 });
+
+const addStoreAccount = asyncWrapper(async (req, res, next) => {
+    await sequelize.transaction(async (t) => {
+        const payload = req.decoded;
+        const userId = payload.id;
+        const { accountName, accountNumber, bankName, bankCode } = req.body;
+        const store = await Brand.findByPk(req.params.id);
+        if (!store) {
+            return next(new NotFoundError(`store not found`));
+        }
+
+        // Check if the store already has any existing account details
+        const existingAccount = await AccountDetails.findOne({
+            where: { storeId: store.id }
+        });
+
+        if (!existingAccount) {
+            // Generate wallet only if no existing account details found
+            await generateWallet({ id: store.id, type: 'store' });
+        }
+
+        const account = await AccountDetails.create({
+            accountName,
+            accountNumber,
+            bankName,
+            bankCode,    
+            storeId: store.id
+        }, { transaction: t });
+
+        res.status(201).json({
+            success: true,
+            data: account,
+        });
+    });
+});
+
 
 const getBrands = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
@@ -83,9 +121,6 @@ const updateBrand = asyncWrapper(async (req, res, next) => {
         const payload = req.decoded;
         const userId = payload.id;
         const store = await Brand.findByPk(req.params.id);
-        const user = await User.findByPk(userId);
-
-        if (!user) { return next(new NotFoundError("User not found"))}
 
         if (!store) {
             return next(new NotFoundError(`store not found`));
@@ -106,7 +141,7 @@ const updateBrand = asyncWrapper(async (req, res, next) => {
         let url;
         if (req.file) {
             const details = {
-                user: user.id,
+                user: payload.id,
                 folder: `Stores/${storeName}/banner`,
             }
             url = await uploadSingleFile(req.file, details)
@@ -114,7 +149,7 @@ const updateBrand = asyncWrapper(async (req, res, next) => {
 
         const detailss = {
             name: store.name,
-            email: user.email,
+            email: payload.email,
             phone: store.businessPhone,
             address: addressdetails,
         }
@@ -344,6 +379,7 @@ module.exports = {
     createBrand,
     getBrands,
     getBrand,
+    addStoreAccount,
     updateBrand,
     deleteBrand,
     getBrandStaff,
