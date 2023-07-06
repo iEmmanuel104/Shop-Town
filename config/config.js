@@ -1,7 +1,8 @@
 require('dotenv').config();
+const env = process.env.NODE_ENV
+console.log('env === ', env);
 
 const development = {
-
   database: process.env.PG_DATABASE,
   username: process.env.PG_USERNAME,
   password: process.env.PG_PASSWORD,
@@ -33,6 +34,7 @@ const production = {
     "socketPath": process.env.DB_HOST
   }
 };
+
 const render = {
   database: process.env.G_DB_NAME,
   username: process.env.G_DB_USER,
