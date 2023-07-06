@@ -163,6 +163,22 @@ module.exports = (sequelize, DataTypes) => {
         }
     });
 
+    const AccountDetails = sequelize.define("AccountDetails", { 
+        id: {
+            type: DataTypes.UUID,
+            defaultValue: DataTypes.UUIDV4,
+            primaryKey: true
+        },
+        accountName: { type: DataTypes.STRING, allowNull: false },
+        accountNumber: { type: DataTypes.STRING, allowNull: false },
+        bankName: { type: DataTypes.STRING, allowNull: false },
+        bankCode: { type: DataTypes.STRING, allowNull: false },
+    }, {
+        tableName: 'AccountDetails',
+        timestamps: true,
+    });
+
+
     // ==================================== //
     // ============ ASSOCIATIONS =========== //
     // ==================================== //
@@ -195,5 +211,14 @@ module.exports = (sequelize, DataTypes) => {
         });
     };
 
-    return {Password, Token, BlacklistedTokens, DeliveryAddress };
+    // =========== ACCOUNT DETAIL ASSOCIATIONS =========== //
+    AccountDetails.associate = (models) => {
+        AccountDetails.belongsTo(models.Brand, {
+            foreignKey: 'storeId',
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE'
+        });
+    };
+
+    return {Password, Token, BlacklistedTokens, DeliveryAddress, AccountDetails };
 };

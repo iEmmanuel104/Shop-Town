@@ -1,5 +1,6 @@
 const { generateCode } = require('../app/utils/StringGenerator');
 const { sendverificationEmail, sendForgotPasswordEmail } = require('../app/utils/mailTemplates');
+// const { generateWallet } = require('../app/services/wallet.service');
 
 module.exports = (sequelize, DataTypes) => {
 
@@ -211,6 +212,19 @@ module.exports = (sequelize, DataTypes) => {
             },
             allowNull: false
         },
+        businessEmail: {
+            type: DataTypes.STRING,
+            unique: {
+                args: true,
+                msg: 'Business Email provided already in use!'
+            },
+            allowNull: false,
+            validate: {
+                isEmail: {
+                    msg: 'Please enter a valid email address!'
+                }
+            }
+        },
         industry: {
             type: DataTypes.STRING,
             allowNull: false,
@@ -221,7 +235,12 @@ module.exports = (sequelize, DataTypes) => {
             defaultValue: false,
             allowNull: false
         },
-        logo: { type: DataTypes.STRING }
+        logo: { type: DataTypes.STRING },
+        storeSettings: {
+            type: DataTypes.JSONB, // store 
+            defaultValue: {},
+            allowNull: true
+        }
     }, {
         tableName: 'Brand',
         timestamps: true,
@@ -241,7 +260,21 @@ module.exports = (sequelize, DataTypes) => {
                     }
                 }]
             }
-        }
+        },
+        // hooks: {
+        //     afterCreate: async (brand) => {
+        //         //    await generateWallet({ id: store.id, type: 'store' });
+        //         // create a wallet for the store
+        //         console.log('brand created == wallet to be created');
+        //         await Wallet.create({
+        //             storeId: brand.id,
+        //             balance: 0,
+        //             type: type,
+        //             isActive: true
+        //         });
+        //         console.log('wallet created');
+        //     }
+        // }
     });
 
     // ======  UserBrand Model  ====== //
@@ -294,7 +327,7 @@ module.exports = (sequelize, DataTypes) => {
     User.prototype.generateAndSendVerificationCode = async function (type) {
         let code = await generateCode();
 
-        
+
         const { id, email, phone } = this;
         const emailData = { email, phone };
         let emailPromise, codePromise;
@@ -319,13 +352,13 @@ module.exports = (sequelize, DataTypes) => {
 
         return code;
     };
-        
 
 
 
-    // ==================================== //
-    // ============ ASSOCIATIONS =========== //
-    // ==================================== //
+
+    // ======================================= //
+    // ============ ASSOCIATIONS ============= //
+    // ======================================= //
 
     //  =========== USER ASSOCIATIONS =========== //
     User.associate = (models) => {
@@ -400,6 +433,11 @@ module.exports = (sequelize, DataTypes) => {
             onUpdate: 'CASCADE'
         });
         Brand.hasMany(models.Ksocial, {
+            foreignKey: 'storeId',
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE'
+        });
+        Brand.hasMany(models.AccountDetails, {
             foreignKey: 'storeId',
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
