@@ -60,10 +60,10 @@ module.exports = (sequelize, DataTypes) => {
         },
         phone: {
             type: DataTypes.BIGINT,
-            unique: {
-                args: true,
-                msg: 'Phone number already in use!'
-            },
+            // unique: {
+            //     args: true,
+            //     msg: 'Phone number already in use!'
+            // },
             validate: {
                 len: {
                     args: [10, 15],
@@ -111,6 +111,19 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.BOOLEAN,
             defaultValue: false,
             allowNull: false
+        },
+        // virtual field for address, 
+        // this field is not stored in the database
+        address: {
+            type: DataTypes.VIRTUAL,
+            // get() {
+            //     return this.getAddresses();
+            // },
+            set(value) {
+                // get the address and set it to the address
+                this.setDataValue('address', value);
+
+            }
         },
         profileImage: { type: DataTypes.STRING },
     }, {
@@ -170,10 +183,10 @@ module.exports = (sequelize, DataTypes) => {
         },
         name: {
             type: DataTypes.STRING,
-            // unique: {
-            //     args: true,
-            //     msg: 'Store name already in use!'
-            // },
+            unique: {
+                args: true,
+                msg: 'Store name already in use!'
+            },
             allowNull: false
         },
         socials: {
@@ -183,9 +196,18 @@ module.exports = (sequelize, DataTypes) => {
         },
         businessPhone: {
             type: DataTypes.BIGINT,
-            unique: {
-                args: true,
-                msg: 'Business Phone number provided already in use!'
+            // unique: {
+            //     args: true,
+            //     msg: 'Business Phone number provided already in use!'
+            // },
+            validate: {
+                len: {
+                    args: [10, 15],
+                    msg: 'Phone number should be between 10 and 15 digits!'
+                },
+                isNumeric: {
+                    msg: 'Please enter a valid numeric Phone number!'
+                }
             },
             allowNull: false
         },
