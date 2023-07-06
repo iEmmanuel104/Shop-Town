@@ -1,7 +1,7 @@
 const { User, Token, Password, BlacklistedTokens, Brand, DeliveryAddress, Cart, Wallet } = require('../../models');
 const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/customErrors');
 const { uploadSingleFile } = require('../services/imageupload.service');
-const { LOGO } = require('../utils/configs');
+const { LOGO, accessTokenExpiry } = require('../utils/configs');
 const { generateWallet, createCart } = require('../services/wallet.service');
 const { sequelize, Sequelize } = require('../../models');
 require('dotenv').config();
@@ -14,6 +14,7 @@ const { phoneNumberLookup } = require('../services/sms.service');
 const { UUID } = require('sequelize');
 const { randomUUID } = require('crypto');
 const redisClient = require('../utils/redis');
+
 
 const signUp = asyncWrapper(async (req, res, next) => {
     const { email, firstName, lastName, phone, password, location, city, state, country } = req.body;
@@ -50,7 +51,7 @@ const signUp = asyncWrapper(async (req, res, next) => {
             addressCode: address_code,
             isDefault: true
         }),
-        access_token = (await issueToken(user.id)).access_token
+        access_token = (await issueToken({userid:user.id})).access_token
     ]);
 
     res.status(201).json({
@@ -177,8 +178,6 @@ const forgotPassword = asyncWrapper(async (req, res, next) => {
             code = await user.generateAndSendVerificationCode('forgot');
         }
 
-        // const { access_token } = await issueToken(user.id)
-
         res.status(200).json({
             success: true,
             message: "Password reset code sent successfully, proceed to reset password",
@@ -273,10 +272,10 @@ const signIn = asyncWrapper(async (req, res, next) => {
     const stores = await user.getBrands()
     if (stores.length > 0) {
         await user.update({ status: 'ACTIVE', vendorMode: true });
-        tokens = await issueToken(user.id, stores[0].id)
+        tokens = await issueToken({userid: user.id, storeId: stores[0].id})
     } else {
         await user.update({ status: 'ACTIVE' });
-        tokens = await issueToken(user.id)
+        tokens = await issueToken({userid: user.id})
     }
 
     const { access_token, refresh_token } = tokens
@@ -302,28 +301,23 @@ const getloggedInUser = asyncWrapper(async (req, res, next) => {
     const user = await User.scope('verified').findOne(
         {
             where: { id: userId },
-            include: [{
-                model: Cart,
-                as: 'Cart',
-                attributes: { exclude: ['checkoutData'] },
-                include: [{
+            include: [
+                {
                     model: Cart,
-                    as: 'Wishlists',
-                    attributes: ['id'],
-                }]
-            },
-            { model: Wallet }
+                    as: 'Cart',
+                    attributes: { exclude: ['checkoutData'] },
+                    include: [{
+                        model: Cart,
+                        as: 'Wishlists',
+                        attributes: ['id'],
+                    }]
+                },
+                { model: Wallet, attributes: ['amount'] },
+                { model: DeliveryAddress, where: { isDefault: true } },
             ]
         }
     );
     if (!user) return next(new BadRequestError('Unverified user'))
-    let DefaultAddress;
-    DefaultAddress = await DeliveryAddress.findOne({ where: { userId: user.id, isDefault: true } })
-
-    if (!DefaultAddress || DefaultAddress.length < 1 || DefaultAddress === null) {
-        DefaultAddress = {}
-    }
-
     // get all stores associated with the user and extract only the id and name fields
     const stores = (await user.getBrands({
         attributes: ['id', 'name', 'logo', 'businessPhone', 'socials'],
@@ -342,30 +336,30 @@ const getloggedInUser = asyncWrapper(async (req, res, next) => {
         message: "User retrieved successfully",
         user,
         stores: stores,
-        DefaultAddress
     });
 });
 
 const getNewAccessToken = asyncWrapper(async (req, res, next) => {
-    const autho = req.headers.authorization
+    const { authorization } = req.headers;
 
-    if (!autho) return next(new BadRequestError('Invalid authorization'))
-    const refresh_token = autho.split(' ')[1]
-    // check if token is blacklisted    // TO DO retrieve from redis cache
-    const isBlacklisted = await BlacklistedTokens.findOne({ where: { token: refresh_token } })
+    if (!authorization) {
+        throw new BadRequestError('Invalid authorization');
+    }
 
-    if (isBlacklisted) return next(new BadRequestError('Invalid authorization'))
+    const [, refresh_token] = authorization.split(' ');
 
-    const payload = await decodeJWT(refresh_token, 'refresh')
+    const { id: userId } = await decodeJWT(refresh_token, 'refresh');
+    const user = await User.findByPk(userId);
 
-    const userId = payload.id
-    const user = await User.findByPk(userId)
-    if (!user) return next(new BadRequestError('Invalid user'))
-    const { access_token } = await issueToken(user.id)
+    if (!user) {
+        throw new BadRequestError('Invalid user');
+    }
+
+    const { access_token } = await issueToken({ userid: user.id, type: 'access' });
 
     res.status(200).json({
         success: true,
-        message: "New access token retrieved successfully",
+        message: 'New access token retrieved successfully',
         access_token
     });
 });
@@ -384,7 +378,7 @@ const facebookauth = asyncWrapper(async (req, res, next) => {
     }
 
     // Generate a JWT token for authentication
-    const { access_token, refresh_token } = await issueToken(user.id)
+    const { access_token, refresh_token } = await issueToken({ userid: user.id })
 
     res.status(200).json({
         success: true,
@@ -406,7 +400,7 @@ const googleSignIn = asyncWrapper(async (req, res, next) => {
     await user.save()
 
     // Generate a JWT token for authentication
-    const { access_token, refresh_token } = await issueToken(user.id)
+    const { access_token, refresh_token } = await issueToken({ userid: user.id })
 
     res.status(200).json({
         success: true,
@@ -417,27 +411,39 @@ const googleSignIn = asyncWrapper(async (req, res, next) => {
 });
 
 const logout = asyncWrapper(async (req, res, next) => {
-    const autho = req.headers.authorization
+    const { authorization } = req.headers;
 
-    if (!autho) return next(new BadRequestError('Invalid authorization'))
-    const token = autho.split(' ')[1]
+    if (!authorization) {
+        throw new BadRequestError('Invalid authorization');
+    }
 
-    const payload = await decodeJWT(token)
+    const [, token] = authorization.split(' ');
 
-    const userId = payload.id
+    const { id: userId } = await decodeJWT(token);
 
-    const user = await User.findByPk(userId)
-    if (!user) return next(new BadRequestError('Invalid user'))
+    // Update user status to "INACTIVE" in a single query
+    await User.update({ status: 'INACTIVE', vendorMode: true }, { where: { id: userId } });
 
-    user.status = "INACTIVE"
-    await user.save()
+    // Blacklist token in Redis cache
+    // Check if token exists in Redis cache
+    const tokenExists = await redisClient.exists(token);
 
-    // blacklist token
-    await BlacklistedTokens.create({ token })
+    let redisExpiry;
+    if (tokenExists) {
+        redisExpiry = await redisClient.ttl(token);
+        // delete token from Redis cache
+        await redisClient.del(token);
+    } else {
+        // Use accessTokenExpiry value instead
+        redisExpiry = accessTokenExpiry;
+    }
+    console.log('redis expiry time', redisExpiry);
+
+    await redisClient.set(token, 'blacklisted', { KEEPTTL: true, XX: true});
 
     res.status(200).json({
         success: true,
-        message: "User logged out successfully",
+        message: 'User logged out successfully',
     });
 });
 
@@ -505,7 +511,7 @@ const selectStore = asyncWrapper(async (req, res, next) => {
     }
 
     if (req.query.token === 'true') {
-        const { access_token } = await issueToken(user.id, storeId)
+        const { access_token } = await issueToken({userid:user.id, storeId})
         responseData.access_token = access_token
     }
 
