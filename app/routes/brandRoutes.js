@@ -9,7 +9,7 @@ const {
     updateBrand, deleteBrand, getBrandStaff,
     AddStoreDiscount, getStoreDiscounts,
     updateStoreDiscount, deleteStoreDiscount,
-    increaseStoreProductPrice
+    increaseStoreProductPrice, addStoreAccount
 } = require('../controllers/brand.controller');
 
 router.post('/', basicAuth, createBrand);
@@ -23,6 +23,7 @@ router.get('/discount/:id', basicAuth, getStoreDiscounts);
 router.put('/discount/update/:id', basicAuth, updateStoreDiscount);
 router.delete('/discount/delete/:id', basicAuth, deleteStoreDiscount);
 router.post('/increase/:id', basicAuth, increaseStoreProductPrice);
+router.post('/account/add/:id', basicAuth, addStoreAccount);
 
 
 module.exports = router
