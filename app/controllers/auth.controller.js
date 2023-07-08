@@ -580,7 +580,7 @@ const registerStore = asyncWrapper(async (req, res, next) => {
     return res.status(200).json({
         success: true,
         message: 'Store created successfully',
-        createdStore
+        store: createdStore
     });
 });
 
