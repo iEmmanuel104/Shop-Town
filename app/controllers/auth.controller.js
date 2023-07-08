@@ -262,9 +262,10 @@ const signIn = asyncWrapper(async (req, res, next) => {
     if (!passwordInstance.isValidPassword(password)) {
         return next(new BadRequestError('Invalid user Credentials'));
     }
+    console.log(user)
 
     const hasdefaultAddress = !!user.DeliveryAddresses[0]; // check if the user has a default address
-    const hascheckoutData = Object.keys(user.Cart.checkoutData).length > 0; // check if the user has checkout data
+    const hascheckoutData = !!user.Cart.checkoutData; // check if the user has checkout data
 
     let tokens;
     // check if the user has a store 
