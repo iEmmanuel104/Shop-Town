@@ -528,6 +528,10 @@ const registerStore = asyncWrapper(async (req, res, next) => {
     // phoneNumberLookup({phone})
     const payload = req.decoded
 
+    if (!payload.isVerified || !payload.isActivated) {
+        return next(new BadRequestError('Please verify your account to create a store'));
+    }
+
     // Check if store with the given email already exists
     const storeExists = await Brand.findOne({ where: { businessEmail: email } });
 
