@@ -13,24 +13,21 @@ const path = require('path');
 const createProduct = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const { name, description, price, quantity, specifications, shippingcategory } = req.body;
+        if (!name || !price || !quantity || !shippingcategory) return next(new BadRequestError('please provide all required fields'));
+
         const { storeId, category } = req.query
         const decoded = req.decoded;
-        const userId = decoded.id;
 
         const categoryExists = await Category.findByPk(category)
         if (!categoryExists) return next(new NotFoundError('Category not found'));
-
-        const user = await User.findByPk(userId)
-        if (!user) return next(new NotFoundError("User not found"));
 
         const storeExists = await Brand.findByPk(storeId)
         if (!storeExists) return next(new NotFoundError('Store not found'));
 
         const storehasAddress = await DeliveryAddress.findOne({ where: { storeId: storeId, isDefault: true } })
-
         if (!storehasAddress) return next(new NotFoundError('Store has no delivery address'));
 
-        const isAssociated = await storeExists.hasUser(user)
+        const isAssociated = await storeExists.hasUser(decoded)
         if (!isAssociated) return next(new ForbiddenError("You are not allowed to access this resource"));
 
         let fileUrls = [];
@@ -64,7 +61,7 @@ const createProduct = asyncWrapper(async (req, res, next) => {
             images: fileUrls
         }, { transaction: t });
 
-        res.status(201).json({
+        return res.status(201).json({
             success: true,
             data: product,
         });
@@ -73,7 +70,7 @@ const createProduct = asyncWrapper(async (req, res, next) => {
 
 const getshippingcategory = asyncWrapper(async (req, res, next) => {
     const categories = await getshippingcategories();
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         data: categories
     });
@@ -121,14 +118,14 @@ const createBulkProducts = asyncWrapper(async (req, res, next) => {
     }
 
     if (errors.length > 0) {
-        res.status(206).json({
+        return res.status(206).json({
             success: false,
             message: "Bulk create completed with errors",
             processed,
             errors,
         });
     } else {
-        res.status(201).json({
+        return res.status(201).json({
             success: true,
             message: "All products created successfully",
             processed,
@@ -216,7 +213,7 @@ const createBulkProducts = asyncWrapper(async (req, res, next) => {
 //         // check if the response.totalPages is null
 //         if (response.totalPages === null) { response.totalPages = 1;}
 
-//         res.status(200).json({ success: true, data: response });
+//         return res.status(200).json({ success: true, data: response });
 //     });
 
 // });
@@ -308,7 +305,7 @@ const getProducts = asyncWrapper(async (req, res, next) => {
             response.totalPages = 1;
         }
 
-        res.status(200).json({ success: true, data: response });
+        return res.status(200).json({ success: true, data: response });
     });
 });
 
@@ -319,7 +316,7 @@ const getProduct = asyncWrapper(async (req, res, next) => {
         if (!product) {
             return next(new NotFoundError(`Product with id ${req.params.id} not found`));
         }
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             data: product,
         });
@@ -343,7 +340,7 @@ const getStoreProducts = asyncWrapper(async (req, res, next) => {
                 storeId
             }
         });
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: `Products for store: ${store.name} retrieved successfully`,
             data: products,
@@ -370,9 +367,9 @@ const toggleProduct = asyncWrapper(async (req, res, next) => {
         if (!product) {
             return next(new NotFoundError(`Product with id ${req.params.id} not found`));
         }
-        const newproductStatus = product.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
+        const newproductStatus = product.status === 'active' ? 'inactive' : 'active'
         let messsage;
-        if (newproductStatus === 'ACTIVE') {
+        if (newproductStatus === 'active') {
             messsage = 'Product has been successfully activated'
         } else {
             messsage = 'Product has been hidden successfully'
@@ -381,7 +378,7 @@ const toggleProduct = asyncWrapper(async (req, res, next) => {
             status: newproductStatus
         }, { where: { id, storeId } }, { transaction: t });
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: messsage,
         });
@@ -405,7 +402,7 @@ const updateProduct = asyncWrapper(async (req, res, next) => {
         }
 
         // ensure product is inactive before updating
-        if (product.status !== 'INACTIVE') {
+        if (product.status !== 'inactive') {
             return next(new BadRequestError(`Product must be inactive before updating`));
         }
 
@@ -450,7 +447,7 @@ const updateProduct = asyncWrapper(async (req, res, next) => {
             images: fileUrls ? fileUrls : product.images
         }, { transaction: t });
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: `Product Updated: ${updated.name} has been successfully updated`,
         });
@@ -492,7 +489,7 @@ const updateProductdiscount = asyncWrapper(async (req, res, next) => {
         const updated = await product.update({
             discount
         }, { transaction: t });
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: `Product Updated: ${updated.name} has been successfully updated`,
         });
@@ -510,7 +507,7 @@ const deleteProduct = asyncWrapper(async (req, res, next) => {
 
         await product.destroy();
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: `${product.name} deleted successfully`
         });
@@ -569,7 +566,7 @@ const searchProduct = asyncWrapper(async (req, res, next) => {
             ],
         });
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             data: products,
         });
@@ -683,7 +680,7 @@ const searchProduct = asyncWrapper(async (req, res, next) => {
 //         offset: page ? (parseInt(page) - 1) * (limit ? parseInt(limit) : 10) : 0,
 //     });
 
-//     res.status(200).json({ count, rows });
+//     return res.status(200).json({ count, rows });
 // });
 
 
