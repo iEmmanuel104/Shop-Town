@@ -22,7 +22,7 @@ const basicAuth = asyncWrapper(async (req, res, next) => {
 
     console.log('decoded from basicAuth', decoded)
 
-    req.decoded = decoded
+    req.decoded = user
     next()
     
 })
