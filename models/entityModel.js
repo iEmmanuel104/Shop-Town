@@ -1,4 +1,4 @@
-const { generateCode } = require('../app/utils/StringGenerator');
+const { generateCode } = require('../app/utils/stringGenerator');
 const { sendverificationEmail, sendForgotPasswordEmail } = require('../app/utils/mailTemplates');
 // const { generateWallet } = require('../app/services/wallet.service');
 
