@@ -73,7 +73,7 @@ const createPost = asyncWrapper(async (req, res, next) => {
             console.log(`Post with ID ${post.id} scheduled for deletion.`);
         }
 
-        res.status(201).json({
+        return res.status(201).json({
             success: true,
             data: post,
         });
@@ -126,7 +126,7 @@ const getPosts = asyncWrapper(async (req, res, next) => {
             break;
     }
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         data: posts,
     });
@@ -158,7 +158,7 @@ const getStorePosts = asyncWrapper(async (req, res, next) => {
         ],
     });
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         data: posts,
     });
@@ -190,7 +190,7 @@ const getPost = asyncWrapper(async (req, res, next) => {
         return next(new NotFoundError(`Post with id ${req.params.id} not found`));
     }
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         data: post,
     });
@@ -229,7 +229,7 @@ const updatePost = asyncWrapper(async (req, res, next) => {
         contentUrl: fileUrls.length > 0 ? fileUrls : post.contentUrl,
     });
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         data: post,
     });
@@ -270,7 +270,7 @@ const addPostActivity = asyncWrapper(async (req, res, next) => {
         message = 'Post activity updated successfully';
     }
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         message: message,
     });
@@ -294,7 +294,7 @@ const deletePost = asyncWrapper(async (req, res, next) => {
 
     await post.destroy();
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         message: 'Post deleted successfully',
         data: {},
