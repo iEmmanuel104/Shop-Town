@@ -42,7 +42,7 @@ const storeCart = asyncWrapper(async (req, res, next) => {
         await usercart.addChild(newCart, { transaction: t })
 
         // save wishli
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             data: newCart
         });
@@ -82,7 +82,7 @@ const getCart = asyncWrapper(async (req, res, next) => {
             await Cart.update(newcart, { where: { id: cart.id } });
         }
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             data: {
                 ...cart.toJSON(),
@@ -131,7 +131,7 @@ const updateCart = asyncWrapper(async (req, res, next) => {
 
         await cart.update(cartitems, { transaction: t });
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message,
             data: { ...updatefields }
@@ -149,7 +149,7 @@ const deleteCart = asyncWrapper(async (req, res, next) => {
         if (cart.isWishList === false) return next(new ForbiddenError("You can't delete a main cart only a wishlist cart"));
 
         await cart.destroy();
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: "Cart deleted",
             data: {}
@@ -238,7 +238,7 @@ const cartcheckout = asyncWrapper(async (req, res, next) => {
 
             await cart.save({ transaction: t });
 
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 message: "Proceed to choose a suitable shipping method",
                 kship_fee: kship_courier.total ? parseFloat(kship_courier.total) : cheapest_courier.total,
@@ -246,7 +246,7 @@ const cartcheckout = asyncWrapper(async (req, res, next) => {
             });
         }
         else {
-            res.status(200).json({
+            return res.status(200).json({
                 success: true,
                 data: {}
             });
