@@ -4,6 +4,7 @@ const { uploadSingleFile } = require('../services/imageupload.service');
 const { LOGO, accessTokenExpiry } = require('../utils/configs');
 const { generateWallet, createCart } = require('../services/wallet.service');
 const { sequelize, Sequelize } = require('../../models');
+const Op = Sequelize.Op;
 require('dotenv').config();
 const asyncWrapper = require('../middlewares/async');
 const { generateCode } = require('../utils/StringGenerator');
@@ -532,14 +533,26 @@ const registerStore = asyncWrapper(async (req, res, next) => {
     if (!payload.isVerified || !payload.isActivated) {
         return next(new BadRequestError('Please verify your account to create a store'));
     }
+    checkemail = email.trim().toLowerCase()
+    checkstoreName = storeName.trim().toLowerCase()
+    const existingStore = await Brand.findOne({
+        where: {
+            [Op.or]: [
+                { businessEmail: checkemail },
+                { name: checkstoreName },
+            ],
+        },
+        attributes: ['businessEmail', 'name'],
+    });
 
-    // Check if store with the given email already exists
-    const storeExists = await Brand.findOne({ where: { businessEmail: email } });
+    if (existingStore) {
+        const errorMessage = `A Store with this ${existingStore.businessEmail === checkemail ? 'Email' : 'Name'} already exists`;
+        return next(new BadRequestError(errorMessage));
+    }
 
-    if (storeExists) return next(new BadRequestError('A Store with this Email already exists'));
 
     const address_code = await validateAddress({
-        name: storeName, 
+        name: checkstoreName, 
         email,
         phone,
         address: `${address},${city},${state},${country}`
@@ -547,7 +560,7 @@ const registerStore = asyncWrapper(async (req, res, next) => {
 
     let url;
     if (req.file) {
-            url = await uploadSingleFile(req.file, { user: payload.id, folder: `Stores/${storeName.trim()}/banner` })
+            url = await uploadSingleFile(req.file, { user: `Stores/${checkstoreName}`, folder: `Images` })
     }
 
     // Create store, add user, and create new address using bulkCreate

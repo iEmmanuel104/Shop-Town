@@ -126,7 +126,7 @@ const updateBrand = asyncWrapper(async (req, res, next) => {
     }
 
     const brandUpdate = {};
-    if (storeName) brandUpdate.name = storeName;
+    // if (storeName) brandUpdate.name = storeName;
     if (socials) brandUpdate.socials = socials;
     if (phone) brandUpdate.businessPhone = phone;
     if (industry) brandUpdate.industry = industry;
@@ -135,8 +135,8 @@ const updateBrand = asyncWrapper(async (req, res, next) => {
     let url, uploadname = storeName? storeName: storeExists.name;
     if (req.file) {
         const details = {
-            user: payload.id,
-            folder: `Stores/${uploadname.trim()}/banner`,
+            user: storeName? `Stores/${storeName.trim().toLowerCase()}`: `Stores/${storeExists.name}`,
+            folder: `Images`,
         };
         url = await uploadSingleFile(req.file, details);
         brandUpdate.logo = url;
