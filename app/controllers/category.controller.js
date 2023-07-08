@@ -18,7 +18,7 @@ const createCategory = asyncWrapper(async (req, res, next) => {
         // Map through the array of categories and create them in bulk
         const createdCategories = await Category.bulkCreate(categories);
 
-        res.status(201).json({
+        return res.status(201).json({
             success: true,
             data: createdCategories,
         });
@@ -41,7 +41,7 @@ const createCategory = asyncWrapper(async (req, res, next) => {
                 name,
                 description,
             }, { transaction: t });
-            res.status(201).json({
+            return res.status(201).json({
                 success: true,
                 data: category,
             });
@@ -55,7 +55,7 @@ const createCategory = asyncWrapper(async (req, res, next) => {
 //     // Map through the array of categories and create them in bulk
 //     const createdCategories = await Category.bulkCreate(categories);
 
-//     res.status(201).json({
+//     return res.status(201).json({
 //         success: true,
 //         data: createdCategories,
 //     });
@@ -64,7 +64,7 @@ const createCategory = asyncWrapper(async (req, res, next) => {
 
 const getCategories = asyncWrapper(async (req, res, next) => {
     const categories = await Category.findAll();
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         data: categories,
     });
@@ -75,7 +75,7 @@ const getCategory = asyncWrapper(async (req, res, next) => {
     if (!category) {
         return next(new NotFoundError(`Category with id ${req.params.id} not found`));
     }
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         data: category,
     });
@@ -91,7 +91,7 @@ const updateCategory = asyncWrapper(async (req, res, next) => {
         category.name = name;
         category.description = description;
         await category.save({ transaction: t });
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             data: category,
         });
@@ -105,7 +105,7 @@ const deleteCategory = asyncWrapper(async (req, res, next) => {
             return next(new NotFoundError(`Category with id ${req.params.id} not found`));
         }
         await category.destroy({ transaction: t });
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             data: {},
         });
