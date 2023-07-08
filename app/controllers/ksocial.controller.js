@@ -16,16 +16,16 @@ const createPost = asyncWrapper(async (req, res, next) => {
         const { caption, post_type } = req.body,
             decoded = req.decoded,
             useremail = decoded.email
-
-        const { storeId } = req.query;
-
-        if (!caption) return next(new BadRequestError('Please provide a caption'));
+        // if (!caption) return next(new BadRequestError('Please provide a caption'));
         if (!post_type) return next(new BadRequestError('Please provide a post type'));
+
         if (post_type !== 'status' && post_type !== 'ksocial') return next(new BadRequestError('Invalid post type'));
+        const {storeId} = req.query;
+        if (!storeId) return next(new BadRequestError('Please provide a storeId'));
         const store = await Brand.scope('includeUsers').findByPk(storeId,
             { attributes: ['name', 'businessPhone', 'socials', 'owner'] }
         );
-        console.log("storessss ===== ", JSON.parse(JSON.stringify(store)))
+        
         const userEmails = store.Users.map(user => user.email),
             isEmailInStoreUsers = userEmails.includes(useremail);
 
@@ -36,7 +36,7 @@ const createPost = asyncWrapper(async (req, res, next) => {
         if (req.files) {
             console.log(req.files)
             const details = {
-                user: `Stores/${storeExists.name}`,
+                user: `Stores/${store.name}`,
                 folder: `Ksocial/${post_type}`,
             };
             fileUrls = await uploadFiles(req, details);
