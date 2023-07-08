@@ -63,9 +63,9 @@ const signUp = asyncWrapper(async (req, res, next) => {
 const verifyEmail = asyncWrapper(async (req, res, next) => {
     const { code } = req.body;
     const { decoded } = req;
-    const { id: userId, isActivated } = decoded;
+    const { id: userId, isVerified } = decoded;
 
-    if (isActivated) {
+    if (isVerified) {
         return next(new BadRequestError('User already verified, please login'));
     }
 
@@ -78,7 +78,6 @@ const verifyEmail = asyncWrapper(async (req, res, next) => {
 
     await User.update({
         isVerified: true,
-        isActivated: true
     }, { where: { id: userId } });
 
     await Promise.all([
@@ -98,7 +97,7 @@ const resendVerificationCode = asyncWrapper(async (req, res, next) => {
     const payload = req.decoded
     const userId = payload.id
 
-    if (payload.isActivated) return next(new BadRequestError('User already verified'))
+    if (payload.isVerified) return next(new BadRequestError('User already verified'))
 
     const user = await User.findByPk(userId);
     if (!user) {
@@ -245,7 +244,7 @@ const signIn = asyncWrapper(async (req, res, next) => {
 
     if (!user) return next(new BadRequestError('Invalid user'));
 
-    if (!user.isActivated) {
+    if (!user.isVerified) {
         user.generateAndSendVerificationCode('verify');
 
         return  res.status(422).json({ // 422 unprocessable entity 
