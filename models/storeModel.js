@@ -13,6 +13,7 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false,
             // remove whitespaces from both ends
             set(value) {
+                if (value) 
                 this.setDataValue('name', value.trim().toLowerCase());
             }
         },
@@ -20,6 +21,7 @@ module.exports = (sequelize, DataTypes) => {
         subcategory: { 
             type: DataTypes.STRING, 
             set(value) {
+                if (value) 
                 this.setDataValue('subcategory', value.trim().toLowerCase());
             }
          },
@@ -147,6 +149,7 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING,
             allowNull: false,
             set(value) {
+                if (value)
                 this.setDataValue('name', value.trim().toLowerCase());
             }
         },
@@ -218,6 +221,7 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING,
             allowNull: false,
             set(value) {
+                if (value)
                 this.setDataValue('title', value.trim().toLowerCase());
             }
         },

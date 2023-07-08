@@ -22,6 +22,7 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false,
             // remove empty spaces
             set(value) {    
+                if(value)
                 this.setDataValue('firstName', value.trim().toLowerCase());
             }
         },
@@ -30,6 +31,7 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false,
             // remove empty spaces
             set(value) {
+                if (value)
                 this.setDataValue('lastName', value.trim().toLowerCase());
             }
         },
@@ -53,6 +55,7 @@ module.exports = (sequelize, DataTypes) => {
             },
             allowNull: false,
             set(value) {
+                if (value)
                 // remove whitespaces and convert to lowercase
                 this.setDataValue('email', value.trim().toLowerCase());
             }
@@ -189,6 +192,7 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false,
             //remove white spaces
             set(value) {
+                if (value)
                 this.setDataValue('name', value.trim().toLowerCase());
             }
         },
@@ -223,6 +227,7 @@ module.exports = (sequelize, DataTypes) => {
                 }
             },
             set(value) {
+                if (value)
                 this.setDataValue('businessEmail', value.trim().toLowerCase());
             }
         },
@@ -230,6 +235,7 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING,
             allowNull: false,
             set(value) {
+                if (value)
                 this.setDataValue('industry', value.trim().toLowerCase());
             }
         },
