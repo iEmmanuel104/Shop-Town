@@ -61,10 +61,6 @@ module.exports = (sequelize, DataTypes) => {
         },
         phone: {
             type: DataTypes.BIGINT,
-            // unique: {
-            //     args: true,
-            //     msg: 'Phone number already in use!'
-            // },
             validate: {
                 len: {
                     args: [10, 15],
@@ -76,8 +72,8 @@ module.exports = (sequelize, DataTypes) => {
             }
         },
         status: {
-            type: DataTypes.ENUM(["ACTIVE", "INACTIVE"]),
-            defaultValue: "INACTIVE",
+            type: DataTypes.ENUM(["active", "inactive"]),
+            defaultValue: "inactive",
             allowNull: false
         },
         // terms: {
@@ -138,7 +134,7 @@ module.exports = (sequelize, DataTypes) => {
         scopes: {
             verified: {
                 where: {
-                    status: 'ACTIVE',
+                    status: 'active',
                     isActivated: true,
                     isVerified: true
                 },
@@ -172,6 +168,13 @@ module.exports = (sequelize, DataTypes) => {
                 user.generateAndSendVerificationCode('verify');
             }
         },
+        indexes: [
+            {
+                unique: true,
+                fields: ['email']
+            }
+        ]
+
     });
 
     //  ======  Brand Model  ====== //
@@ -190,11 +193,7 @@ module.exports = (sequelize, DataTypes) => {
             },
             allowNull: false
         },
-        socials: {
-            type: DataTypes.JSONB,
-            defaultValue: {},
-            allowNull: false
-        },
+        socials: { type: DataTypes.JSONB },
         businessPhone: {
             type: DataTypes.BIGINT,
             // unique: {
@@ -236,11 +235,7 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false
         },
         logo: { type: DataTypes.STRING },
-        storeSettings: {
-            type: DataTypes.JSONB, // store 
-            defaultValue: {},
-            allowNull: true
-        }
+        storeSettings: {type: DataTypes.JSONB}
     }, {
         tableName: 'Brand',
         timestamps: true,
@@ -261,20 +256,12 @@ module.exports = (sequelize, DataTypes) => {
                 }]
             }
         },
-        // hooks: {
-        //     afterCreate: async (brand) => {
-        //         //    await generateWallet({ id: store.id, type: 'store' });
-        //         // create a wallet for the store
-        //         console.log('brand created == wallet to be created');
-        //         await Wallet.create({
-        //             storeId: brand.id,
-        //             balance: 0,
-        //             type: type,
-        //             isActive: true
-        //         });
-        //         console.log('wallet created');
-        //     }
-        // }
+        indexes: [
+            {
+                unique: true,
+                fields: ['businessEmail']
+            }
+        ]
     });
 
     // ======  UserBrand Model  ====== //

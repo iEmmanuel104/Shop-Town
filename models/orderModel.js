@@ -127,8 +127,8 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false
         },
         paymentMethod: {
-            type: DataTypes.ENUM(["CARD", "KCREDIT", "CASH"]),
-            defaultValue: "CARD",
+            type: DataTypes.ENUM(["card", "kcredit", "cash"]),
+            defaultValue: "card",
             allowNull: false
         },
         paymentService: {

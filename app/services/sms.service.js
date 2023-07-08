@@ -2,6 +2,7 @@ const { TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_PHONE_SERVICE_SID } = requ
 const accountSid = TWILIO_ACCOUNT_SID;
 const authToken = TWILIO_AUTH_TOKEN;
 const client = require('twilio')(accountSid, authToken);
+const {BadRequestError, NotFoundError, ForbiddenError} = require('../utils/customErrors');
 
 const sendWhatsappSMS = async (options) => {
     console.log("sms options:", options)
@@ -41,7 +42,7 @@ const phoneNumberLookup = (options) => {
             })
             .catch((error) => {
                 // console.log("Error occurred:", error);
-                reject(error);
+                reject(new BadRequestError('Invalid phone number'));
             });
     });
 };

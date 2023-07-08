@@ -136,7 +136,11 @@ module.exports = (sequelize, DataTypes) => {
                     }
                 }
             }
-        }
+        },
+        indexes: [
+            { fields: ['userId'] }, // for user delivery addresses
+            { fields: ['storeId'] }, // for store delivery addresses
+        ]
     });
 
     DeliveryAddress.addHook('beforeSave', async (address, options) => {

@@ -9,7 +9,7 @@ const userSchema = Joi.object({
     role: Joi.string().valid("super_admin", "admin", "vendor", "guest").required(),
     address: Joi.string().trim(),
     phone: Joi.string().trim().length(10, 15).pattern(/^[0-9]+$/),
-    status: Joi.string().valid("ACTIVE", "INACTIVE").required(),
+    status: Joi.string().valid("active", "inactive").required(),
     terms: Joi.string().valid("on", "off"),
     googleId: Joi.string().allow(null),
     facebookId: Joi.string().allow(null),

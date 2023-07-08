@@ -44,19 +44,14 @@ module.exports = (sequelize, DataTypes) => {
                 return roundedPrice;
             }
         },
-        specifications: {
-            type: DataTypes.JSONB,
-            defaultValue: {}
-        },
+        specifications: { type: DataTypes.JSONB },
         status: {
-            type: DataTypes.ENUM(["ACTIVE", "INACTIVE"]),
-            defaultValue: "ACTIVE",
+            type: DataTypes.ENUM(["active", "inactive"]),
+            defaultValue: "active",
             allowNull: false
         },
         images: {
-            type: DataTypes.ARRAY(DataTypes.STRING),
-            defaultValue: []
-        },
+            type: DataTypes.ARRAY(DataTypes.STRING)},
     }, {
         tableName: 'Product',
         timestamps: true,
@@ -67,7 +62,7 @@ module.exports = (sequelize, DataTypes) => {
                 }
             },
             includeBrand: {
-                where: { status: 'ACTIVE' },
+                where: { status: 'active' },
                 include: [
                     {
                         model: Brand,
@@ -90,7 +85,7 @@ module.exports = (sequelize, DataTypes) => {
             },
 
             includePrice: {
-                where: { status: 'ACTIVE' },
+                where: { status: 'active' },
                 attributes: ['id', 'name', 'price', 'quantity', 'discount', 'discountedPrice', 'storeId', 'images'],
             },
 
@@ -148,8 +143,8 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING,
         },
         status: {
-            type: DataTypes.ENUM(["ACTIVE", "INACTIVE"]),
-            defaultValue: "ACTIVE",
+            type: DataTypes.ENUM(["active", "inactive"]),
+            defaultValue: "active",
             allowNull: false
         },
     }, {
@@ -173,13 +168,8 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false
         },
         items: {
-            type: DataTypes.JSONB,
-            defaultValue: {},
-        },
-        checkoutData: {
-            type: DataTypes.JSONB,
-            defaultValue: {}
-        },
+            type: DataTypes.JSONB },
+        checkoutData: { type: DataTypes.JSONB },
         totalAmount: {
             type: DataTypes.DECIMAL(10, 2),
             defaultValue: 0
@@ -244,17 +234,13 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false
         },
         usageLimitPerPerson: {
-            type: DataTypes.INTEGER,
-            defaultValue: 1,
+            type: DataTypes.INTEGER
         },
         usageLimitPerDiscount: {
-            type: DataTypes.INTEGER,
-            defaultValue: 1,
+            type: DataTypes.INTEGER
         },
         categoryIds: {
-            type: DataTypes.ARRAY(DataTypes.UUID),
-            defaultValue: []
-        },
+            type: DataTypes.ARRAY(DataTypes.UUID)},
     }, {
         tableName: 'StoreDiscount',
         timestamps: true,

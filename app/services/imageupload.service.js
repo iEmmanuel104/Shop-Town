@@ -9,7 +9,7 @@ const uploadSingleFile = async (file, details) => {
     let uploadresult = await uploadtocloudinary(fileBuffer, details);
     // console.log('upload result', uploadresult);
     if (uploadresult.message === 'error') {
-        throw new BadRequestError(uploadresult.message);
+        throw new BadRequestError(uploadresult.error.message);
     }
     if (uploadresult.message === 'success') {
         return uploadresult.url;
