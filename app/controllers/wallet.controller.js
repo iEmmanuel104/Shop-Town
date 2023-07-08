@@ -55,7 +55,7 @@ const fundWallet = asyncWrapper(async (req, res, next) => {
         //     where: { id: wallet.id },
         // }); status=successful&tx_ref=WalletFund-27aca5c3-5f06-438f-90a2-14688cf4413c&transaction_id=4349800
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: 'Wallet fund request successful',
             data: { paymentLink }
@@ -96,7 +96,7 @@ const validateWalletFund = asyncWrapper(async (req, res, next) => {
             message = 'Wallet fund validation failed';
         }
 
-        res.status(200).json({ success: true, message: message });
+        return res.status(200).json({ success: true, message: message });
     });
 });
 
@@ -113,7 +113,7 @@ const getWalletTransactions = asyncWrapper(async (req, res, next) => {
         // group: [sequelize.literal('DATE_TRUNC(\'month\', "createdAt")')],
     });
 
-    res.status(200).json({ success: true, message: 'Wallet transactions fetched successfully', data: { transactions } });
+    return res.status(200).json({ success: true, message: 'Wallet transactions fetched successfully', data: { transactions } });
 });
 
 const getWalletBalance = asyncWrapper(async (req, res, next) => {
@@ -123,7 +123,7 @@ const getWalletBalance = asyncWrapper(async (req, res, next) => {
     if (!wallet) {
         throw new NotFoundError('Wallet not found');
     }
-    res.status(200).json({ success: true, message: 'Wallet balance fetched successfully', data: { balance: wallet.amount } });
+    return res.status(200).json({ success: true, message: 'Wallet balance fetched successfully', data: { balance: wallet.amount } });
 });
 
 const getWallet = asyncWrapper(async (req, res, next) => {
@@ -133,7 +133,7 @@ const getWallet = asyncWrapper(async (req, res, next) => {
     if (!wallet) {
         throw new NotFoundError('Wallet not found');
     }
-    res.status(200).json({ success: true, message: 'Wallet fetched successfully', data: { wallet } });
+    return res.status(200).json({ success: true, message: 'Wallet fetched successfully', data: { wallet } });
 });
 
 const getWallets = asyncWrapper(async (req, res, next) => {
@@ -143,7 +143,7 @@ const getWallets = asyncWrapper(async (req, res, next) => {
     if (!wallets) {
         throw new NotFoundError('Wallet not found');
     }
-    res.status(200).json({ success: true, message: 'Wallets fetched successfully', data: { wallets } });
+    return res.status(200).json({ success: true, message: 'Wallets fetched successfully', data: { wallets } });
 });
 
 const generatereceipt = asyncWrapper(async (req, res, next) => {
@@ -170,26 +170,26 @@ const generatereceipt = asyncWrapper(async (req, res, next) => {
         completed: transaction.updatedAt,
     }
 
-    res.status(200).json({ success: true, message: 'Receipt generated successfully', data: { receipt } });
+    return res.status(200).json({ success: true, message: 'Receipt generated successfully', data: { receipt } });
 });
 
 const getallPayoutBanks = asyncWrapper(async (req, res, next) => {
    const banks = await getflutterwavepayoutbanks();
-    res.status(200).json({ success: true, message: 'Banks fetched successfully', data:  banks  });
+    return res.status(200).json({ success: true, message: 'Banks fetched successfully', data:  banks  });
 });
 
 const getpayoutfee = asyncWrapper(async (req, res, next) => {
     const { amount } = req.query;
     const details = { amount: parseInt(amount) }
     const fee = FlutterwaveTransferfee(details);
-    res.status(200).json({ success: true, message: 'Fee fetched successfully', data: { fee } });
+    return res.status(200).json({ success: true, message: 'Fee fetched successfully', data: { fee } });
 });
 
 const checkTransferStatus = asyncWrapper(async (req, res, next) => {
     const { transferId } = req.query;
     const details = { transferId }
     const status = await FlutterwaveTransferStatus(details);
-    res.status(200).json({ success: true, message: 'Transfer status fetched successfully', data: { status } });
+    return res.status(200).json({ success: true, message: 'Transfer status fetched successfully', data: { status } });
 });
 
 const walletPayout = asyncWrapper(async (req, res, next) => {
@@ -246,7 +246,7 @@ const walletPayout = asyncWrapper(async (req, res, next) => {
             message = `Wallet payout failed:${transfer.message}`;
         }
     });
-    res.status(200).json({ success: true, message: 'Wallet payout successful', data: { transfer } });
+    return res.status(200).json({ success: true, message: 'Wallet payout successful', data: { transfer } });
 });
 
 const flutterwavecallback = asyncWrapper(async (req) => {
