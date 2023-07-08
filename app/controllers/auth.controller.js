@@ -21,7 +21,6 @@ const signUp = asyncWrapper(async (req, res, next) => {
     if (!email | !firstName | !lastName | !location | !city | !state) return next(new BadRequestError('Please fill all required fields'));
 
     let access_token, address_code;
-
     const addressdetails = location + ',' + city + ',' + state + ',' + country,
         details = {
             name: firstName + ' ' + lastName,
@@ -51,10 +50,10 @@ const signUp = asyncWrapper(async (req, res, next) => {
             addressCode: address_code,
             isDefault: true
         }),
-        access_token = (await issueToken({userid:user.id})).access_token
+        access_token = (await issueToken({ userid: user.id })).access_token
     ]);
 
-    res.status(201).json({
+    return res.status(201).json({
         success: true,
         message: 'User created successfully, check your email for verification code',
         access_token
@@ -70,9 +69,10 @@ const verifyEmail = asyncWrapper(async (req, res, next) => {
         return next(new BadRequestError('User already verified, please login'));
     }
 
-    const token = await Token.findOne({ where: { verificationCode: code, userId } });
+    const token = await Token.findOne({ where: { userId } });
+    console.log('token ====', token)
 
-    if (!token.verificationCode) {
+    if (token.verificationCode !== code) {
         return next(new BadRequestError('Invalid verification code'));
     }
 
@@ -87,7 +87,7 @@ const verifyEmail = asyncWrapper(async (req, res, next) => {
         token.update({ verificationCode: null })
     ]);
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         message: 'User Email verified successfully',
     });
@@ -108,7 +108,7 @@ const resendVerificationCode = asyncWrapper(async (req, res, next) => {
     const code = await user.generateAndSendVerificationCode('verify');
 
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         message: 'Verification code sent successfully',
     });
@@ -149,7 +149,7 @@ const profileOnboarding = asyncWrapper(async (req, res, next) => {
         isDefault: true
     })
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         message: 'User profile onboarding successful',
     });
@@ -178,7 +178,7 @@ const forgotPassword = asyncWrapper(async (req, res, next) => {
             code = await user.generateAndSendVerificationCode('forgot');
         }
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: "Password reset code sent successfully, proceed to reset password",
             // access_token
@@ -248,7 +248,7 @@ const signIn = asyncWrapper(async (req, res, next) => {
     if (!user.isActivated) {
         user.generateAndSendVerificationCode('verify');
 
-        return res.status(422).json({ // 422 unprocessable entity 
+        return  res.status(422).json({ // 422 unprocessable entity 
             success: true,
             message: 'User not verified, verification code sent successfully',
             access_token
@@ -271,16 +271,16 @@ const signIn = asyncWrapper(async (req, res, next) => {
     // check if the user has a store 
     const stores = await user.getBrands()
     if (stores.length > 0) {
-        await user.update({ status: 'ACTIVE', vendorMode: true });
-        tokens = await issueToken({userid: user.id, storeId: stores[0].id})
+        await user.update({ status: 'active', vendorMode: true });
+        tokens = await issueToken({ userid: user.id, storeId: stores[0].id })
     } else {
-        await user.update({ status: 'ACTIVE' });
-        tokens = await issueToken({userid: user.id})
+        await user.update({ status: 'active' });
+        tokens = await issueToken({ userid: user.id })
     }
 
     const { access_token, refresh_token } = tokens
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         message: "Sign in successful",
         // user,
@@ -331,7 +331,7 @@ const getloggedInUser = asyncWrapper(async (req, res, next) => {
         socials: store.socials
     }))
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         message: "User retrieved successfully",
         user,
@@ -357,7 +357,7 @@ const getNewAccessToken = asyncWrapper(async (req, res, next) => {
 
     const { access_token } = await issueToken({ userid: user.id, type: 'access' });
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         message: 'New access token retrieved successfully',
         access_token
@@ -373,14 +373,14 @@ const facebookauth = asyncWrapper(async (req, res, next) => {
         user = await User.create({ email, facebookId });
     } else {
         user.facebookId = facebookId;
-        user.status = "ACTIVE"
+        user.status = "active"
         await user.save();
     }
 
     // Generate a JWT token for authentication
     const { access_token, refresh_token } = await issueToken({ userid: user.id })
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         message: 'User signed in successfully',
         access_token,
@@ -396,13 +396,13 @@ const googleSignIn = asyncWrapper(async (req, res, next) => {
     if (user.googleId !== googleId) {
         return next(new BadRequestError('Invalid user'));
     }
-    user.status = "ACTIVE"
+    user.status = "active"
     await user.save()
 
     // Generate a JWT token for authentication
     const { access_token, refresh_token } = await issueToken({ userid: user.id })
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         message: 'User signed in successfully',
         access_token,
@@ -421,8 +421,8 @@ const logout = asyncWrapper(async (req, res, next) => {
 
     const { id: userId } = await decodeJWT(token);
 
-    // Update user status to "INACTIVE" in a single query
-    await User.update({ status: 'INACTIVE', vendorMode: true }, { where: { id: userId } });
+    // Update user status to "inactive" in a single query
+    await User.update({ status: 'inactive', vendorMode: true }, { where: { id: userId } });
 
     // Blacklist token in Redis cache
     // Check if token exists in Redis cache
@@ -439,9 +439,9 @@ const logout = asyncWrapper(async (req, res, next) => {
     }
     console.log('redis expiry time', redisExpiry);
 
-    await redisClient.set(token, 'blacklisted', { KEEPTTL: true, XX: true});
+    await redisClient.set(token, 'blacklisted', { KEEPTTL: true, XX: true });
 
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         message: 'User logged out successfully',
     });
@@ -487,7 +487,7 @@ const switchAccount = asyncWrapper(async (req, res, next) => {
         responseData.stores = stores
     }
 
-    res.status(200).json(responseData)
+    return res.status(200).json(responseData)
 
 });
 
@@ -511,15 +511,15 @@ const selectStore = asyncWrapper(async (req, res, next) => {
     }
 
     if (req.query.token === 'true') {
-        const { access_token } = await issueToken({userid:user.id, storeId})
+        const { access_token } = await issueToken({ userid: user.id, storeId })
         responseData.access_token = access_token
     }
 
-    res.status(200).json(responseData)
+    return res.status(200).json(responseData)
 });
 
 const registerStore = asyncWrapper(async (req, res, next) => {
-    const { storeName, phone, email, industry, country, address, state, city, postal  } = req.body;
+    const { storeName, phone, email, industry, country, address, state, city, postal } = req.body;
 
     if (!storeName || !phone || !email || !industry || !country || !address || !state || !city) {
         return next(new BadRequestError('Please provide all required fields'));
@@ -527,77 +527,56 @@ const registerStore = asyncWrapper(async (req, res, next) => {
 
     // CHECK FOR VALID PHONE NUMBER using twilio
     // phoneNumberLookup({phone})
-
-    const { authorization } = req.headers;
-
-    if (!authorization) {
-        throw new BadRequestError('Invalid authorization');
-    }
-
-    const [, token] = authorization.split(' ');
-
-    const { id: userId } = await decodeJWT(token);
-    const user = await User.findByPk(userId);
-
-    if (!user) {
-        throw new BadRequestError('Invalid user');
-    }
+    const payload = req.decoded
 
     // Check if store with the given email already exists
     const storeExists = await Brand.findOne({ where: { businessEmail: email } });
 
-    if (storeExists) {
-        return next(new BadRequestError('A Store with this Email already exists'));
+    if (storeExists) return next(new BadRequestError('A Store with this Email already exists'));
+
+    const address_code = await validateAddress({
+        name: storeName, 
+        email,
+        phone,
+        address: `${address},${city},${state},${country}`
+    })
+
+    let url;
+    if (req.file) {
+            url = await uploadSingleFile(req.file, { user: payload.id, folder: `Stores/${storeName.trim()}/banner` })
     }
 
-    // Perform address validation
-    const addressDetails = `${address},${city},${state},${country}`;
-
     // Create store, add user, and create new address using bulkCreate
-    const storeData = {
-        userId: user.id,
-        name: storeName,
-        businessPhone: phone,
-        businessEmail: email,
-        industry: industry,
-        country: country,
-        address,
-        state,
-        owner: user.id,
-        city: city,
-        postal,
-        logo: LOGO,
-    };
+    const createdStore = await Brand.create({
+        name: storeName,        city: city,
+        businessPhone: phone,   businessEmail: email,
+        industry: industry,     country: country,
+        address,                state,
+        owner: payload.id,      
+        // logo: LOGO
+        logo: url ? url : LOGO,
+    });
 
-    const [store, deliveryAddress] = await sequelize.transaction(async (t) => {
-        const [createdStore] = await Brand.bulkCreate([storeData], { returning: true, transaction: t });
+    const [storeuser, deliveryAddress] = await Promise.all([
 
-        await createdStore.addUser(user, { through: { role: 'owner' }, transaction: t });
+        createdStore.addUser(payload, { through: { role: 'owner' } }),
 
-        const deliveryAddressData = {
+        DeliveryAddress.create({
             storeId: createdStore.id,
-            address,
+            address, 
             city,
             state,
             country,
-            phone: req.body.phone ? user.phone : user.phone,
-            addressCode: await validateAddress({
-                name: storeName,
-                email,
-                phone,
-                address: addressDetails,
-            }),
+            phone,
+            addressCode: address_code,
             isDefault: true,
-        };
-        const createdDeliveryAddresses = await DeliveryAddress.bulkCreate([deliveryAddressData], { returning: true, transaction: t });
+        })
+    ]);
 
-        return [createdStore, createdDeliveryAddresses];
-    });
-
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         message: 'Store created successfully',
-        store,
+        createdStore
     });
 });
 
@@ -611,5 +590,3 @@ module.exports = {
     switchAccount, registerStore,
     selectStore
 }
-
-
