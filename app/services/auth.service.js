@@ -18,6 +18,7 @@ const issueToken = async ({userid, storeId, type}) => {
             phone: this_user.phone,
             role: this_user.role,
             isActivated: this_user.isActivated,
+            isVerified: this_user.isVerified,
             vendorMode: this_user.vendorMode,
         }
         payload.website = mywebsite;

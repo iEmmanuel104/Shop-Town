@@ -244,7 +244,7 @@ const signIn = asyncWrapper(async (req, res, next) => {
 
     if (!user) return next(new BadRequestError('Invalid user'));
 
-    if (!user.isVerified) {
+    if (!user.isVerified || !user.isActivated) {
         user.generateAndSendVerificationCode('verify');
 
         return  res.status(422).json({ // 422 unprocessable entity 
