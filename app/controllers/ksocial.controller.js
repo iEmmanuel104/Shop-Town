@@ -36,8 +36,8 @@ const createPost = asyncWrapper(async (req, res, next) => {
         if (req.files) {
             console.log(req.files)
             const details = {
-                folder: `Stores/${storeExists.name}`,
-                user: `Ksocial/${post_type}`,
+                user: `Stores/${storeExists.name}`,
+                folder: `Ksocial/${post_type}`,
             };
             fileUrls = await uploadFiles(req, details);
         }
@@ -211,8 +211,8 @@ const updatePost = asyncWrapper(async (req, res, next) => {
 
     if (files) {
         const details = {
-            folder: `Stores/${storeName.trim().toLowerCase()}`,
-            user: `Ksocial/${post.postType}`,
+            user: `Stores/${storeName.trim().toLowerCase()}`,
+            folder: `Ksocial/${post.postType}`,
         };
         fileUrls = await uploadFiles(req, 'files', details);
     }

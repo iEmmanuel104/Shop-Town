@@ -11,7 +11,7 @@ const { KSECURE_FEE } = require('../utils/configs');
 const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/customErrors');
 const { sendorderpushNotification } = require('../utils/mailTemplates');
 const { getPagination, getPagingData } = require('../utils/pagination')
-const { generateCode } = require('../utils/StringGenerator')
+const { generateCode } = require('../utils/stringGenerator')
 const Op = require("sequelize").Op;
 const path = require('path');
 

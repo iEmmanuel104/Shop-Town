@@ -44,8 +44,8 @@ const createProduct = asyncWrapper(async (req, res, next) => {
     let fileUrls = [];
     if (req.files) {
         const details = {
-            folder: `Stores/${storeExists.name}`,
-            user: "Products"
+            user: `Stores/${storeExists.name}`,
+            folder: "Products"
         };
         fileUrls = await uploadFiles(req, details);
     }
@@ -339,8 +339,8 @@ const updateProduct = asyncWrapper(async (req, res, next) => {
         if (req.files) {
             console.log(req.files)
             const details = {
-                folder: `Stores/${store.name}`,
-                user: "Products"
+                user: `Stores/${store.name}`,
+                folder: "Products"
             };
             fileUrls = await uploadFiles(req, details);
         }
