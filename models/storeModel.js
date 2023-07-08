@@ -10,10 +10,19 @@ module.exports = (sequelize, DataTypes) => {
         },
         name: {
             type: DataTypes.STRING,
-            allowNull: false
+            allowNull: false,
+            // remove whitespaces from both ends
+            set(value) {
+                this.setDataValue('name', value.trim().toLowerCase());
+            }
         },
         description: { type: DataTypes.TEXT },
-        subcategory: { type: DataTypes.STRING },
+        subcategory: { 
+            type: DataTypes.STRING, 
+            set(value) {
+                this.setDataValue('subcategory', value.trim().toLowerCase());
+            }
+         },
         price: {
             type: DataTypes.DECIMAL(10, 2),
             allowNull: false
@@ -136,7 +145,10 @@ module.exports = (sequelize, DataTypes) => {
         },
         name: {
             type: DataTypes.STRING,
-            allowNull: false
+            allowNull: false,
+            set(value) {
+                this.setDataValue('name', value.trim().toLowerCase());
+            }
         },
         description: { type: DataTypes.TEXT },
         image: {
@@ -204,7 +216,10 @@ module.exports = (sequelize, DataTypes) => {
         },
         title: {
             type: DataTypes.STRING,
-            allowNull: false
+            allowNull: false,
+            set(value) {
+                this.setDataValue('title', value.trim().toLowerCase());
+            }
         },
         type: {
             type: DataTypes.ENUM(["percentage", "amount"]),

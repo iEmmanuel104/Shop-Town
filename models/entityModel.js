@@ -19,11 +19,19 @@ module.exports = (sequelize, DataTypes) => {
         },
         firstName: {
             type: DataTypes.STRING,
-            allowNull: false
+            allowNull: false,
+            // remove empty spaces
+            set(value) {    
+                this.setDataValue('firstName', value.trim().toLowerCase());
+            }
         },
         lastName: {
             type: DataTypes.STRING,
-            allowNull: false
+            allowNull: false,
+            // remove empty spaces
+            set(value) {
+                this.setDataValue('lastName', value.trim().toLowerCase());
+            }
         },
         fullName: {
             type: DataTypes.VIRTUAL,
@@ -45,7 +53,8 @@ module.exports = (sequelize, DataTypes) => {
             },
             allowNull: false,
             set(value) {
-                this.setDataValue('email', value.toLowerCase());
+                // remove whitespaces and convert to lowercase
+                this.setDataValue('email', value.trim().toLowerCase());
             }
         },
         role: {
@@ -109,19 +118,6 @@ module.exports = (sequelize, DataTypes) => {
             defaultValue: false,
             allowNull: false
         },
-        // virtual field for address, 
-        // this field is not stored in the database
-        address: {
-            type: DataTypes.VIRTUAL,
-            // get() {
-            //     return this.getAddresses();
-            // },
-            set(value) {
-                // get the address and set it to the address
-                this.setDataValue('address', value);
-
-            }
-        },
         profileImage: { type: DataTypes.STRING },
     }, {
         tableName: 'User',
@@ -130,7 +126,6 @@ module.exports = (sequelize, DataTypes) => {
         // defaultScope: {
         //     attributes: { exclude: ['password'] }
         // },
-
         scopes: {
             verified: {
                 where: {
@@ -191,7 +186,11 @@ module.exports = (sequelize, DataTypes) => {
                 args: true,
                 msg: 'Store name already in use!'
             },
-            allowNull: false
+            allowNull: false,
+            //remove white spaces
+            set(value) {
+                this.setDataValue('name', value.trim().toLowerCase());
+            }
         },
         socials: { type: DataTypes.JSONB },
         businessPhone: {
@@ -222,11 +221,17 @@ module.exports = (sequelize, DataTypes) => {
                 isEmail: {
                     msg: 'Please enter a valid email address!'
                 }
+            },
+            set(value) {
+                this.setDataValue('businessEmail', value.trim().toLowerCase());
             }
         },
         industry: {
             type: DataTypes.STRING,
             allowNull: false,
+            set(value) {
+                this.setDataValue('industry', value.trim().toLowerCase());
+            }
         },
         owner: { type: DataTypes.STRING },
         isDisabled: {
