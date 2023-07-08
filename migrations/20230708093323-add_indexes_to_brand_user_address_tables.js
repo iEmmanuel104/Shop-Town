@@ -8,7 +8,7 @@ module.exports = {
     await queryInterface.addIndex('DeliveryAddress', ['storeId']);
     await queryInterface.addIndex('DeliveryAddress', ['userId']);
 
-  },
+  }, 
 
   async down (queryInterface, Sequelize) {
     await queryInterface.removeIndex('Brand', ['businessEmail']);

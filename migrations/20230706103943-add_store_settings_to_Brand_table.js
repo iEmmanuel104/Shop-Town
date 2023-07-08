@@ -6,7 +6,7 @@ module.exports = {
   //  add store settings to Brand table
     await queryInterface.addColumn('Brand', 'storeSettings', {
       type: Sequelize.JSONB,
-      defaultValue: {},
+      defaultValue: {}, 
       allowNull: true
   }); 
 },
