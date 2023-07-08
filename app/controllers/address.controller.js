@@ -39,7 +39,7 @@ const AddNewAddress = asyncWrapper(async (req, res) => {
             userId
         });
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             data: deliveryAddress
         });
@@ -55,7 +55,7 @@ const GetDeliveryAddresses = asyncWrapper(async (req, res) => {
             where: { userId: userId }
         });
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             data: deliveryAddresses
         });
@@ -79,7 +79,7 @@ const GetDeliveryAddress = asyncWrapper(async (req, res) => {
             throw new NotFoundError(`Delivery Address not found with id of ${id}`);
         }
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             data: deliveryAddress
         });
@@ -113,7 +113,7 @@ const UpdateDeliveryAddress = asyncWrapper(async (req, res) => {
         deliveryAddress.isDefault = defaults ? defaults : deliveryAddress.isDefault;
         await deliveryAddress.save();
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: 'Delivery Address updated successfully',
             data: deliveryAddress
@@ -140,7 +140,7 @@ const DeleteDeliveryAddress = asyncWrapper(async (req, res) => {
 
         await deliveryAddress.destroy();
         
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: 'Delivery Address deleted successfully'
         });
