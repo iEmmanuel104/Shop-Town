@@ -5,16 +5,17 @@ const sharp = require('sharp');
 cloudinary.config({
     cloud_name: process.env.CLOUD_NAME,
     api_key: process.env.API_KEY,
-    api_secret: process.env.API_SECRET
+    api_secret: process.env.API_SECRET,
 });
 
 const uploadtocloudinary = async (fileBuffer, details) => {
     try {
         const options = {
             use_filename: true,
-            folder: `EZcart/${details.user}/${details.folder}`,
+            folder: `Klick/${details.user}/${details.folder}`,
             public_id: details.name,
         };
+
         const result = await new Promise((resolve, reject) => {
             cloudinary.uploader.upload_stream(options, (error, result) => {
                 if (error) {
@@ -26,20 +27,19 @@ const uploadtocloudinary = async (fileBuffer, details) => {
                 }
             }).end(fileBuffer);
         });
+
         return result;
     } catch (error) {
-        // console.log(error);
+        console.log(error);
         return { message: 'error', error: error };
     }
 };
 
-const deleteFromCloudinary = (public_id) => {
+const deleteFromCloudinary = async (public_id) => {
     try {
-        return cloudinary.uploader.destroy(public_id)
-            .then((result) => {
-                console.log(result);
-                return { message: 'success', result: result }
-            });
+        const result = await cloudinary.uploader.destroy(public_id);
+        console.log(result);
+        return { message: 'success', result: result };
     } catch (error) {
         console.log(error);
         return { message: 'error', error: error };
@@ -69,5 +69,5 @@ const uploadresizeToCloudinary = async (fileBuffer, details) => {
 module.exports = {
     uploadtocloudinary,
     uploadresizeToCloudinary,
-    deleteFromCloudinary
+    deleteFromCloudinary,
 };
