@@ -11,45 +11,47 @@ const Op = require("sequelize").Op;
 const path = require('path');
 
 const createProduct = asyncWrapper(async (req, res, next) => {
-    await sequelize.transaction(async (t) => {
-        const { name, description, price, quantity, specifications, shippingcategory } = req.body;
-        if (!name || !price || !quantity || !shippingcategory) return next(new BadRequestError('please provide all required fields'));
+    const { name, description, price, quantity, specifications, shippingcategory } = req.body;
+    const { storeId, category } = req.query;
+    const decoded = req.decoded;
 
-        const { storeId, category } = req.query
-        const decoded = req.decoded;
+    if (!name || !price || !quantity || !shippingcategory) {
+        return next(new BadRequestError('Please provide all required fields'));
+    }
 
-        const categoryExists = await Category.findByPk(category)
-        if (!categoryExists) return next(new NotFoundError('Category not found'));
+    const storeExists = await Brand.findByPk(storeId);
+    if (!storeExists) {
+        return next(new NotFoundError('Store not found'));
+    }
 
-        const storeExists = await Brand.findByPk(storeId)
-        if (!storeExists) return next(new NotFoundError('Store not found'));
+    const [categoryExists, storeHasAddress, isAssociated] = await Promise.all([
+        Category.findByPk(category),
+        Brand.findByPk(storeId),
+        DeliveryAddress.findOne({ where: { storeId, isDefault: true } }),
+        storeExists.hasUser(decoded)
+    ]);
 
-        const storehasAddress = await DeliveryAddress.findOne({ where: { storeId: storeId, isDefault: true } })
-        if (!storehasAddress) return next(new NotFoundError('Store has no delivery address'));
+    if (!categoryExists) {
+        return next(new NotFoundError('Category not found'));
+    }
+    if (!storeHasAddress) {
+        return next(new NotFoundError('Store has no delivery address'));
+    }
+    if (!isAssociated) {
+        return next(new ForbiddenError("You are not allowed to access this resource"));
+    }
 
-        const isAssociated = await storeExists.hasUser(decoded)
-        if (!isAssociated) return next(new ForbiddenError("You are not allowed to access this resource"));
+    let fileUrls = [];
+    if (req.files) {
+        const details = {
+            folder: `Stores/${storeExists.name}`,
+            user: "Products"
+        };
+        fileUrls = await uploadFiles(req, details);
+    }
 
-        let fileUrls = [];
-
-        if (req.files) {
-            console.log(req.files)
-            const details = {
-                folder: 'product',
-                user: storeId
-            };
-
-            console.log('files found for upload')
-
-            fileUrls = await uploadFiles(req, details);
-        }
-
-        // if (user.role !== 'admin' && user.role !== 'vendor') {
-        //     return next(new ForbiddenError("You are not allowed to access this resource"));
-        // }
-
-
-        const product = await Product.create({
+    const product = await sequelize.transaction(async (t) => {
+        return Product.create({
             name,
             description,
             price,
@@ -57,16 +59,17 @@ const createProduct = asyncWrapper(async (req, res, next) => {
             specifications,
             subcategory: shippingcategory,
             categoryId: category,
-            storeId: storeId,
+            storeId,
             images: fileUrls
         }, { transaction: t });
+    });
 
-        return res.status(201).json({
-            success: true,
-            data: product,
-        });
+    return res.status(201).json({
+        success: true,
+        data: product,
     });
 });
+
 
 const getshippingcategory = asyncWrapper(async (req, res, next) => {
     const categories = await getshippingcategories();
@@ -82,57 +85,51 @@ const createBulkProducts = asyncWrapper(async (req, res, next) => {
     let processed = 0;
     let productNames = [];
     const decoded = req.decoded;
-    // const storeId = decoded.storeId;
-    const { storeId } = req.query
-    // check if store exists
+    const { storeId } = req.query;
+
     const store = await Brand.findByPk(storeId);
     if (!store) {
         return next(new NotFoundError("Store not found"));
     }
 
+    const productData = products.map(({ name, description, price, quantity, specifications, category, shippingcategory }) => ({
+        name,
+        description: description || null,
+        price,
+        quantity,
+        specifications: specifications || null,
+        subcategory: shippingcategory || null,
+        categoryId: category,
+        storeId
+    }));
 
-    for (let i = 0; i < products.length; i++) {
-        const { name, description, price, quantity, specifications, category, subcategory } = products[i];
-        try {
-            await sequelize.transaction(async (t) => {
-                const product = await Product.create({
-                    name,
-                    description: description ? description : null,
-                    price,
-                    quantity,
-                    specifications: specifications ? specifications : null,
-                    subcategory: subcategory ? subcategory : null,
-                    categoryId: category,
-                    storeId
-                }, { transaction: t });
-                processed++;
-                productNames.push(name);
-            });
-        } catch (err) {
-            console.error(`Failed to create product: ${err.message}`);
-            errors.push({
-                index: i,
-                message: err.message,
-            });
-        }
-    }
-
-    if (errors.length > 0) {
-        return res.status(206).json({
+    try {
+        await sequelize.transaction(async (t) => {
+            await Product.bulkCreate(productData, { transaction: t });
+            processed = products.length;
+            productNames = products.map(({ name }) => name);
+        });
+    } catch (err) {
+        console.error(`Failed to create products: ${err.message}`);
+        return res.status(207).json({
             success: false,
             message: "Bulk create completed with errors",
             processed,
-            errors,
-        });
-    } else {
-        return res.status(201).json({
-            success: true,
-            message: "All products created successfully",
-            processed,
-            productNames,
+            errors: products.map((_, index) => ({
+                index,
+                message: err.message,
+            })),
         });
     }
+
+    return res.status(200).json({
+        success: true,
+        message: "All products created successfully",
+        processed,
+        productNames,
+    });
 });
+
 
 const getProducts = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
@@ -342,12 +339,9 @@ const updateProduct = asyncWrapper(async (req, res, next) => {
         if (req.files) {
             console.log(req.files)
             const details = {
-                folder: 'product',
-                user: storeId
+                folder: `Stores/${store.name}`,
+                user: "Products"
             };
-
-            console.log('files found for upload')
-
             fileUrls = await uploadFiles(req, details);
         }
 

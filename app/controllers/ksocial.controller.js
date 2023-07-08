@@ -17,8 +17,6 @@ const createPost = asyncWrapper(async (req, res, next) => {
             decoded = req.decoded,
             useremail = decoded.email
 
-
-
         const { storeId } = req.query;
 
         if (!caption) return next(new BadRequestError('Please provide a caption'));
@@ -26,7 +24,7 @@ const createPost = asyncWrapper(async (req, res, next) => {
         if (post_type !== 'status' && post_type !== 'ksocial') return next(new BadRequestError('Invalid post type'));
         const store = await Brand.scope('includeUsers').findByPk(storeId,
             { attributes: ['name', 'businessPhone', 'socials', 'owner'] }
-        ); 
+        );
         console.log("storessss ===== ", JSON.parse(JSON.stringify(store)))
         const userEmails = store.Users.map(user => user.email),
             isEmailInStoreUsers = userEmails.includes(useremail);
@@ -38,18 +36,15 @@ const createPost = asyncWrapper(async (req, res, next) => {
         if (req.files) {
             console.log(req.files)
             const details = {
-                folder: 'ksocial',
-                user: storeId,
+                folder: `Stores/${storeExists.name}`,
+                user: `Ksocial/${post_type}`,
             };
-
-            console.log('files found for upload')
-
             fileUrls = await uploadFiles(req, details);
         }
 
         const post = await Ksocial.create({
             caption,
-            posttype: post_type,
+            postType: post_type,
             contentUrl: fileUrls,
             storeId: storeId,
         }, { transaction: t });
@@ -57,7 +52,7 @@ const createPost = asyncWrapper(async (req, res, next) => {
         console.log(post.id)
 
 
-        if (post.posttype === 'status') {
+        if (post.postType === 'status') {
             // Schedule the post deletion
             const deletionJob = postDeletionQueue.add(
                 { postId: post.id },
@@ -93,7 +88,7 @@ const getPosts = asyncWrapper(async (req, res, next) => {
         attributes: [
             'id',
             'caption',
-            'posttype',
+            'postType',
             'contentUrl',
             'createdAt',
             'likesCount',
@@ -109,12 +104,12 @@ const getPosts = asyncWrapper(async (req, res, next) => {
     let posts, fetchedposts;
     switch (type) {
         case 'status':
-            queryData.where = { posttype: 'status' };
+            queryData.where = { postType: 'status' };
             posts = await Ksocial.findAll(queryData);
             break;
         case 'ksocial':
             fetchedposts = await Ksocial.findAndCountAll({
-                where: { posttype: 'ksocial' },
+                where: { postType: 'ksocial' },
                 ...queryData,
                 limit,
                 offset,
@@ -140,7 +135,7 @@ const getStorePosts = asyncWrapper(async (req, res, next) => {
         attributes: [
             'id',
             'caption',
-            'posttype',
+            'postType',
             'contentUrl',
             'createdAt',
             'likesCount',
@@ -166,7 +161,7 @@ const getStorePosts = asyncWrapper(async (req, res, next) => {
 
 const getPost = asyncWrapper(async (req, res, next) => {
     const post = await Ksocial.findByPk(req.params.id, {
-        attributes: ['id', 'caption', 'posttype', 'contentUrl', 'createdAt', 'likesCount', 'commentsCount'],
+        attributes: ['id', 'caption', 'postType', 'contentUrl', 'createdAt', 'likesCount', 'commentsCount'],
         include: [
             {
                 model: Brand,
@@ -197,23 +192,12 @@ const getPost = asyncWrapper(async (req, res, next) => {
 });
 
 const updatePost = asyncWrapper(async (req, res, next) => {
-    const { caption, posttype } = req.body;
+    const { caption, storeName } = req.body;
     // const decoded = req.decoded;
     // const storeId = decoded.storeId;
 
     const { storeId } = req.query;
     const files = req.files;
-    let fileUrls = [];
-
-    if (files) {
-        const details = {
-            folder: 'ksocial',
-            user: storeId,
-        };
-
-        fileUrls = await uploadFiles(req, 'files', details);
-    }
-
     const post = await Ksocial.findByPk(req.params.id);
 
     if (!post) {
@@ -223,6 +207,16 @@ const updatePost = asyncWrapper(async (req, res, next) => {
     if (post.storeId !== storeId) {
         return next(new ForbiddenError('You are not authorized to update this post'));
     }
+    let fileUrls = [];
+
+    if (files) {
+        const details = {
+            folder: `Stores/${storeName.trim().toLowerCase()}`,
+            user: `Ksocial/${post.postType}`,
+        };
+        fileUrls = await uploadFiles(req, 'files', details);
+    }
+
 
     await post.update({
         caption: caption ? caption : post.caption,
@@ -242,7 +236,7 @@ const addPostActivity = asyncWrapper(async (req, res, next) => {
 
     const post = await Ksocial.findByPk(req.params.id);
     if (!post) return next(new NotFoundError(`Post not found`));
-    if (post.posttype === 'status') return next(new ForbiddenError('You are not authorized to like this post'))
+    if (post.postType === 'status') return next(new ForbiddenError('You are not authorized to like this post'))
 
 
     const activity = await PostActivity.findOne({

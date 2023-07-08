@@ -9,7 +9,7 @@ const { uploadSingleFile, uploadFiles } = require('../services/imageupload.servi
 
 const createCategory = asyncWrapper(async (req, res, next) => {
     if (req.query.bulk === 'true') {
-        const {categories} = req.body; // Array of category objects [{ name: 'Category 1', description: 'Description 1' }, { name: 'Category 2', description: 'Description 2' }, ...]
+        const { categories } = req.body; // Array of category objects [{ name: 'Category 1', description: 'Description 1' }, { name: 'Category 2', description: 'Description 2' }, ...]
         console.log(categories)
 
         if (!categories) {
@@ -27,7 +27,7 @@ const createCategory = asyncWrapper(async (req, res, next) => {
         if (req.body.categories) {
             return next(new BadRequestError('use the query param "bulk=true" to create multiple categories'));
         }
-        if (!name || !description) { 
+        if (!name || !description) {
             return next(new BadRequestError('name and description are required'));
         }
         await sequelize.transaction(async (t) => {
@@ -71,7 +71,12 @@ const getCategories = asyncWrapper(async (req, res, next) => {
 });
 
 const getCategory = asyncWrapper(async (req, res, next) => {
-    const category = await Category.scope('includeProducts').findByPk(req.params.id);
+    let category;
+    if (req.query.includeProducts === 'true') {
+        category = await Category.scope('includeProducts').findByPk(req.params.id);
+    } else {
+        category = await Category.findByPk(req.params.id);
+    }
     if (!category) {
         return next(new NotFoundError(`Category with id ${req.params.id} not found`));
     }
