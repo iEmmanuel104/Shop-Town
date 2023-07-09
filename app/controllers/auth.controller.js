@@ -306,7 +306,7 @@ const getloggedInUser = asyncWrapper(async (req, res, next) => {
                 {
                     model: Cart,
                     as: 'Cart',
-                    attributes: { exclude: ['checkoutData'] },
+                    attributes: { exclude: ['checkoutData', 'createdAt', 'updatedAt'] },
                     include: [{
                         model: Cart,
                         as: 'Wishlists',

@@ -78,7 +78,7 @@ module.exports = (sequelize, DataTypes) => {
                     {
                         model: Brand,
                         as: 'store',
-                        attributes: ['id', 'name', 'businessPhone', 'socials', 'logo'],
+                        attributes: ['name', 'businessPhone', 'socials', 'logo'],
                     }
                 ]
             },
@@ -182,8 +182,7 @@ module.exports = (sequelize, DataTypes) => {
             primaryKey: true,
             allowNull: false
         },
-        items: {
-            type: DataTypes.JSONB },
+        items: {type: DataTypes.JSONB },
         checkoutData: { type: DataTypes.JSONB },
         totalAmount: {
             type: DataTypes.DECIMAL(10, 2),

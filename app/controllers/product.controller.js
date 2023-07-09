@@ -176,9 +176,9 @@ const getProducts = asyncWrapper(async (req, res, next) => {
             const fieldFilters = Object.entries(filters).map(([key, value]) => ({ [key]: value })); // convert filters object to array of objects
             const queryFilter = { name: { [Op.iLike]: `%${queryfields}%` } }; // filter by name using query field
             whereClause = { [Op.and]: [...fieldFilters, queryFilter] }; // combine the filters and query field
-        } else if (Object.keys(filters).length > 0) {
+        } else if (Object.keys(filters).length > 0) { // if no query field
             whereClause = filters;
-        } else if (queryfields) {
+        } else if (queryfields) { // if no filters
             whereClause = { name: { [Op.iLike]: `%${queryfields}%` } };
         }
 
