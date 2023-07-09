@@ -1,5 +1,4 @@
 //  generate password
-const redisClient = require('./redis');
 
 const generateRandomString = (num) => {
     const length = num;
