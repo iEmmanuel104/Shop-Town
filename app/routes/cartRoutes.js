@@ -10,7 +10,7 @@ const {
     cartcheckout
 } = require('../controllers/cart.controller')
 
-router.route('/').post(basicAuth, storeCart)
+router.route('/wishlist').post(basicAuth, storeCart)
 router.route('/:id').get(getCart)
 router.route('/delete/:id').delete(deleteCart)
 router.route('/update/:id').put(updateCart)

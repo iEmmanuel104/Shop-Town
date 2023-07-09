@@ -35,6 +35,16 @@ module.exports = (sequelize, DataTypes) => {
             defaultValue: {
                 total: 0,
                 instock: 0
+            },
+            validate: {
+                isValidQuantity(value) {
+                    if (value.total < 0 || value.instock < 0) {
+                        throw new Error('Quantity cannot be negative');
+                    }
+                    if (value.total < value.instock) {
+                        throw new Error('Total quantity cannot be less than in-stock quantity');
+                    }
+                }
             }
         },
         discount: {
@@ -136,6 +146,10 @@ module.exports = (sequelize, DataTypes) => {
                 product.discountedPrice = (price * (1 - discount / 100)).toFixed(2);
             }
         }
+        if (product.quantity && product.quantity.instock === 0) {
+            product.status = "inactive";
+            product.quantity.total = 0; // Set the total quantity to zero as well
+        }
     });
 
     const Category = sequelize.define("Category", {
@@ -164,7 +178,7 @@ module.exports = (sequelize, DataTypes) => {
         },
     }, {
         tableName: 'Category',
-        timestamps: true,
+        timestamps: false,
         scopes: {
             includeProducts: {
                 include: [{

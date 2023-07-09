@@ -15,34 +15,63 @@ const path = require('path');
 const storeCart = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const { items } = req.body;
-        const decoded = req.decoded;
-        const userId = decoded.id;
+        const { id: userId } = req.decoded;
         const usercart = await Cart.findOne({
             where: {
                 userId: userId,
-                isWishList: false
-            }
+                isWishList: false,
+            }, 
+            include: [{
+                model: Cart,
+                as: 'Wishlists',
+                attributes: ['id'],
+            }]
         });
+        if (!usercart) {
+            throw new BadRequestError("Cart not found: please verify your account");
+        }
 
-        if (!items) {throw new BadRequestError("Items not found")}
+        if (!items || !Array.isArray(items)) {
+            throw new BadRequestError(
+                "Please provide items as an array of objects"
+            );
+        }
+        const cart = { items };
+        const converted = await convertcart(cart);
+        
+        const wishlists = usercart.Wishlists;
+        let message;
+        
+        console.log(wishlists)
+        if (wishlists.length > 0) {
+            // Update the first wishlist items with the converted items
+            await Cart.update(
+                { items: converted.items },
+                {
+                    where: {
+                        id: wishlists[0].id,
+                    },
+                    transaction: t,
+                }
+            );
+            message = "Wishlist updated successfully";
+        } else {
+            // Create a new wishlist
+            const wishlistCart = await Cart.create(
+                {
+                    items,
+                    isWishList: true,
+                },
+                { transaction: t }
+            );
+            await usercart.addChild(wishlistCart, { transaction: t });
 
-        const cart = { items }
-        const converted = await convertcart(cart)
+            message = "Wishlist created successfully";
+        }
 
-        const newCart = await Cart.create({
-            // userId: null,
-            items: converted.items,
-            totalAmount: converted.totalAmount,
-            isWishList: true,
-        });
-
-        // Associate the cart with the user
-        await usercart.addChild(newCart, { transaction: t })
-
-        // save wishli
         res.status(200).json({
             success: true,
-            data: newCart
+            message: message,
         });
     });
 });

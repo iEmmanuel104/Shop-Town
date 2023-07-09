@@ -250,6 +250,10 @@ module.exports = (sequelize, DataTypes) => {
     }, {
         tableName: 'Brand',
         timestamps: true,
+        // remove updatedAt from response
+        defaultScope: {
+            attributes: { exclude: ['updatedAt'] }
+        },
         scopes: {
             includeProducts: {
                 include: [{
@@ -367,6 +371,7 @@ module.exports = (sequelize, DataTypes) => {
         });
         User.belongsToMany(models.Brand, {
             through: models.UserBrand,
+            foreignKey: 'UserId',
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
         });
@@ -408,9 +413,10 @@ module.exports = (sequelize, DataTypes) => {
             as: 'products'
         });
         Brand.belongsToMany(models.User, {
-            onDelete: 'CASCADE',
+            // onDelete: 'CASCADE',
             onUpdate: 'CASCADE',
             through: models.UserBrand,
+            foreignKey: 'BrandId',
         });
         Brand.hasOne(models.DeliveryAddress, {
             onDelete: 'CASCADE',
