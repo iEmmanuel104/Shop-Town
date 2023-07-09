@@ -1,5 +1,5 @@
 module.exports = (sequelize, DataTypes) => {
-    const { generateCode } = require('../app/utils/stringGenerator')
+    const { generateCode } = require('../app/utils/stringGenerators')
     const { DeliveryAddress } = require('./utilityModel')(sequelize, DataTypes);
     const { Cart } = require('./storeModel')(sequelize, DataTypes);
 

@@ -1,6 +1,6 @@
 const { BadRequestError } = require('../utils/customErrors');
 const { uploadtocloudinary, deleteFromCloudinary } = require('../middlewares/cloudinary');
-const { generateRandomString } = require('../utils/stringGenerator');
+const { generateRandomString } = require('../utils/stringGenerators');
 
 const uploadSingleFile = async (file, details) => {
     const fileBuffer = file.buffer;
