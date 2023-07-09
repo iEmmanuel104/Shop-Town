@@ -19,6 +19,10 @@ const createProduct = asyncWrapper(async (req, res, next) => {
         return next(new BadRequestError('Please provide all required fields'));
     }
 
+    if (quantity.instock >= 0 && quantity.total >= 0 && quantity.instock > quantity.total) {
+        throw new BadRequestError('Quantity in stock cannot be greater than total quantity');
+    }
+
     const storeExists = await Brand.findByPk(storeId);
     if (!storeExists) {
         return next(new NotFoundError('Store not found'));

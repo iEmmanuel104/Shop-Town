@@ -394,6 +394,8 @@ module.exports = (sequelize, DataTypes) => {
         });
         Product.belongsTo(models.Brand, {
             foreignKey: 'storeId',
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE',
             as: 'store'
         });
         Product.hasMany(models.Review, {
