@@ -78,19 +78,6 @@ module.exports = (sequelize, DataTypes) => {
     }, {
         tableName: 'BlacklistedTokens',
         timestamps: false,
-        // hooks: {
-        //     beforeFind: async (options) => {
-        //         const now = new Date();
-        //         options.where = {
-        //             ...options.where,
-        //             expiry: { [Op.lt]: now }
-        //         };
-        //         const expiredTokens = await BlacklistedTokens.findAll(options);
-        //         if (expiredTokens.length > 0) {
-        //             await BlacklistedTokens.destroy({ where: { id: expiredTokens.map(token => token.id) } });
-        //         }
-        //     }
-        // },        
     });
 
     const DeliveryAddress = sequelize.define("DeliveryAddress", {
@@ -99,10 +86,30 @@ module.exports = (sequelize, DataTypes) => {
             defaultValue: DataTypes.UUIDV4,
             primaryKey: true
         },
-        address: { type: DataTypes.STRING, allowNull: false },
-        city: { type: DataTypes.STRING, allowNull: false },
-        state: { type: DataTypes.STRING, allowNull: false },
-        country: { type: DataTypes.STRING, allowNull: false },
+        address: {
+            type: DataTypes.STRING, allowNull: false,
+            set(val) {
+                this.setDataValue('address', val.trim().toLowerCase());
+            }
+        },
+        city: {
+            type: DataTypes.STRING, allowNull: false,
+            set(val) {
+                this.setDataValue('city', val.trim().toLowerCase());
+            }
+        },
+        state: {
+            type: DataTypes.STRING, allowNull: false,
+            set(val) {
+                this.setDataValue('state', val.trim().toLowerCase());
+            }
+        },
+        country: {
+            type: DataTypes.STRING, allowNull: false,
+            set(val) {
+                this.setDataValue('country', val.trim().toLowerCase());
+            }
+        },
         postal: { type: DataTypes.INTEGER },
         phone: { type: DataTypes.BIGINT, allowNull: false },
         type: {
@@ -136,7 +143,11 @@ module.exports = (sequelize, DataTypes) => {
                     }
                 }
             }
-        }
+        },
+        indexes: [
+            { fields: ['userId'] }, // for user delivery addresses
+            { fields: ['storeId'] }, // for store delivery addresses
+        ]
     });
 
     DeliveryAddress.addHook('beforeSave', async (address, options) => {
@@ -163,6 +174,32 @@ module.exports = (sequelize, DataTypes) => {
         }
     });
 
+    const AccountDetails = sequelize.define("AccountDetails", {
+        id: {
+            type: DataTypes.UUID,
+            defaultValue: DataTypes.UUIDV4,
+            primaryKey: true
+        },
+        accountName: {
+            type: DataTypes.STRING, allowNull: false,
+            set(val) {
+                this.setDataValue('accountName', val.trim().toLowerCase());
+            }
+        },
+        accountNumber: { type: DataTypes.STRING, allowNull: false },
+        bankName: {
+            type: DataTypes.STRING, allowNull: false,
+            set(val) {
+                this.setDataValue('bankName', val.trim().toLowerCase());
+            }
+        },
+        bankCode: { type: DataTypes.STRING, allowNull: false },
+    }, {
+        tableName: 'AccountDetails',
+        timestamps: true,
+    });
+
+
     // ==================================== //
     // ============ ASSOCIATIONS =========== //
     // ==================================== //
@@ -174,7 +211,7 @@ module.exports = (sequelize, DataTypes) => {
             onUpdate: 'CASCADE'
         });
         DeliveryAddress.belongsTo(models.Brand, {
-            foreignKey: 'storeId', 
+            foreignKey: 'storeId',
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
         });
@@ -195,5 +232,14 @@ module.exports = (sequelize, DataTypes) => {
         });
     };
 
-    return {Password, Token, BlacklistedTokens, DeliveryAddress };
+    // =========== ACCOUNT DETAIL ASSOCIATIONS =========== //
+    AccountDetails.associate = (models) => {
+        AccountDetails.belongsTo(models.Brand, {
+            foreignKey: 'storeId',
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE'
+        });
+    };
+
+    return { Password, Token, BlacklistedTokens, DeliveryAddress, AccountDetails };
 };

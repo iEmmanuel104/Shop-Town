@@ -11,48 +11,51 @@ const Op = require("sequelize").Op;
 const path = require('path');
 
 const createProduct = asyncWrapper(async (req, res, next) => {
-    await sequelize.transaction(async (t) => {
-        const { name, description, price, quantity, specifications, shippingcategory } = req.body;
-        const { storeId, category } = req.query
-        const decoded = req.decoded;
-        const userId = decoded.id;
+    const { name, description, price, quantity, specifications, shippingcategory } = req.body;
+    const { storeId, category } = req.query;
+    const decoded = req.decoded;
 
-        const categoryExists = await Category.findByPk(category)
-        if (!categoryExists) return next(new NotFoundError('Category not found'));
+    if (!name || !price || !quantity || !shippingcategory) {
+        return next(new BadRequestError('Please provide all required fields'));
+    }
 
-        const user = await User.findByPk(userId)
-        if (!user) return next(new NotFoundError("User not found"));
+    if (quantity.instock >= 0 && quantity.total >= 0 && quantity.instock > quantity.total) {
+        throw new BadRequestError('Quantity in stock cannot be greater than total quantity');
+    }
 
-        const storeExists = await Brand.findByPk(storeId)
-        if (!storeExists) return next(new NotFoundError('Store not found'));
+    const storeExists = await Brand.findByPk(storeId);
+    if (!storeExists) {
+        return next(new NotFoundError('Store not found'));
+    }
 
-        const storehasAddress = await DeliveryAddress.findOne({ where: { storeId: storeId, isDefault: true } })
+    const [categoryExists, storeHasAddress, isAssociated] = await Promise.all([
+        Category.findByPk(category),
+        Brand.findByPk(storeId),
+        DeliveryAddress.findOne({ where: { storeId, isDefault: true } }),
+        storeExists.hasUser(decoded)
+    ]);
 
-        if (!storehasAddress) return next(new NotFoundError('Store has no delivery address'));
+    if (!categoryExists) {
+        return next(new NotFoundError('Category not found'));
+    }
+    if (!storeHasAddress) {
+        return next(new NotFoundError('Store has no delivery address'));
+    }
+    if (!isAssociated) {
+        return next(new ForbiddenError("You are not allowed to access this resource"));
+    }
 
-        const isAssociated = await storeExists.hasUser(user)
-        if (!isAssociated) return next(new ForbiddenError("You are not allowed to access this resource"));
+    let fileUrls = [];
+    if (req.files) {
+        const details = {
+            user: `Stores/${storeExists.name}`,
+            folder: "Products"
+        };
+        fileUrls = await uploadFiles(req, details);
+    }
 
-        let fileUrls = [];
-
-        if (req.files) {
-            console.log(req.files)
-            const details = {
-                folder: 'product',
-                user: storeId
-            };
-
-            console.log('files found for upload')
-
-            fileUrls = await uploadFiles(req, details);
-        }
-
-        // if (user.role !== 'admin' && user.role !== 'vendor') {
-        //     return next(new ForbiddenError("You are not allowed to access this resource"));
-        // }
-
-
-        const product = await Product.create({
+    const product = await sequelize.transaction(async (t) => {
+        return Product.create({
             name,
             description,
             price,
@@ -60,20 +63,21 @@ const createProduct = asyncWrapper(async (req, res, next) => {
             specifications,
             subcategory: shippingcategory,
             categoryId: category,
-            storeId: storeId,
+            storeId,
             images: fileUrls
         }, { transaction: t });
+    });
 
-        res.status(201).json({
-            success: true,
-            data: product,
-        });
+    return res.status(201).json({
+        success: true,
+        data: product,
     });
 });
 
+
 const getshippingcategory = asyncWrapper(async (req, res, next) => {
     const categories = await getshippingcategories();
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         data: categories
     });
@@ -85,141 +89,51 @@ const createBulkProducts = asyncWrapper(async (req, res, next) => {
     let processed = 0;
     let productNames = [];
     const decoded = req.decoded;
-    // const storeId = decoded.storeId;
-    const { storeId } = req.query
-    // check if store exists
+    const { storeId } = req.query;
+
     const store = await Brand.findByPk(storeId);
     if (!store) {
         return next(new NotFoundError("Store not found"));
     }
 
+    const productData = products.map(({ name, description, price, quantity, specifications, category, shippingcategory }) => ({
+        name,
+        description: description || null,
+        price,
+        quantity,
+        specifications: specifications || null,
+        subcategory: shippingcategory || null,
+        categoryId: category,
+        storeId
+    }));
 
-    for (let i = 0; i < products.length; i++) {
-        const { name, description, price, quantity, specifications, category, subcategory } = products[i];
-        try {
-            await sequelize.transaction(async (t) => {
-                const product = await Product.create({
-                    name,
-                    description: description ? description : null,
-                    price,
-                    quantity,
-                    specifications: specifications ? specifications : null,
-                    subcategory: subcategory ? subcategory : null,
-                    categoryId: category,
-                    storeId
-                }, { transaction: t });
-                processed++;
-                productNames.push(name);
-            });
-        } catch (err) {
-            console.error(`Failed to create product: ${err.message}`);
-            errors.push({
-                index: i,
-                message: err.message,
-            });
-        }
-    }
-
-    if (errors.length > 0) {
-        res.status(206).json({
+    try {
+        await sequelize.transaction(async (t) => {
+            await Product.bulkCreate(productData, { transaction: t });
+            processed = products.length;
+            productNames = products.map(({ name }) => name);
+        });
+    } catch (err) {
+        console.error(`Failed to create products: ${err.message}`);
+        return res.status(207).json({
             success: false,
             message: "Bulk create completed with errors",
             processed,
-            errors,
-        });
-    } else {
-        res.status(201).json({
-            success: true,
-            message: "All products created successfully",
-            processed,
-            productNames,
+            errors: products.map((_, index) => ({
+                index,
+                message: err.message,
+            })),
         });
     }
+
+    return res.status(200).json({
+        success: true,
+        message: "All products created successfully",
+        processed,
+        productNames,
+    });
 });
 
-// const getProducts = asyncWrapper(async (req, res, next) => {
-//     await sequelize.transaction(async (t) => {
-
-//         const { category, subcategory, store, name, price, quantity, priceDiscount, percentageDiscount } = req.query;
-//         const queryfields = req.query.q;
-//         let filters = {}
-//         filters = {
-
-//             ...(category && { categoryId: category }),
-//             ...(subcategory && { subcategory }),
-//             ...(store && { storeId: store }),
-//             ...(name && { name: { [Op.like]: `%${name}%` } }),
-//             ...(price && { price: { [Op.lte]: parseFloat(price) } }),
-//             ...(quantity && {
-//                 quantity: {
-//                     [Op.and]: [
-//                         sequelize.literal(`(quantity->>'total')::int >= ${parseInt(quantity)}`),
-//                         sequelize.literal(`(quantity->>'instock')::int >= ${parseInt(quantity)}`),
-//                     ],
-//                 },
-//             }),
-//             ...(priceDiscount && {
-//                 discount: {
-//                     [Op.gte]: 200 && parseFloat(priceDiscount),
-//                 }
-//             }),
-//             ...(percentageDiscount && {
-//                 discount: {
-//                     [Op.gte]: 0,
-//                     [Op.lte]: 100,
-//                     [Op.lte]: parseFloat(percentageDiscount)
-//                 }
-//             })
-//             // ...(priceDiscount && parseFloat(priceDiscount) >= 200 && { discount: { [Op.gte]: parseFloat(priceDiscount) }}),
-//             // ...(percentageDiscount && parseFloat(percentageDiscount) <= 100 && { discount: { [Op.gte]: parseFloat(percentageDiscount) } })
-//         };
-//         let globalfilters = {}
-//         globalfilters = {
-//                 [Op.or]: [
-//                     { name: { [Op.iLike]: `%${queryfields}%` } },
-//                     // Add more fields as needed
-//                 ],
-//         }
-
-//         // console.log(req.query.page, req.query.size)
-
-//         const page = req.query.page ? Number(req.query.page) : 1;
-//         const size = req.query.size ? Number(req.query.size) : 10;
-
-//         if (page < 1 || size < 0) return next(new BadRequestError('Invalid pagination parameters'));
-
-//         let limit = null;
-//         let offset = null;
-
-//         if (req.query.page && req.query.size) {
-//             ({ limit, offset } = getPagination(page, size));
-//         }
-
-//         // console.log(limit, offset)
-
-//         const products = await Product.scope('includeBrand').findAndCountAll({
-//             where: { [Op.or]: [filters, globalfilters]},
-//             include: [{ model: Category, as: 'category', attributes: ['id', 'name'] }],
-//             order: [['updatedAt', 'DESC']],
-//             limit,
-//             offset,
-//         }, { transaction: t });
-
-//         const specificCount = products.length ? products.length : products.count;
-
-//         if (specificCount === 0) return next(new NotFoundError('No products found'));
-
-//         if (specificCount !== products.count) { products.count = specificCount;}
-
-//         let newlimit = limit === null ? products.count : limit;
-//         const response = getPagingData(products, page, newlimit, 'products');
-//         // check if the response.totalPages is null
-//         if (response.totalPages === null) { response.totalPages = 1;}
-
-//         res.status(200).json({ success: true, data: response });
-//     });
-
-// });
 
 const getProducts = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
@@ -266,9 +180,9 @@ const getProducts = asyncWrapper(async (req, res, next) => {
             const fieldFilters = Object.entries(filters).map(([key, value]) => ({ [key]: value })); // convert filters object to array of objects
             const queryFilter = { name: { [Op.iLike]: `%${queryfields}%` } }; // filter by name using query field
             whereClause = { [Op.and]: [...fieldFilters, queryFilter] }; // combine the filters and query field
-        } else if (Object.keys(filters).length > 0) {
+        } else if (Object.keys(filters).length > 0) { // if no query field
             whereClause = filters;
-        } else if (queryfields) {
+        } else if (queryfields) { // if no filters
             whereClause = { name: { [Op.iLike]: `%${queryfields}%` } };
         }
 
@@ -308,7 +222,7 @@ const getProducts = asyncWrapper(async (req, res, next) => {
             response.totalPages = 1;
         }
 
-        res.status(200).json({ success: true, data: response });
+        return res.status(200).json({ success: true, data: response });
     });
 });
 
@@ -319,7 +233,7 @@ const getProduct = asyncWrapper(async (req, res, next) => {
         if (!product) {
             return next(new NotFoundError(`Product with id ${req.params.id} not found`));
         }
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             data: product,
         });
@@ -343,7 +257,7 @@ const getStoreProducts = asyncWrapper(async (req, res, next) => {
                 storeId
             }
         });
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: `Products for store: ${store.name} retrieved successfully`,
             data: products,
@@ -370,9 +284,9 @@ const toggleProduct = asyncWrapper(async (req, res, next) => {
         if (!product) {
             return next(new NotFoundError(`Product with id ${req.params.id} not found`));
         }
-        const newproductStatus = product.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE'
+        const newproductStatus = product.status === 'active' ? 'inactive' : 'active'
         let messsage;
-        if (newproductStatus === 'ACTIVE') {
+        if (newproductStatus === 'active') {
             messsage = 'Product has been successfully activated'
         } else {
             messsage = 'Product has been hidden successfully'
@@ -381,7 +295,7 @@ const toggleProduct = asyncWrapper(async (req, res, next) => {
             status: newproductStatus
         }, { where: { id, storeId } }, { transaction: t });
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: messsage,
         });
@@ -405,7 +319,7 @@ const updateProduct = asyncWrapper(async (req, res, next) => {
         }
 
         // ensure product is inactive before updating
-        if (product.status !== 'INACTIVE') {
+        if (product.status !== 'inactive') {
             return next(new BadRequestError(`Product must be inactive before updating`));
         }
 
@@ -429,12 +343,9 @@ const updateProduct = asyncWrapper(async (req, res, next) => {
         if (req.files) {
             console.log(req.files)
             const details = {
-                folder: 'product',
-                user: storeId
+                user: `Stores/${store.name}`,
+                folder: "Products"
             };
-
-            console.log('files found for upload')
-
             fileUrls = await uploadFiles(req, details);
         }
 
@@ -450,7 +361,7 @@ const updateProduct = asyncWrapper(async (req, res, next) => {
             images: fileUrls ? fileUrls : product.images
         }, { transaction: t });
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: `Product Updated: ${updated.name} has been successfully updated`,
         });
@@ -492,7 +403,7 @@ const updateProductdiscount = asyncWrapper(async (req, res, next) => {
         const updated = await product.update({
             discount
         }, { transaction: t });
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: `Product Updated: ${updated.name} has been successfully updated`,
         });
@@ -510,7 +421,7 @@ const deleteProduct = asyncWrapper(async (req, res, next) => {
 
         await product.destroy();
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: `${product.name} deleted successfully`
         });
@@ -569,7 +480,7 @@ const searchProduct = asyncWrapper(async (req, res, next) => {
             ],
         });
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             data: products,
         });
@@ -683,7 +594,7 @@ const searchProduct = asyncWrapper(async (req, res, next) => {
 //         offset: page ? (parseInt(page) - 1) * (limit ? parseInt(limit) : 10) : 0,
 //     });
 
-//     res.status(200).json({ count, rows });
+//     return res.status(200).json({ count, rows });
 // });
 
 

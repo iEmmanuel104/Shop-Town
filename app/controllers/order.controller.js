@@ -11,7 +11,7 @@ const { KSECURE_FEE } = require('../utils/configs');
 const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/customErrors');
 const { sendorderpushNotification } = require('../utils/mailTemplates');
 const { getPagination, getPagingData } = require('../utils/pagination')
-const { generateCode } = require('../utils/StringGenerator')
+const { generateCode } = require('../utils/stringGenerators')
 const Op = require("sequelize").Op;
 const path = require('path');
 
@@ -35,7 +35,7 @@ const createOrder = asyncWrapper(async (req, res, next) => {
         let shippingMethod = { type: shipping_method }
         // cartdetails for order
         let courier = checkoutData.cheapest_courier
-        if (shipping_method === 'kship' && option === 'CASH') { 
+        if (shipping_method === 'kship' && option === 'cash') { 
             courier = checkoutData.kship_courier ? checkoutData.kship_courier : checkoutData.cheapest_courier
          }
 
@@ -115,7 +115,7 @@ const createOrder = asyncWrapper(async (req, res, next) => {
                 shippingfee: kship_order ? kship_order.deliveryFee : null,
             }
 
-            if (option === 'CARD') {
+            if (option === 'card') {
                 let link; 
                 if (service === 'FLUTTERWAVE') {
                     linkobj = await FlutterwavePay(paydetails);
@@ -132,11 +132,11 @@ const createOrder = asyncWrapper(async (req, res, next) => {
                 await Payment.create({
                     refId: order.id,
                     amount: paymentamt,
-                    paymentMethod: "CARD",
+                    paymentMethod: "card",
                     serviceType: service,
                 }, { transaction: t });
 
-            } else if (option === 'KCREDIT') {
+            } else if (option === 'kcredit') {
                 // pay with wallet
                 const wallet = await Wallet.findOne({ where: { userId } });
                 if (!wallet) throw new NotFoundError('Wallet not found');
@@ -150,8 +150,8 @@ const createOrder = asyncWrapper(async (req, res, next) => {
 
                 await Wallet.decrement('amount', { by: paymentamt, where: { id: wallet.id }, transaction: t });
                 await Order.update({ status: 'completed' }, { where: { id: order.id }, transaction: t });
-                await Payment.create({ refId: order.id, amount: paymentamt, paymentMethod: "KCREDIT" }, { transaction: t });
-            } else if (option === 'CASH' && shipping_method === 'kship') {
+                await Payment.create({ refId: order.id, amount: paymentamt, paymentMethod: "kcredit" }, { transaction: t });
+            } else if (option === 'cash' && shipping_method === 'kship') {
                 // pay on delivery
                 // shipment request to kship
                 const { order_id, status, payment, tracking_url } = await createshipment({
@@ -169,7 +169,7 @@ const createOrder = asyncWrapper(async (req, res, next) => {
                 }, { where: { orderId: order.id }, transaction: t });
                 returnobject.TrackingUrl = tracking_url;
                 await Order.update({ status: 'pending' }, { where: { id: order.id }, transaction: t });
-                await Payment.create({ refId: order.id, amount: paymentamt, paymentMethod: "CASH" }, { transaction: t });
+                await Payment.create({ refId: order.id, amount: paymentamt, paymentMethod: "cash" }, { transaction: t });
             }
         }
         // add payment amount to return object
@@ -188,7 +188,7 @@ const createOrder = asyncWrapper(async (req, res, next) => {
             message = 'Order created successfully';
         }
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: message,
             data: returnobject
@@ -201,7 +201,7 @@ const getAllOrders = asyncWrapper(async (req, res) => {
     const userId = decoded.id;
     console.log(userId)
     const orders = await Order.findAll({ where: { userId } });
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         data: orders
     });
@@ -215,7 +215,7 @@ const getOrder = asyncWrapper(async (req, res) => {
     if (!order) {
         throw new NotFoundError('Order not found');
     }
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         data: order
     });
@@ -231,7 +231,7 @@ const deleteOrder = asyncWrapper(async (req, res) => {
             throw new NotFoundError('Order not found');
         }
         await order.destroy({ transaction: t });
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             data: {}
         });
@@ -324,7 +324,7 @@ const validateOrderPayment = asyncWrapper(async (req, res) => {
 
         // send order request Email to seller
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: message,
         });

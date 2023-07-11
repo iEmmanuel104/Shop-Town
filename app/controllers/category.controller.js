@@ -9,7 +9,7 @@ const { uploadSingleFile, uploadFiles } = require('../services/imageupload.servi
 
 const createCategory = asyncWrapper(async (req, res, next) => {
     if (req.query.bulk === 'true') {
-        const {categories} = req.body; // Array of category objects [{ name: 'Category 1', description: 'Description 1' }, { name: 'Category 2', description: 'Description 2' }, ...]
+        const { categories } = req.body; // Array of category objects [{ name: 'Category 1', description: 'Description 1' }, { name: 'Category 2', description: 'Description 2' }, ...]
         console.log(categories)
 
         if (!categories) {
@@ -18,7 +18,7 @@ const createCategory = asyncWrapper(async (req, res, next) => {
         // Map through the array of categories and create them in bulk
         const createdCategories = await Category.bulkCreate(categories);
 
-        res.status(201).json({
+        return res.status(201).json({
             success: true,
             data: createdCategories,
         });
@@ -27,7 +27,7 @@ const createCategory = asyncWrapper(async (req, res, next) => {
         if (req.body.categories) {
             return next(new BadRequestError('use the query param "bulk=true" to create multiple categories'));
         }
-        if (!name || !description) { 
+        if (!name || !description) {
             return next(new BadRequestError('name and description are required'));
         }
         await sequelize.transaction(async (t) => {
@@ -41,7 +41,7 @@ const createCategory = asyncWrapper(async (req, res, next) => {
                 name,
                 description,
             }, { transaction: t });
-            res.status(201).json({
+            return res.status(201).json({
                 success: true,
                 data: category,
             });
@@ -55,7 +55,7 @@ const createCategory = asyncWrapper(async (req, res, next) => {
 //     // Map through the array of categories and create them in bulk
 //     const createdCategories = await Category.bulkCreate(categories);
 
-//     res.status(201).json({
+//     return res.status(201).json({
 //         success: true,
 //         data: createdCategories,
 //     });
@@ -64,18 +64,23 @@ const createCategory = asyncWrapper(async (req, res, next) => {
 
 const getCategories = asyncWrapper(async (req, res, next) => {
     const categories = await Category.findAll();
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         data: categories,
     });
 });
 
 const getCategory = asyncWrapper(async (req, res, next) => {
-    const category = await Category.scope('includeProducts').findByPk(req.params.id);
+    let category;
+    if (req.query.includeProducts === 'true') {
+        category = await Category.scope('includeProducts').findByPk(req.params.id);
+    } else {
+        category = await Category.findByPk(req.params.id);
+    }
     if (!category) {
         return next(new NotFoundError(`Category with id ${req.params.id} not found`));
     }
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         data: category,
     });
@@ -91,7 +96,7 @@ const updateCategory = asyncWrapper(async (req, res, next) => {
         category.name = name;
         category.description = description;
         await category.save({ transaction: t });
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             data: category,
         });
@@ -105,7 +110,7 @@ const deleteCategory = asyncWrapper(async (req, res, next) => {
             return next(new NotFoundError(`Category with id ${req.params.id} not found`));
         }
         await category.destroy({ transaction: t });
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             data: {},
         });

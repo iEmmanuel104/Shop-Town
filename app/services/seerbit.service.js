@@ -64,7 +64,7 @@ const GenerateSeerbitKey = async () => {
 //   --data '{
 //       "shipping_method": "ksecure",
 //       "storeId": "8c5e44e8-d599-419a-b2d2-1c9b8070b1d7",
-//       "option": "CARD", 
+//       "option": "card", 
 //       "service": "SEERBIT" 
 //   }'`;
 

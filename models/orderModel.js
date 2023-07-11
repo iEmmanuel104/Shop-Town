@@ -1,5 +1,5 @@
 module.exports = (sequelize, DataTypes) => {
-    const { generateCode } = require('../app/utils/StringGenerator')
+    const { generateCode } = require('../app/utils/stringGenerators')
     const { DeliveryAddress } = require('./utilityModel')(sequelize, DataTypes);
     const { Cart } = require('./storeModel')(sequelize, DataTypes);
 
@@ -127,8 +127,8 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false
         },
         paymentMethod: {
-            type: DataTypes.ENUM(["CARD", "KCREDIT", "CASH"]),
-            defaultValue: "CARD",
+            type: DataTypes.ENUM(["card", "kcredit", "cash"]),
+            defaultValue: "card",
             allowNull: false
         },
         paymentService: {

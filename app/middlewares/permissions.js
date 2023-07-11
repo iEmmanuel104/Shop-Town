@@ -17,7 +17,7 @@ module.exports  = function (roles) {
                 }
                 next();
         } catch (error) {
-            res.status(400).send(error.message);
+            return res.status(400).send(error.message);
         }
     };
 };

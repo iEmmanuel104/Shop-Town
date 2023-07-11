@@ -27,7 +27,7 @@ module.exports = (passport) => {
                             facebookId,
                             firstName: name.split(' ')[0],
                             lastName: name.split(' ')[1],
-                            isActivated: true,
+                            isVerified: true,
                             terms: 'on'
                         });
                     }

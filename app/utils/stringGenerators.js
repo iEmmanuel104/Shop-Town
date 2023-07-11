@@ -1,7 +1,6 @@
 //  generate password
-const redisClient = require('./redis');
 
-const generatePassword = (num) => {
+const generateRandomString = (num) => {
     const length = num;
     charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
         retVal = "";
@@ -27,7 +26,7 @@ const generateCode = (number) => {
     return code;
 }
 
-module.exports = { generatePassword, generateCode };
+module.exports = { generateRandomString, generateCode };
 
 
 

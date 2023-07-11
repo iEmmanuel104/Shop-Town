@@ -1,4 +1,4 @@
-const { Category, Brand, User, Product, StoreDiscount, DeliveryAddress } = require('../../models');
+const { Category, Brand, User, Product, StoreDiscount, DeliveryAddress, AccountDetails } = require('../../models');
 const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/customErrors');
 require('dotenv').config();
 const { sequelize, Sequelize } = require('../../models');
@@ -7,6 +7,8 @@ const asyncWrapper = require('../middlewares/async');
 const Op = require("sequelize").Op;
 const { uploadSingleFile, uploadFiles } = require('../services/imageupload.service');
 const { at } = require('lodash');
+const { generateWallet } = require('../services/wallet.service');
+
 
 //quick create a store
 const createBrand = asyncWrapper(async (req, res, next) => {
@@ -20,9 +22,45 @@ const createBrand = asyncWrapper(async (req, res, next) => {
             userId
         }, { transaction: t });
 
-        res.status(201).json({
+        return res.status(201).json({
             success: true,
             data: store,
+        });
+    });
+});
+
+const addStoreAccount = asyncWrapper(async (req, res, next) => {
+    await sequelize.transaction(async (t) => {
+        const payload = req.decoded;
+        const userId = payload.id;
+        const { accountName, accountNumber, bankName, bankCode } = req.body;
+        const store = await Brand.findByPk(req.params.id);
+        
+        if (!store) {
+            return next(new NotFoundError(`store not found`));
+        }
+
+        // Check if the store already has any existing account details
+        const existingAccount = await AccountDetails.findOne({
+            where: { storeId: store.id }
+        });
+
+        if (!existingAccount) {
+            // Generate wallet only if no existing account details found
+            await generateWallet({ id: store.id, type: 'store' });
+        }
+
+        const account = await AccountDetails.create({
+            accountName,
+            accountNumber,
+            bankName,
+            bankCode,
+            storeId: store.id
+        }, { transaction: t });
+
+        return res.status(201).json({
+            success: true,
+            data: account,
         });
     });
 });
@@ -32,7 +70,7 @@ const getBrands = asyncWrapper(async (req, res, next) => {
         const stores = await Brand.findAll({
             attributes: ['id', 'name', 'socials', 'businessPhone', 'owner', 'logo', 'owner'],
         });
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             data: stores,
         });
@@ -44,7 +82,7 @@ const getBrand = asyncWrapper(async (req, res, next) => {
     if (!store) {
         return next(new NotFoundError(`store not found`));
     }
-    res.status(200).json({
+    return res.status(200).json({
         success: true,
         data: store,
     });
@@ -54,11 +92,6 @@ const getBrandStaff = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const payload = req.decoded;
         const userId = payload.id;
-
-        const user = await User.findByPk(userId);
-        if (!user) {
-            return next(new NotFoundError("User not found"));
-        }
 
         const store = await Brand.scope('includeUsers').findByPk(req.params.id,
             { attributes: ['name', 'businessPhone', 'socials', 'owner'] }
@@ -70,7 +103,7 @@ const getBrandStaff = asyncWrapper(async (req, res, next) => {
             return next(new ForbiddenError("You are not allowed to access this resource"));
         }
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             data: store,
         });
@@ -78,63 +111,50 @@ const getBrandStaff = asyncWrapper(async (req, res, next) => {
 });
 
 const updateBrand = asyncWrapper(async (req, res, next) => {
-    await sequelize.transaction(async (t) => {
+    const payload = req.decoded;
+    const userId = payload.id;
+    const storeId = req.params.id;
+    const { storeName, socials, phone, industry, settings } = req.body;
 
-        const payload = req.decoded;
-        const userId = payload.id;
-        const store = await Brand.findByPk(req.params.id);
-        const user = await User.findByPk(userId);
+    if (!storeId) { return next(new BadRequestError("No store id provided"))}
 
-        if (!user) { return next(new NotFoundError("User not found"))}
+    const storeExists = await Brand.findByPk(storeId);
+    if (!storeExists) { return next(new NotFoundError("Store not found"))}
 
-        if (!store) {
-            return next(new NotFoundError(`store not found`));
-        }
-        const Daddress = await DeliveryAddress.findOne({ where: { storeId: store.id, isDefault: true } });
-        
-        // if (store.owner !== userId) {
-        //     return next(new ForbiddenError("You are not allowed to access this resource"));
-        // }
-        const { storeName, socials, businessPhone, industry, address, country, state, city, postal } = req.body;
-        store.name = storeName ? storeName : store.name;
-        store.socials = socials ? socials : store.socials;
-        store.businessPhone = businessPhone ? businessPhone : store.businessPhone;
-        store.industry = industry ? industry : store.industry;
-        await store.save();
-        const addressdetails = address + ',' + city + ',' + state + ',' + country
+    if (!storeName && !socials && !phone && !industry && !settings && !req.file) {
+        return next(new BadRequestError("No update data provided"));
+    }
 
-        let url;
-        if (req.file) {
-            const details = {
-                user: user.id,
-                folder: `Stores/${storeName}/banner`,
-            }
-            url = await uploadSingleFile(req.file, details)
-        }
+    const brandUpdate = {};
+    // if (storeName) brandUpdate.name = storeName;
+    if (socials) brandUpdate.socials = socials;
+    if (phone) brandUpdate.businessPhone = phone;
+    if (industry) brandUpdate.industry = industry;
+    if (settings) brandUpdate.storeSettings = settings;
 
-        const detailss = {
-            name: store.name,
-            email: user.email,
-            phone: store.businessPhone,
-            address: addressdetails,
-        }
+    let url, uploadname = storeName? storeName: storeExists.name;
+    if (req.file) {
+        const details = {
+            user: storeName? `Stores/${storeName.trim().toLowerCase()}`: `Stores/${storeExists.name}`,
+            folder: `Images`,
+        };
+        url = await uploadSingleFile(req.file, details);
+        brandUpdate.logo = url;
+    }
 
-        const address_code = await validateAddress(detailss)
+    const [updatedCount] = await Brand.update(brandUpdate, {
+        where: { id: storeId, owner: userId },
+    });
 
-        Daddress.address = address;
-        Daddress.city = city;
-        Daddress.state = state;
-        Daddress.country = country;
-        Daddress.postal = postal;
-        Daddress.addressCode = address_code;
-        Daddress.logo = url ? url : Daddress.logo;
+    if (updatedCount === 0) {
+        return next(new NotFoundError("Brand not found or access denied"));
+    }
 
-        await Daddress.save({ transaction: t });
+    const updatedBrand = await Brand.findByPk(storeId);
 
-        res.status(200).json({
-            success: true,
-            data: store,
-        });
+    return res.status(200).json({
+        success: true,
+        data: updatedBrand,
     });
 });
 
@@ -145,7 +165,7 @@ const deleteBrand = asyncWrapper(async (req, res, next) => {
             return next(new NotFoundError(`Brand not found`));
         }
         await store.destroy({ transaction: t });
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             data: {},
         });
@@ -191,7 +211,7 @@ const AddStoreDiscount = asyncWrapper(async (req, res, next) => {
             storeId: req.params.id
         }, { transaction: t });
 
-        res.status(201).json({
+        return res.status(201).json({
             success: true,
             data: newStoreDiscount,
         });
@@ -202,10 +222,7 @@ const getStoreDiscounts = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const payload = req.decoded;
         const userId = payload.id;
-        const user = await User.findByPk(userId);
-        if (!user) {
-            return next(new NotFoundError("User not found"));
-        }
+
         const store = await Brand.findByPk(req.params.id);
         if (!store) {
             return next(new NotFoundError(`store not found`));
@@ -215,7 +232,7 @@ const getStoreDiscounts = asyncWrapper(async (req, res, next) => {
             where: { storeId: req.params.id },
             attributes: ['id', 'title', 'type', 'value', 'endDate']
         });
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             data: storeDiscounts,
         });
@@ -251,7 +268,7 @@ const updateStoreDiscount = asyncWrapper(async (req, res, next) => {
         await storeDiscount.save({ transaction: t });
 
         // update the product table 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             data: storeDiscount,
         });
@@ -279,7 +296,7 @@ const deleteStoreDiscount = asyncWrapper(async (req, res, next) => {
 
         await storeDiscount.destroy({ transaction: t });
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: "Store Discount deleted successfully",
             data: {},
@@ -307,7 +324,7 @@ const increaseStoreProductPrice = asyncWrapper(async (req, res, next) => {
 
         // Define the filter based on the category
         const filter = { storeId: req.params.id };
-        
+
         if (category) {
             filter.categoryId = category;
         }
@@ -325,7 +342,7 @@ const increaseStoreProductPrice = asyncWrapper(async (req, res, next) => {
             await product.save();
         }
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: `Product prices increased successfully by ${amount ? amount : percentage + '%'}}`,
         });
@@ -336,7 +353,7 @@ const storeAnalytics = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
 
     });
-    });
+});
 
 
 
@@ -344,6 +361,7 @@ module.exports = {
     createBrand,
     getBrands,
     getBrand,
+    addStoreAccount,
     updateBrand,
     deleteBrand,
     getBrandStaff,

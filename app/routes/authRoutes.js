@@ -35,7 +35,7 @@ router.get('/user',basicAuth, getloggedInUser);
 router.get('/refresh', getNewAccessToken);
 router.post('/logout',basicAuth, logout);
 router.post('/switch',basicAuth, switchAccount);
-router.post('/registerstore',basicAuth, uploadFile.single('file') ,registerStore);
+router.post('/registerstore', basicAuth, uploadFile.single('file') ,registerStore);
 router.post('/selectstore',basicAuth, selectStore);
 
 // Facebook authentication route

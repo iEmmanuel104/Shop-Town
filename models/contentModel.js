@@ -13,7 +13,7 @@ module.exports = (sequelize, DataTypes) => {
         caption: {
             type: DataTypes.STRING,
         },
-        posttype: {
+        postType: {
             type: DataTypes.ENUM('ksocial', 'status'),
             defaultValue: 'ksocial',
         },

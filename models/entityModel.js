@@ -1,5 +1,6 @@
-const { generateCode } = require('../app/utils/StringGenerator');
+const { generateCode } = require('../app/utils/stringGenerators');
 const { sendverificationEmail, sendForgotPasswordEmail } = require('../app/utils/mailTemplates');
+// const { generateWallet } = require('../app/services/wallet.service');
 
 module.exports = (sequelize, DataTypes) => {
 
@@ -18,11 +19,21 @@ module.exports = (sequelize, DataTypes) => {
         },
         firstName: {
             type: DataTypes.STRING,
-            allowNull: false
+            allowNull: false,
+            // remove empty spaces
+            set(value) {    
+                if(value)
+                this.setDataValue('firstName', value.trim().toLowerCase());
+            }
         },
         lastName: {
             type: DataTypes.STRING,
-            allowNull: false
+            allowNull: false,
+            // remove empty spaces
+            set(value) {
+                if (value)
+                this.setDataValue('lastName', value.trim().toLowerCase());
+            }
         },
         fullName: {
             type: DataTypes.VIRTUAL,
@@ -44,7 +55,9 @@ module.exports = (sequelize, DataTypes) => {
             },
             allowNull: false,
             set(value) {
-                this.setDataValue('email', value.toLowerCase());
+                if (value)
+                // remove whitespaces and convert to lowercase
+                this.setDataValue('email', value.trim().toLowerCase());
             }
         },
         role: {
@@ -60,10 +73,6 @@ module.exports = (sequelize, DataTypes) => {
         },
         phone: {
             type: DataTypes.BIGINT,
-            unique: {
-                args: true,
-                msg: 'Phone number already in use!'
-            },
             validate: {
                 len: {
                     args: [10, 15],
@@ -75,8 +84,8 @@ module.exports = (sequelize, DataTypes) => {
             }
         },
         status: {
-            type: DataTypes.ENUM(["ACTIVE", "INACTIVE"]),
-            defaultValue: "INACTIVE",
+            type: DataTypes.ENUM(["active", "inactive"]),
+            defaultValue: "inactive",
             allowNull: false
         },
         // terms: {
@@ -104,7 +113,7 @@ module.exports = (sequelize, DataTypes) => {
         },
         isActivated: {
             type: DataTypes.BOOLEAN,
-            defaultValue: false,
+            defaultValue: true,
             allowNull: false
         },
         isVerified: {
@@ -120,11 +129,10 @@ module.exports = (sequelize, DataTypes) => {
         // defaultScope: {
         //     attributes: { exclude: ['password'] }
         // },
-
         scopes: {
             verified: {
                 where: {
-                    status: 'ACTIVE',
+                    status: 'active',
                     isActivated: true,
                     isVerified: true
                 },
@@ -158,6 +166,13 @@ module.exports = (sequelize, DataTypes) => {
                 user.generateAndSendVerificationCode('verify');
             }
         },
+        indexes: [
+            {
+                unique: true,
+                fields: ['email']
+            }
+        ]
+
     });
 
     //  ======  Brand Model  ====== //
@@ -170,28 +185,59 @@ module.exports = (sequelize, DataTypes) => {
         },
         name: {
             type: DataTypes.STRING,
-            // unique: {
-            //     args: true,
-            //     msg: 'Store name already in use!'
-            // },
-            allowNull: false
-        },
-        socials: {
-            type: DataTypes.JSONB,
-            defaultValue: {},
-            allowNull: false
-        },
-        businessPhone: {
-            type: DataTypes.BIGINT,
             unique: {
                 args: true,
-                msg: 'Business Phone number provided already in use!'
+                msg: 'Store name already in use!'
+            },
+            allowNull: false,
+            //remove white spaces
+            set(value) {
+                if (value)
+                this.setDataValue('name', value.trim().toLowerCase());
+            }
+        },
+        socials: { type: DataTypes.JSONB },
+        businessPhone: {
+            type: DataTypes.BIGINT,
+            // unique: {
+            //     args: true,
+            //     msg: 'Business Phone number provided already in use!'
+            // },
+            validate: {
+                len: {
+                    args: [10, 15],
+                    msg: 'Phone number should be between 10 and 15 digits!'
+                },
+                isNumeric: {
+                    msg: 'Please enter a valid numeric Phone number!'
+                }
             },
             allowNull: false
+        },
+        businessEmail: {
+            type: DataTypes.STRING,
+            unique: {
+                args: true,
+                msg: 'Business Email provided already in use!'
+            },
+            allowNull: false,
+            validate: {
+                isEmail: {
+                    msg: 'Please enter a valid email address!'
+                }
+            },
+            set(value) {
+                if (value)
+                this.setDataValue('businessEmail', value.trim().toLowerCase());
+            }
         },
         industry: {
             type: DataTypes.STRING,
             allowNull: false,
+            set(value) {
+                if (value)
+                this.setDataValue('industry', value.trim().toLowerCase());
+            }
         },
         owner: { type: DataTypes.STRING },
         isDisabled: {
@@ -199,10 +245,15 @@ module.exports = (sequelize, DataTypes) => {
             defaultValue: false,
             allowNull: false
         },
-        logo: { type: DataTypes.STRING }
+        logo: { type: DataTypes.STRING },
+        storeSettings: {type: DataTypes.JSONB}
     }, {
         tableName: 'Brand',
         timestamps: true,
+        // remove updatedAt from response
+        defaultScope: {
+            attributes: { exclude: ['updatedAt'] }
+        },
         scopes: {
             includeProducts: {
                 include: [{
@@ -219,7 +270,13 @@ module.exports = (sequelize, DataTypes) => {
                     }
                 }]
             }
-        }
+        },
+        indexes: [
+            {
+                unique: true,
+                fields: ['businessEmail']
+            }
+        ]
     });
 
     // ======  UserBrand Model  ====== //
@@ -272,7 +329,7 @@ module.exports = (sequelize, DataTypes) => {
     User.prototype.generateAndSendVerificationCode = async function (type) {
         let code = await generateCode();
 
-        
+
         const { id, email, phone } = this;
         const emailData = { email, phone };
         let emailPromise, codePromise;
@@ -297,13 +354,13 @@ module.exports = (sequelize, DataTypes) => {
 
         return code;
     };
-        
 
 
 
-    // ==================================== //
-    // ============ ASSOCIATIONS =========== //
-    // ==================================== //
+
+    // ======================================= //
+    // ============ ASSOCIATIONS ============= //
+    // ======================================= //
 
     //  =========== USER ASSOCIATIONS =========== //
     User.associate = (models) => {
@@ -314,6 +371,7 @@ module.exports = (sequelize, DataTypes) => {
         });
         User.belongsToMany(models.Brand, {
             through: models.UserBrand,
+            foreignKey: 'UserId',
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
         });
@@ -355,9 +413,10 @@ module.exports = (sequelize, DataTypes) => {
             as: 'products'
         });
         Brand.belongsToMany(models.User, {
-            onDelete: 'CASCADE',
+            // onDelete: 'CASCADE',
             onUpdate: 'CASCADE',
             through: models.UserBrand,
+            foreignKey: 'BrandId',
         });
         Brand.hasOne(models.DeliveryAddress, {
             onDelete: 'CASCADE',
@@ -382,13 +441,18 @@ module.exports = (sequelize, DataTypes) => {
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
         });
+        Brand.hasMany(models.AccountDetails, {
+            foreignKey: 'storeId',
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE'
+        });
 
     };
 
     // ================ USERBRAND ================//
     UserBrand.associate = (models) => {
         UserBrand.belongsTo(models.User)
-        UserBrand.belongsTo(models.Brand, { foreignKey: 'storeId' })
+        UserBrand.belongsTo(models.Brand)
     };
 
     return { User, Brand, UserBrand };

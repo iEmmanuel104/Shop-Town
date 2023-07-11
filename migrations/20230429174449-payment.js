@@ -5,8 +5,8 @@ module.exports = {
   async up(queryInterface, Sequelize) {
     //  modify column
     await queryInterface.changeColumn('Payment', 'paymentMethod', {
-      type: Sequelize.ENUM(["CARD", "KCREDIT", "CASH"]),
-      defaultValue: "CARD",
+      type: Sequelize.ENUM(["card", "kcredit", "cash"]),
+      defaultValue: "card",
       allowNull: false
     });
       
@@ -15,8 +15,8 @@ module.exports = {
   async down(queryInterface, Sequelize) {
     //  modify column
     await queryInterface.changeColumn('Payment', 'paymentMethod', {
-      type: Sequelize.ENUM(["CARD", "CASH"]),
-      defaultValue: "CARD",
+      type: Sequelize.ENUM(["card", "cash"]),
+      defaultValue: "card",
       allowNull: false
     });
   }

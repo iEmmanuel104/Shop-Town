@@ -10,10 +10,21 @@ module.exports = (sequelize, DataTypes) => {
         },
         name: {
             type: DataTypes.STRING,
-            allowNull: false
+            allowNull: false,
+            // remove whitespaces from both ends
+            set(value) {
+                if (value) 
+                this.setDataValue('name', value.trim().toLowerCase());
+            }
         },
         description: { type: DataTypes.TEXT },
-        subcategory: { type: DataTypes.STRING },
+        subcategory: { 
+            type: DataTypes.STRING, 
+            set(value) {
+                if (value) 
+                this.setDataValue('subcategory', value.trim().toLowerCase());
+            }
+         },
         price: {
             type: DataTypes.DECIMAL(10, 2),
             allowNull: false
@@ -24,6 +35,16 @@ module.exports = (sequelize, DataTypes) => {
             defaultValue: {
                 total: 0,
                 instock: 0
+            },
+            validate: {
+                isValidQuantity(value) {
+                    if (value.total < 0 || value.instock < 0) {
+                        throw new Error('Quantity cannot be negative');
+                    }
+                    if (value.total < value.instock) {
+                        throw new Error('Total quantity cannot be less than in-stock quantity');
+                    }
+                }
             }
         },
         discount: {
@@ -44,19 +65,14 @@ module.exports = (sequelize, DataTypes) => {
                 return roundedPrice;
             }
         },
-        specifications: {
-            type: DataTypes.JSONB,
-            defaultValue: {}
-        },
+        specifications: { type: DataTypes.JSONB },
         status: {
-            type: DataTypes.ENUM(["ACTIVE", "INACTIVE"]),
-            defaultValue: "ACTIVE",
+            type: DataTypes.ENUM(["active", "inactive"]),
+            defaultValue: "active",
             allowNull: false
         },
         images: {
-            type: DataTypes.ARRAY(DataTypes.STRING),
-            defaultValue: []
-        },
+            type: DataTypes.ARRAY(DataTypes.STRING)},
     }, {
         tableName: 'Product',
         timestamps: true,
@@ -67,12 +83,12 @@ module.exports = (sequelize, DataTypes) => {
                 }
             },
             includeBrand: {
-                where: { status: 'ACTIVE' },
+                where: { status: 'active' },
                 include: [
                     {
                         model: Brand,
                         as: 'store',
-                        attributes: ['id', 'name', 'businessPhone', 'socials', 'logo'],
+                        attributes: ['name', 'businessPhone', 'socials', 'logo'],
                     }
                 ]
             },
@@ -90,7 +106,7 @@ module.exports = (sequelize, DataTypes) => {
             },
 
             includePrice: {
-                where: { status: 'ACTIVE' },
+                where: { status: 'active' },
                 attributes: ['id', 'name', 'price', 'quantity', 'discount', 'discountedPrice', 'storeId', 'images'],
             },
 
@@ -130,6 +146,10 @@ module.exports = (sequelize, DataTypes) => {
                 product.discountedPrice = (price * (1 - discount / 100)).toFixed(2);
             }
         }
+        if (product.quantity && product.quantity.instock === 0) {
+            product.status = "inactive";
+            product.quantity.total = 0; // Set the total quantity to zero as well
+        }
     });
 
     const Category = sequelize.define("Category", {
@@ -141,20 +161,24 @@ module.exports = (sequelize, DataTypes) => {
         },
         name: {
             type: DataTypes.STRING,
-            allowNull: false
+            allowNull: false,
+            set(value) {
+                if (value)
+                this.setDataValue('name', value.trim().toLowerCase());
+            }
         },
         description: { type: DataTypes.TEXT },
         image: {
             type: DataTypes.STRING,
         },
         status: {
-            type: DataTypes.ENUM(["ACTIVE", "INACTIVE"]),
-            defaultValue: "ACTIVE",
+            type: DataTypes.ENUM(["active", "inactive"]),
+            defaultValue: "active",
             allowNull: false
         },
     }, {
         tableName: 'Category',
-        timestamps: true,
+        timestamps: false,
         scopes: {
             includeProducts: {
                 include: [{
@@ -172,14 +196,8 @@ module.exports = (sequelize, DataTypes) => {
             primaryKey: true,
             allowNull: false
         },
-        items: {
-            type: DataTypes.JSONB,
-            defaultValue: {}
-        },
-        checkoutData: {
-            type: DataTypes.JSONB,
-            defaultValue: {}
-        },
+        items: {type: DataTypes.JSONB },
+        checkoutData: { type: DataTypes.JSONB },
         totalAmount: {
             type: DataTypes.DECIMAL(10, 2),
             defaultValue: 0
@@ -214,7 +232,11 @@ module.exports = (sequelize, DataTypes) => {
         },
         title: {
             type: DataTypes.STRING,
-            allowNull: false
+            allowNull: false,
+            set(value) {
+                if (value)
+                this.setDataValue('title', value.trim().toLowerCase());
+            }
         },
         type: {
             type: DataTypes.ENUM(["percentage", "amount"]),
@@ -244,17 +266,13 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false
         },
         usageLimitPerPerson: {
-            type: DataTypes.INTEGER,
-            defaultValue: 1,
+            type: DataTypes.INTEGER
         },
         usageLimitPerDiscount: {
-            type: DataTypes.INTEGER,
-            defaultValue: 1,
+            type: DataTypes.INTEGER
         },
         categoryIds: {
-            type: DataTypes.ARRAY(DataTypes.UUID),
-            defaultValue: []
-        },
+            type: DataTypes.ARRAY(DataTypes.UUID)},
     }, {
         tableName: 'StoreDiscount',
         timestamps: true,
@@ -376,6 +394,8 @@ module.exports = (sequelize, DataTypes) => {
         });
         Product.belongsTo(models.Brand, {
             foreignKey: 'storeId',
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE',
             as: 'store'
         });
         Product.hasMany(models.Review, {

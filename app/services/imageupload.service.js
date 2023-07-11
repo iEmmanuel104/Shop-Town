@@ -1,15 +1,15 @@
 const { BadRequestError } = require('../utils/customErrors');
 const { uploadtocloudinary, deleteFromCloudinary } = require('../middlewares/cloudinary');
+const { generateRandomString } = require('../utils/stringGenerators');
 
 const uploadSingleFile = async (file, details) => {
     const fileBuffer = file.buffer;
     let originalname = file.originalname;
-    details.name = originalname;
+    details.name = await generateRandomString(6);
 
     let uploadresult = await uploadtocloudinary(fileBuffer, details);
-    // console.log('upload result', uploadresult);
     if (uploadresult.message === 'error') {
-        throw new BadRequestError(uploadresult.message);
+        throw new BadRequestError(uploadresult.error.message);
     }
     if (uploadresult.message === 'success') {
         return uploadresult.url;
@@ -21,32 +21,34 @@ const uploadFiles = async (req, details) => {
     if (!files || !files.length) {
         throw new BadRequestError('No files found for upload');
     }
-    const results = [];
-    for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        const result = await uploadSingleFile(file, details);
-        results.push(result);
-    }
+
+    const uploadPromises = files.map((file) => uploadSingleFile(file, details));
+    const results = await Promise.all(uploadPromises);
+
     if (results.length === 0) {
         throw new BadRequestError(`Error uploading files to cloudinary`);
     }
+
     return results;
-}
+};
 
 const deleteFiles = async (urls) => {
-    const results = [];
-    for (let i = 0; i < urls.length; i++) {
-        const url = urls[i];
-        const result = await deleteFromCloudinary(url);
-        results.push(result);
+    if (!urls || !urls.length) {
+        throw new BadRequestError('No URLs found for deletion');
     }
+
+    const deletePromises = urls.map((url) => deleteFromCloudinary(url));
+    const results = await Promise.all(deletePromises);
+
     if (results.length === 0) {
         throw new BadRequestError(`Error deleting files from cloudinary`);
     }
+
     return results;
-}
+};
 
 module.exports = {
     uploadSingleFile,
-    uploadFiles
+    uploadFiles,
+    deleteFiles,
 };
