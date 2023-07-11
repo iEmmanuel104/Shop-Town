@@ -146,9 +146,11 @@ module.exports = (sequelize, DataTypes) => {
                 product.discountedPrice = (price * (1 - discount / 100)).toFixed(2);
             }
         }
-        if (product.quantity && product.quantity.instock === 0) {
-            product.status = "inactive";
-            product.quantity.total = 0; // Set the total quantity to zero as well
+        if (product.quantity) {
+            if (product.quantity.instock === 0) {
+                product.status = "inactive";
+                product.quantity.total = 0; // Set the total quantity to zero as well
+            }
         }
     });
 
@@ -410,11 +412,15 @@ module.exports = (sequelize, DataTypes) => {
         // self association
         Cart.belongsTo(models.Cart, {
             foreignKey: 'parentId',
-            as: 'parent'
+            as: 'parent',
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE'
         });
         Cart.hasMany(models.Cart, {
             foreignKey: 'parentId',
-            as: 'Wishlists'
+            as: 'Wishlists',
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE'
         });
     };
 
