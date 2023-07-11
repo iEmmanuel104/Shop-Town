@@ -174,101 +174,116 @@ const deleteCart = asyncWrapper(async (req, res, next) => {
 });
 
 const cartcheckout = asyncWrapper(async (req, res, next) => {
-  await sequelize.transaction(async (t) => {
-    const decoded = req.decoded
-    // const { id } = req.params;
-    // if (decoded.vendorMode) {
-    //     throw new ForbiddenError("Plesae switch to customer mode to checkout");
-    // }
+  const decoded = req.decoded;
+  const userId = decoded.id;
+  console.log("userId", userId);
 
-    const userId = decoded.id;
-    console.log("userId", userId)
+  const cart = await Cart.findOne({
+    where: { userId: userId, isWishList: false },
+  });
 
-    const cart = await Cart.findOne({
-      where: { userId: userId, isWishList: false }
+  if (!cart) return next(new NotFoundError("Cart not found"));
+
+  if (cart.items != null && cart.items.length > 0) {
+    const converted = await convertcart(cart, "checkout");
+
+    // categorise items by store
+    const cartStore = await checkCartStore(cart.items);
+    const storeId = { id: cartStore.store, type: "store" };
+    const userobj = { id: userId, type: "user" };
+
+    let sender_address_code,
+      receiver_address_code,
+      pickup_date,
+      category_id,
+      package_items,
+      package_dimension,
+      description,
+      boxSizes;
+
+    // Get sender and user address codes
+    const [senderAddress, receiverAddress] = await Promise.all([
+      DeliveryAddress.scope({ method: ["Default", storeId] }).findOne(),
+      DeliveryAddress.scope({ method: ["Default", userobj] }).findOne(),
+    ]);
+
+    sender_address_code = senderAddress?.addressCode;
+    if (!sender_address_code) return next(new NotFoundError("Store validation pending"));
+
+    receiver_address_code = receiverAddress?.addressCode;
+    if (!receiver_address_code) return next(new NotFoundError("Please add a delivery address"));
+
+    pickup_date = new Date(new Date().getTime() + 60 * 60 * 1000)
+      .toISOString()
+      .split("T")[0]; // set pickup date to UTC + 1 hour 
+
+    package_items = converted.items.map((item) => {
+      const weightsum = item.count * item.info.weight;
+      return {
+        name: item.info.name,
+        description: item.info.description,
+        unit_weight: item.info.weight,
+        unit_amount: item.info.Discountprice,
+        quantity: item.count,
+        category: item.info.category,
+        total_weight: weightsum,
+      };
     });
 
-    if (!cart) return next(new NotFoundError("Cart not found"));
+    boxSizes = (await getshippingboxes()).data;
+    const { dimensions, package_category } = await estimateBoxDimensions(
+      package_items,
+      boxSizes
+    );
+    package_dimension = dimensions;
+    category_id = package_category; // get category id from first item in cart
+    description = package_dimension.description
+      ? `Please handle with care as ${package_dimension.description}`
+      : `Please handle with care and do not shake`;
 
-    if (cart.items != null && cart.items.length > 0) {
-      const converted = await convertcart(cart, 'checkout')
+    const details = {
+      sender_address_code,
+      receiver_address_code,
+      pickup_date,
+      category_id,
+      package_items,
+      package_dimension,
+      delivery_instructions: description,
+    };
+    console.log("details", details);
 
-      // categorise itens by store
-      const cartStore = await checkCartStore(cart.items);
-      const storeId = { id: cartStore.store, type: 'store' };
-      const userobj = { id: userId, type: 'user' };
+    const {
+      request_token,
+      allcouriers,
+      kship_courier,
+      cheapest_courier,
+      checkout_data,
+    } = await getShippingRates(details);
 
-      let sender_address_code, receiver_address_code, pickup_date,
-        category_id, package_items, package_dimension, description, boxSizes;
-
-      // Get sender and user address codes 
-      sender_address_code = (await DeliveryAddress.scope({ method: ["Default", storeId] }).findOne()).addressCode;
-      if (!sender_address_code) return next(new NotFoundError("Store validation pending"));
-
-      receiver_address_code = (await DeliveryAddress.scope({ method: ["Default", userobj] }).findOne()).addressCode;
-      if (!receiver_address_code) return next(new NotFoundError("Please add a delivery address"));
-
-      // pickup_date = new Date().toISOString().split('T')[0];
-      pickup_date = new Date(new Date().getTime() + 60 * 60 * 1000).toISOString().split('T')[0];
-      // add 1 hour to current time to convert to UTC +1 (Nigeria time)
-
-      package_items = converted.items.map(item => {
-        const weightsum = item.count * item.info.weight;
-        return {
-          name: item.info.name,
-          description: item.info.description,
-          unit_weight: item.info.weight,
-          unit_amount: item.info.Discountprice,
-          quantity: item.count,
-          category: item.info.category,
-          total_weight: weightsum
-        }
-      });
-      boxSizes = (await getshippingboxes()).data;
-      let { dimensions, package_category } = await estimateBoxDimensions(package_items, boxSizes);
-      console.log("dimensions", dimensions)
-      console.log("selectedCategory", package_category)
-      package_dimension = dimensions
-      category_id = package_category; // get category id from first item in cart
-      description = package_dimension.description
-        ? `Please handle with care as ${package_dimension.description}` :
-        `Please handle with care and do not shake`;
-
-      const details = {
-        sender_address_code, receiver_address_code, pickup_date,
-        category_id, package_items, package_dimension,
-        delivery_instructions: description
-      }
-      console.log("details", details)
-      // GET SHIPPING FEE FROM SHIPBUBBLE API
-      const { request_token, allcouriers, kship_courier, cheapest_courier, checkout_data } = await getShippingRates(details);
-
-      // console.log(request_token, kship_courier, cheapest_courier, checkout_data)
-      if (request_token) {
-        cart.update({ checkoutData: { requestToken: request_token, valid: true } });
-      }
-
-      res.status(200).json({
-        success: true,
-        message: "Proceed to choose a suitable shipping method",
-        data: {
-          // kship_fee: kship_courier.total ? parseFloat(kship_courier.total) : cheapest_courier.total,
-          ksecureCommission: parseFloat(KSECURE_FEE),
-          info: `Please note that the shipping fee is subject to change if the package dimensions are different from the estimated dimensions.`,
-          couriers: allcouriers,
-          checkoutData: checkout_data
-        }
-      });
+    if (request_token) {
+      await cart.update({ checkoutData: { requestToken: request_token, valid: true } });
     }
-    else {
-      res.status(200).json({
-        success: true,
-        message: "Cart is empty, please add items to cart to checkout",
-        data: {}
-      });
-    }
-  });
+
+    res.status(200).json({
+      success: true,
+      message: "Proceed to choose a suitable shipping method",
+      data: {
+        ksecureCommission: parseFloat(KSECURE_FEE),
+        info:
+          "Please note that the shipping fee is subject to change if the package dimensions are different from the estimated dimensions.",
+        couriers: allcouriers,
+        checkoutData: checkout_data,
+      },
+    });
+  } else {
+    res.status(200).json({
+      success: true,
+      message: "Cart is empty, please add items to cart to checkout",
+      data: {},
+    });
+  }
 });
+
 
 
 module.exports = {
