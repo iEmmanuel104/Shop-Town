@@ -73,6 +73,7 @@ module.exports = (sequelize, DataTypes) => {
         },
         phone: {
             type: DataTypes.BIGINT,
+            unique: true,
             validate: {
                 len: {
                     args: [10, 15],
@@ -199,10 +200,10 @@ module.exports = (sequelize, DataTypes) => {
         socials: { type: DataTypes.JSONB },
         businessPhone: {
             type: DataTypes.BIGINT,
-            // unique: {
-            //     args: true,
-            //     msg: 'Business Phone number provided already in use!'
-            // },
+            unique: {
+                args: true,
+                msg: 'Business Phone number provided already in use!'
+            },
             validate: {
                 len: {
                     args: [10, 15],
