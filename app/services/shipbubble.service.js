@@ -65,6 +65,7 @@ const getShippingRates = async (details) => {
         const requestobject = {
             request_token: response.data.data.request_token,
             cheapest_courier: response.data.data.cheapest_courier,
+            allcouriers: response.data.data.couriers,
             kship_courier: await findCourier(response.data.data),
             checkout_data: response.data.data.checkout_data
         }
