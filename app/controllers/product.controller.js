@@ -19,8 +19,8 @@ const createProduct = asyncWrapper(async (req, res, next) => {
         return next(new BadRequestError('Please provide all required fields'));
     }
 
-    if (quantity.instock >= 0 && quantity.total >= 0 && quantity.instock > quantity.total) {
-        throw new BadRequestError('Quantity in stock cannot be greater than total quantity');
+    if (quantity.instock >= 0 && quantity.total >= 0 && quantity.instock > quantity.total && quantity.total !== quantity.instock) {
+        throw new BadRequestError('Quantity instock cannot be greater than total quantity, both values must be greater than 0 and must be equal');
     }
 
     const storeExists = await Brand.findByPk(storeId);
@@ -229,7 +229,7 @@ const getProducts = asyncWrapper(async (req, res, next) => {
 
 const getProduct = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
-        const product = await Product.scope('includeBrand').findByPk(req.params.id);
+        const product = await Product.findByPk(req.params.id);
         if (!product) {
             return next(new NotFoundError(`Product with id ${req.params.id} not found`));
         }
@@ -311,6 +311,10 @@ const updateProduct = asyncWrapper(async (req, res, next) => {
         const decoded = req.decoded;
         // const storeId = decoded.storeId;
         const { storeId } = req.query
+
+        if (quantity.instock >= 0 && quantity.total >= 0 && quantity.instock > quantity.total) {
+            throw new BadRequestError('Quantity in stock cannot be greater than total quantity');
+        }
 
         // Check if the product exists
         const product = await Product.findByPk(productId);
