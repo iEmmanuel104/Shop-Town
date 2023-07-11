@@ -233,7 +233,6 @@ const signIn = asyncWrapper(async (req, res, next) => {
         : req.body.phone ? { phone: req.body.phone }
             : next(new BadRequestError('Please provide email or phone'));
 
-
     const user = await User.findOne({
         where: data,
         include: [
@@ -263,7 +262,6 @@ const signIn = asyncWrapper(async (req, res, next) => {
     if (!passwordInstance.isValidPassword(password)) {
         return next(new BadRequestError('Invalid user Credentials'));
     }
-    console.log(user)
 
     const hasdefaultAddress = !!user.DeliveryAddresses[0]; // check if the user has a default address
     const hascheckoutData = !!user.Cart.checkoutData; // check if the user has checkout data
@@ -306,14 +304,14 @@ const getloggedInUser = asyncWrapper(async (req, res, next) => {
                 {
                     model: Cart,
                     as: 'Cart',
-                    attributes: { exclude: ['checkoutData', 'createdAt', 'updatedAt'] },
+                    attributes: ['id'],
                     include: [{
                         model: Cart,
                         as: 'Wishlists',
                         attributes: ['id'],
                     }]
                 },
-                { model: Wallet, attributes: ['amount'] },
+                { model: Wallet, attributes: ['id', 'amount'] },
                 { model: DeliveryAddress, where: { isDefault: true } },
             ]
         }
