@@ -33,8 +33,8 @@ const serverfunctions = async () => {
     };
 
     // sdding {force: true} will drop the table if it already exists 
-    // db.sequelize.sync().then(() => {
-        db.sequelize.sync({ force: true }).then(() => {
+    db.sequelize.sync().then(() => {
+        // db.sequelize.sync({ force: true }).then(() => {
         console.log('All Tables synchronized successfully');
 
         app.listen(PORT, () => {
