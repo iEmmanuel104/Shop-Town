@@ -20,6 +20,8 @@ const createProduct = asyncWrapper(async (req, res, next) => {
     }
     filefound = req.files;
 
+    console.log(req.files)
+
     if (!filefound || !filefound.length) {
         throw new BadRequestError('No files found for upload');
     }
