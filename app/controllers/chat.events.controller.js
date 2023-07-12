@@ -1,5 +1,5 @@
 const { randomUUID } = require("crypto")
-const { ChatRoom, Message, User, Brand } = require("../../models")
+const { ChatRoom, Message, User, Store } = require("../../models")
 const { clients, joinRoom } = require("../utils/clients")
 const { join } = require("path");
 const { log } = require("console");
@@ -61,7 +61,7 @@ const initiateChat = async function (req, res) {
     const socket = this;
     const { storeId } = req.data;
     // Check if the store and user exist
-    const store = await Brand.findByPk(storeId);
+    const store = await Store.findByPk(storeId);
     // const user = await User.findByPk(socket.user.id);   
     if (!store) {
         res.send('Invalid store');
@@ -69,7 +69,7 @@ const initiateChat = async function (req, res) {
     }
 
     // get store users id list
-    const storeUsers = await Brand.findAll({
+    const storeUsers = await Store.findAll({
         where: { id: storeId },
         include: {
             model: User,

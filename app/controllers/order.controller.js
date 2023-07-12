@@ -1,4 +1,4 @@
-const { Product, User, Order, Brand, Category, Cart, ShipbubbleOrder, DeliveryAddress, Payment, Wallet, WalletTransaction } = require('../../models');
+const { Product, User, Order, Store, Category, Cart, ShipbubbleOrder, DeliveryAddress, Payment, Wallet, WalletTransaction } = require('../../models');
 require('dotenv').config();
 const { sequelize, Sequelize } = require('../../models');
 const asyncWrapper = require('../middlewares/async');
@@ -22,6 +22,7 @@ const createOrder = asyncWrapper(async (req, res, next) => {
         const decoded = req.decoded;
         const userId = decoded.id;
         const userInfo = await User.findOne({ where: { id: userId } });
+
         const { shipping_method, storeId, option, service } = req.body;
 
         const cart = await Cart.findOne({ where: { userId } });
@@ -41,7 +42,7 @@ const createOrder = asyncWrapper(async (req, res, next) => {
 
         let cartdetails = { items: cart.items, totalAmount: cart.totalAmount }
 
-        const store = await Brand.findOne({ where: { id: storeId }, attributes: ['socials', 'name', 'logo'] })
+        const store = await Store.findOne({ where: { id: storeId }, attributes: ['socials', 'name', 'logo'] })
         if (!store) throw new NotFoundError('Store not found');
 
         let order, socials, kship_order, shippingObject, returnobject, orderobj;

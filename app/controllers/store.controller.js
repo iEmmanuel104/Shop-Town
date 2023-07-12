@@ -1,4 +1,4 @@
-const { Category, Brand, User, Product, StoreDiscount, DeliveryAddress, AccountDetails } = require('../../models');
+const { Category, Store, User, Product, StoreDiscount, DeliveryAddress, AccountDetails } = require('../../models');
 const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/customErrors');
 require('dotenv').config();
 const { sequelize, Sequelize } = require('../../models');
@@ -11,12 +11,12 @@ const { generateWallet } = require('../services/wallet.service');
 
 
 //quick create a store
-const createBrand = asyncWrapper(async (req, res, next) => {
+const createStore = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const payload = req.decoded;
         const userId = payload.id;
         const { name, socials } = req.body;
-        const store = await Brand.create({
+        const store = await Store.create({
             name,
             socials,
             userId
@@ -34,7 +34,7 @@ const addStoreAccount = asyncWrapper(async (req, res, next) => {
         const payload = req.decoded;
         const userId = payload.id;
         const { accountName, accountNumber, bankName, bankCode } = req.body;
-        const store = await Brand.findByPk(req.params.id);
+        const store = await Store.findByPk(req.params.id);
         
         if (!store) {
             return next(new NotFoundError(`store not found`));
@@ -65,9 +65,9 @@ const addStoreAccount = asyncWrapper(async (req, res, next) => {
     });
 });
 
-const getBrands = asyncWrapper(async (req, res, next) => {
+const getStores = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
-        const stores = await Brand.findAll({
+        const stores = await Store.findAll({
             attributes: ['id', 'name', 'socials', 'businessPhone', 'owner', 'logo', 'owner'],
         });
         return res.status(200).json({
@@ -77,8 +77,8 @@ const getBrands = asyncWrapper(async (req, res, next) => {
     });
 });
 
-const getBrand = asyncWrapper(async (req, res, next) => {
-    const store = await Brand.findByPk(req.params.id);
+const getStore = asyncWrapper(async (req, res, next) => {
+    const store = await Store.findByPk(req.params.id);
     if (!store) {
         return next(new NotFoundError(`store not found`));
     }
@@ -88,16 +88,16 @@ const getBrand = asyncWrapper(async (req, res, next) => {
     });
 });
 
-const getBrandStaff = asyncWrapper(async (req, res, next) => {
+const getStoreStaff = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const payload = req.decoded;
         const userId = payload.id;
 
-        const store = await Brand.scope('includeUsers').findByPk(req.params.id,
+        const store = await Store.scope('includeUsers').findByPk(req.params.id,
             { attributes: ['name', 'businessPhone', 'socials', 'owner'] }
         );
 
-        if (!store) { return next(new NotFoundError(`Brand not found`)) }
+        if (!store) { return next(new NotFoundError(`Store not found`)) }
 
         if (store.owner !== userId) {
             return next(new ForbiddenError("You are not allowed to access this resource"));
@@ -110,7 +110,7 @@ const getBrandStaff = asyncWrapper(async (req, res, next) => {
     });
 });
 
-const updateBrand = asyncWrapper(async (req, res, next) => {
+const updateStore = asyncWrapper(async (req, res, next) => {
     const payload = req.decoded;
     const userId = payload.id;
     const storeId = req.params.id;
@@ -118,19 +118,19 @@ const updateBrand = asyncWrapper(async (req, res, next) => {
 
     if (!storeId) { return next(new BadRequestError("No store id provided"))}
 
-    const storeExists = await Brand.findByPk(storeId);
+    const storeExists = await Store.findByPk(storeId);
     if (!storeExists) { return next(new NotFoundError("Store not found"))}
 
     if (!storeName && !socials && !phone && !industry && !settings && !req.file) {
         return next(new BadRequestError("No update data provided"));
     }
 
-    const brandUpdate = {};
-    // if (storeName) brandUpdate.name = storeName;
-    if (socials) brandUpdate.socials = socials;
-    if (phone) brandUpdate.businessPhone = phone;
-    if (industry) brandUpdate.industry = industry;
-    if (settings) brandUpdate.storeSettings = settings;
+    const storeUpdate = {};
+    // if (storeName) storeUpdate.name = storeName;
+    if (socials) storeUpdate.socials = socials;
+    if (phone) storeUpdate.businessPhone = phone;
+    if (industry) storeUpdate.industry = industry;
+    if (settings) storeUpdate.storeSettings = settings;
 
     let url, uploadname = storeName? storeName: storeExists.name;
     if (req.file) {
@@ -139,30 +139,30 @@ const updateBrand = asyncWrapper(async (req, res, next) => {
             folder: `Images`,
         };
         url = await uploadSingleFile(req.file, details);
-        brandUpdate.logo = url;
+        storeUpdate.logo = url;
     }
 
-    const [updatedCount] = await Brand.update(brandUpdate, {
+    const [updatedCount] = await Store.update(storeUpdate, {
         where: { id: storeId, owner: userId },
     });
 
     if (updatedCount === 0) {
-        return next(new NotFoundError("Brand not found or access denied"));
+        return next(new NotFoundError("Store not found or access denied"));
     }
 
-    const updatedBrand = await Brand.findByPk(storeId);
+    const updatedStore = await Store.findByPk(storeId);
 
     return res.status(200).json({
         success: true,
-        data: updatedBrand,
+        data: updatedStore,
     });
 });
 
-const deleteBrand = asyncWrapper(async (req, res, next) => {
+const deleteStore = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
-        const store = await Brand.findByPk(req.params.id);
+        const store = await Store.findByPk(req.params.id);
         if (!store) {
-            return next(new NotFoundError(`Brand not found`));
+            return next(new NotFoundError(`Store not found`));
         }
         await store.destroy({ transaction: t });
         return res.status(200).json({
@@ -189,7 +189,7 @@ const AddStoreDiscount = asyncWrapper(async (req, res, next) => {
             include = [{ model: Product, attributes: ['id'], where: { category: { [Op.in]: categories } } }];
         }
 
-        const store = await Brand.findByPk(req.params.id,
+        const store = await Store.findByPk(req.params.id,
             { attributes: ['owner'] },
             include
         );
@@ -223,7 +223,7 @@ const getStoreDiscounts = asyncWrapper(async (req, res, next) => {
         const payload = req.decoded;
         const userId = payload.id;
 
-        const store = await Brand.findByPk(req.params.id);
+        const store = await Store.findByPk(req.params.id);
         if (!store) {
             return next(new NotFoundError(`store not found`));
         }
@@ -244,7 +244,7 @@ const updateStoreDiscount = asyncWrapper(async (req, res, next) => {
         const payload = req.decoded;
         const userId = payload.id;
         const { title, type, value, endDate, status, discountId } = req.body;
-        const store = await Brand.findByPk(req.params.id, { attributes: ['owner'] });
+        const store = await Store.findByPk(req.params.id, { attributes: ['owner'] });
 
         if (!store) {
             return next(new NotFoundError(`store not found`));
@@ -279,7 +279,7 @@ const deleteStoreDiscount = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const payload = req.decoded;
         const userId = payload.id;
-        const store = await Brand.findByPk(req.params.id, { attributes: ['owner'] });
+        const store = await Store.findByPk(req.params.id, { attributes: ['owner'] });
 
         if (!store) {
             return next(new NotFoundError(`store not found`));
@@ -312,7 +312,7 @@ const increaseStoreProductPrice = asyncWrapper(async (req, res, next) => {
         const { amount, percentage } = req.body;
         const { category } = req.query;
 
-        const store = await Brand.findByPk(req.params.id, { attributes: ['owner'] });
+        const store = await Store.findByPk(req.params.id, { attributes: ['owner'] });
 
         if (!store) {
             return next(new NotFoundError(`Store not found`));
@@ -358,13 +358,13 @@ const storeAnalytics = asyncWrapper(async (req, res, next) => {
 
 
 module.exports = {
-    createBrand,
-    getBrands,
-    getBrand,
+    createStore,
+    getStores,
+    getStore,
     addStoreAccount,
-    updateBrand,
-    deleteBrand,
-    getBrandStaff,
+    updateStore,
+    deleteStore,
+    getStoreStaff,
     AddStoreDiscount,
     getStoreDiscounts,
     updateStoreDiscount,

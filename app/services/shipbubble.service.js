@@ -223,7 +223,6 @@ const defaultboxes = {
         }
     ]
 }
-
 const getshippingboxes = async () => {
     const axios = require('axios');
 
@@ -279,7 +278,6 @@ const createshipment = async (details) => {
         throw new BadRequestError('Error creating shipment');
     }
 }
-
 function findCourier(data) {
     const cheapestCourier = data.cheapest_courier;
     if (cheapestCourier.is_cod_available) {

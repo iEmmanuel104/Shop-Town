@@ -78,7 +78,7 @@ module.exports = (sequelize, DataTypes) => {
             foreignKey: "userId",
             as: 'userwallet'
         });
-        Wallet.belongsTo(models.Brand, {
+        Wallet.belongsTo(models.Store, {
             foreignKey: 'storeId',
             as: 'storewallet'
         })

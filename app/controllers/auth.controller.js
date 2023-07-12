@@ -1,4 +1,4 @@
-const { User, Token, Password, BlacklistedTokens, Brand, DeliveryAddress, Cart, Wallet } = require('../../models');
+const { User, Token, Password, BlacklistedTokens, Store, DeliveryAddress, Cart, Wallet } = require('../../models');
 const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/customErrors');
 const { uploadSingleFile } = require('../services/imageupload.service');
 const { LOGO, accessTokenExpiry } = require('../utils/configs');
@@ -268,7 +268,7 @@ const signIn = asyncWrapper(async (req, res, next) => {
 
     let tokens;
     // check if the user has a store 
-    const stores = await user.getBrands()
+    const stores = await user.getStores()
     if (stores.length > 0) {
         await user.update({ status: 'active', vendorMode: true });
         tokens = await issueToken({ userid: user.id, storeId: stores[0].id })
@@ -318,13 +318,13 @@ const getloggedInUser = asyncWrapper(async (req, res, next) => {
     );
     if (!user) return next(new BadRequestError('Unverified user'))
     // get all stores associated with the user and extract only the id and name fields
-    const stores = (await user.getBrands({
+    const stores = (await user.getStores({
         attributes: ['id', 'name', 'logo', 'businessPhone', 'socials'],
         through: { attributes: ['role'] }
     })).map(store => ({
         id: store.id,
         name: store.name,
-        role: store.UserBrand.role,
+        role: store.UserStore.role,
         logo: store.logo,
         phone: store.businessPhone,
         socials: store.socials
@@ -457,13 +457,13 @@ const switchAccount = asyncWrapper(async (req, res, next) => {
     user.vendorMode = !user.vendorMode // flip the boolean value
 
     // get all stores associated with the user and extract only the id and name fields
-    const stores = (await user.getBrands({
+    const stores = (await user.getStores({
         attributes: ['id', 'name'],
         through: { attributes: ['role'] }
     })).map(store => ({
         id: store.id,
         name: store.name,
-        role: store.UserBrand.role
+        role: store.UserStore.role
     }))
 
     // if there is no store associated with the user, return a message
@@ -498,7 +498,7 @@ const selectStore = asyncWrapper(async (req, res, next) => {
     if (!user) return next(new BadRequestError('Invalid user'))
 
     // check if user is associated with the store
-    const store = await Brand.findByPk(storeId)
+    const store = await Store.findByPk(storeId)
     if (!store) return next(new BadRequestError('Invalid store'))
     const isAssociated = await store.hasUser(user)
     if (!isAssociated) return next(new BadRequestError('Unauthorized'))
@@ -533,7 +533,7 @@ const registerStore = asyncWrapper(async (req, res, next) => {
     }
     checkemail = email.trim().toLowerCase()
     checkstoreName = storeName.trim().toLowerCase()
-    const existingStore = await Brand.findOne({
+    const existingStore = await Store.findOne({
         where: {
             [Op.or]: [
                 { businessEmail: checkemail },
@@ -562,7 +562,7 @@ const registerStore = asyncWrapper(async (req, res, next) => {
     }
 
     // Create store, add user, and create new address using bulkCreate
-    const createdStore = await Brand.create({
+    const createdStore = await Store.create({
         name: storeName,        city: city,
         businessPhone: phone,   businessEmail: email,
         industry: industry,     country: country,

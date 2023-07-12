@@ -1,4 +1,4 @@
-const { Product, User, Brand, Category, DeliveryAddress } = require('../../models');
+const { Product, User, Store, Category, DeliveryAddress } = require('../../models');
 require('dotenv').config();
 const { sequelize, Sequelize } = require('../../models');
 const asyncWrapper = require('../middlewares/async');
@@ -18,19 +18,24 @@ const createProduct = asyncWrapper(async (req, res, next) => {
     if (!name || !price || !quantity || !shippingcategory) {
         return next(new BadRequestError('Please provide all required fields'));
     }
+    filefound = req.files;
+
+    if (!filefound || !filefound.length) {
+        throw new BadRequestError('No files found for upload');
+    }
 
     if (quantity.instock >= 0 && quantity.total >= 0 && quantity.instock > quantity.total && quantity.total !== quantity.instock) {
         throw new BadRequestError('Quantity instock cannot be greater than total quantity, both values must be greater than 0 and must be equal');
     }
 
-    const storeExists = await Brand.findByPk(storeId);
+    const storeExists = await Store.findByPk(storeId);
     if (!storeExists) {
         return next(new NotFoundError('Store not found'));
     }
 
     const [categoryExists, storeHasAddress, isAssociated] = await Promise.all([
         Category.findByPk(category),
-        Brand.findByPk(storeId),
+        Store.findByPk(storeId),
         DeliveryAddress.findOne({ where: { storeId, isDefault: true } }),
         storeExists.hasUser(decoded)
     ]);
@@ -46,7 +51,9 @@ const createProduct = asyncWrapper(async (req, res, next) => {
     }
 
     let fileUrls = [];
-    if (req.files) {
+    // check if filefound is an empty array
+
+    if (filefound || filefound.length == 0) {
         const details = {
             user: `Stores/${storeExists.name}`,
             folder: "Products"
@@ -91,7 +98,7 @@ const createBulkProducts = asyncWrapper(async (req, res, next) => {
     const decoded = req.decoded;
     const { storeId } = req.query;
 
-    const store = await Brand.findByPk(storeId);
+    const store = await Store.findByPk(storeId);
     if (!store) {
         return next(new NotFoundError("Store not found"));
     }
@@ -199,7 +206,7 @@ const getProducts = asyncWrapper(async (req, res, next) => {
             ({ limit, offset } = getPagination(page, size));
         }
 
-        const products = await Product.scope('includeBrand').findAndCountAll({
+        const products = await Product.scope('includeStore').findAndCountAll({
             where: whereClause,
             include: [{ model: Category, as: 'category', attributes: ['id', 'name'] }],
             order: [['updatedAt', 'DESC']],
@@ -248,7 +255,7 @@ const getStoreProducts = asyncWrapper(async (req, res, next) => {
         if (!storeId) {
             return next(new ForbiddenError("please ensure you are connected to a store"));
         }
-        const store = await Brand.findByPk(storeId);
+        const store = await Store.findByPk(storeId);
         if (!store) {
             return next(new NotFoundError("Store not found"));
         }
@@ -275,7 +282,7 @@ const toggleProduct = asyncWrapper(async (req, res, next) => {
         if (!storeId) {
             return next(new ForbiddenError("please ensure you are connected to a store"));
         }
-        const store = await Brand.findByPk(storeId);
+        const store = await Store.findByPk(storeId);
         if (!store) {
             return next(new NotFoundError("Store not found"));
         }
@@ -333,7 +340,7 @@ const updateProduct = asyncWrapper(async (req, res, next) => {
             return next(new NotFoundError("User not found"));
         }
 
-        const store = await Brand.findByPk(storeId);
+        const store = await Store.findByPk(storeId);
         if (!store) {
             return next(new NotFoundError("Store not found"));
         }
@@ -392,7 +399,7 @@ const updateProductdiscount = asyncWrapper(async (req, res, next) => {
         // }
 
         // check if store exists
-        const store = await Brand.findByPk(storeId);
+        const store = await Store.findByPk(storeId);
         if (!store) {
             return next(new NotFoundError("Store not found"));
         }
@@ -474,7 +481,7 @@ const searchProduct = asyncWrapper(async (req, res, next) => {
             where: filters,
             include: [
                 {
-                    model: Brand,
+                    model: Store,
                     as: 'store',
                 },
                 {
@@ -521,7 +528,7 @@ const searchProduct = asyncWrapper(async (req, res, next) => {
 //     }
 
 //     if (store && !validator.isInt(store, { min: 1 })) {
-//         throw new BadRequestError('Brand ID should be a positive integer');
+//         throw new BadRequestError('Store ID should be a positive integer');
 //     }
 
 //     if (sortBy && !['name', 'price', 'rating', 'review'].includes(sortBy)) {
@@ -592,7 +599,7 @@ const searchProduct = asyncWrapper(async (req, res, next) => {
 //     // Perform the search query
 //     const { count, rows } = await Product.findAndCountAll({
 //         where: filters,
-//         include: [{ model: Brand, as: 'store' }],
+//         include: [{ model: Store, as: 'store' }],
 //         order,
 //         limit: limit ? parseInt(limit) : 10,
 //         offset: page ? (parseInt(page) - 1) * (limit ? parseInt(limit) : 10) : 0,

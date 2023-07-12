@@ -210,7 +210,7 @@ module.exports = (sequelize, DataTypes) => {
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
         });
-        DeliveryAddress.belongsTo(models.Brand, {
+        DeliveryAddress.belongsTo(models.Store, {
             foreignKey: 'storeId',
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
@@ -234,7 +234,7 @@ module.exports = (sequelize, DataTypes) => {
 
     // =========== ACCOUNT DETAIL ASSOCIATIONS =========== //
     AccountDetails.associate = (models) => {
-        AccountDetails.belongsTo(models.Brand, {
+        AccountDetails.belongsTo(models.Store, {
             foreignKey: 'storeId',
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'

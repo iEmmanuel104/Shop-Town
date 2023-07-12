@@ -3,8 +3,8 @@
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up (queryInterface, Sequelize) {
-  //  add store settings to Brand table
-    await queryInterface.addColumn('Brand', 'storeSettings', {
+  //  add store settings to Store table
+    await queryInterface.addColumn('Store', 'storeSettings', {
       type: Sequelize.JSONB,
       defaultValue: {}, 
       allowNull: true
@@ -12,6 +12,6 @@ module.exports = {
 },
 
   async down (queryInterface, Sequelize) {
-    await queryInterface.removeColumn('Brand', 'storeSettings');
+    await queryInterface.removeColumn('Store', 'storeSettings');
   }
 };

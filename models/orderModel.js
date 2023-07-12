@@ -15,10 +15,6 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.JSONB, // cart item prices with shipping fees
             allowNull: false
         },
-        storeId: {
-            type: DataTypes.UUID,
-            allowNull: false
-        },
         shippingMethod: {
             type: DataTypes.JSONB, // { type: "kship" | "seller" | "ksecure", fee: 0 }
             allowNull: false,
@@ -32,6 +28,16 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING,
             defaultValue: `#K-ID${generateCode(6)}`,
         },
+        isKSecure: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false,
+            allowNull: false
+        },
+        kSecureFee: {
+            type: DataTypes.DECIMAL(10, 2), // 10 digits in total, 2 after decimal point
+            allowNull: false,
+            defaultValue: 0
+        },
 
         // shipbubble related fields
     }, {
@@ -44,10 +50,6 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.UUID,
             defaultValue: DataTypes.UUIDV4,
             primaryKey: true,
-            allowNull: false
-        },
-        orderId: {
-            type: DataTypes.UUID,
             allowNull: false
         },
         requestToken: {
@@ -65,16 +67,6 @@ module.exports = (sequelize, DataTypes) => {
         },
         checkoutData: {
             type: DataTypes.JSONB, 
-        },
-        isKSecure: {
-            type: DataTypes.BOOLEAN,
-            defaultValue: false,
-            allowNull: false
-        },
-        kSecureFee: {
-            type: DataTypes.DECIMAL(10, 2), // 10 digits in total, 2 after decimal point
-            allowNull: false,
-            defaultValue: 0
         },
         deliveryFee: {
             type: DataTypes.DECIMAL(10, 2), // 10 digits in total, 2 after decimal point
@@ -169,6 +161,10 @@ module.exports = (sequelize, DataTypes) => {
         Order.belongsTo(models.User, {
             foreignKey: 'userId',
             as: 'user'
+        });
+        Order.belongsTo(models.Store, {
+            foreignKey: 'storeId',
+            as: 'store'
         });
         Order.hasOne(models.ShipbubbleOrder, {
             foreignKey: 'orderId',

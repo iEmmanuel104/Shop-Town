@@ -1,4 +1,4 @@
-const { Product, User, Brand, Category, Cart, DeliveryAddress } = require('../../models');
+const { Product, User, Store, Category, Cart, DeliveryAddress } = require('../../models');
 
 require('dotenv').config();
 
@@ -8,7 +8,7 @@ const { BadRequestError, NotFoundError, ForbiddenError } = require('./customErro
 const convertcart = async (cart, type) => {
     const { items } = cart;
     const itemIds = items.map(item => item.id);
-    const productsPromise = Product.scope('defaultScope', 'includeBrand').findAll({
+    const productsPromise = Product.scope('defaultScope', 'includeStore').findAll({
         where: { id: itemIds }
     });
     const products = await productsPromise;

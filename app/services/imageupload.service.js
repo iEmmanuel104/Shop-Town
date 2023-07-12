@@ -18,9 +18,6 @@ const uploadSingleFile = async (file, details) => {
 
 const uploadFiles = async (req, details) => {
     const files = req.files;
-    if (!files || !files.length) {
-        throw new BadRequestError('No files found for upload');
-    }
 
     const uploadPromises = files.map((file) => uploadSingleFile(file, details));
     const results = await Promise.all(uploadPromises);
