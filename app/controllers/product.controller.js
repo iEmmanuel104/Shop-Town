@@ -15,9 +15,14 @@ const createProduct = asyncWrapper(async (req, res, next) => {
     const { storeId, category } = req.query;
     const decoded = req.decoded;
 
+    console.log(name, description, price, quantity, specifications, shippingcategory, storeId, category)
+    console.log(req.query)
+
     if (!name || !price || !quantity || !shippingcategory) {
         return next(new BadRequestError('Please provide all required fields'));
     }
+
+
     filefound = req.files;
 
     console.log(req.files)
