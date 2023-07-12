@@ -1,4 +1,3 @@
-const { convertcart } = require('../app/utils/carthelpers');
 module.exports = (sequelize, DataTypes) => {
     const { Store } = require('./entityModel')(sequelize, DataTypes);
 
@@ -204,20 +203,7 @@ module.exports = (sequelize, DataTypes) => {
             primaryKey: true,
             allowNull: false
         },
-        items: {
-            type: DataTypes.JSONB,
-            defaultValue: [],
-            get() {
-                const items = this.getDataValue("items");
-                return items.map(async (item) => {
-                    const product = await Product.findByPk(item.id);
-                    return { product, count: item.count };
-                });
-            },
-            set(value) {
-                this.setDataValue('items', value);
-            }
-        },        
+        items: {type: DataTypes.JSONB },
         checkoutData: { type: DataTypes.JSONB },
         totalAmount: {
             type: DataTypes.DECIMAL(10, 2),
