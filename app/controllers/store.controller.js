@@ -69,6 +69,9 @@ const getStores = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const stores = await Store.findAll({
             attributes: ['id', 'name', 'socials', 'businessPhone', 'owner', 'logo', 'owner'],
+            // include delivery address
+            include: [{ model: DeliveryAddress, as: 'deliveryAddress', where: { isDefault: true },
+                attributes: [ 'address', 'city', 'state', 'country', 'isDefault'] }]
         });
         return res.status(200).json({
             success: true,
@@ -81,7 +84,8 @@ const getStore = asyncWrapper(async (req, res, next) => {
     const store = await Store.findByPk(req.params.id, {
         attributes: ['id', 'name', 'socials', 'businessPhone', 'owner', 'logo', 'owner'],
         // include delivery address
-        include: [{ model: DeliveryAddress, as: 'deliveryAddress', where: { isDefault: true } }]
+        include: [{ model: DeliveryAddress, as: 'deliveryAddress', where: { isDefault: true }, 
+            attributes: [ 'address', 'city', 'state', 'country', 'isDefault'] }]
     });
     if (!store) {
         return next(new NotFoundError(`store not found`));
