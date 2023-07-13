@@ -78,7 +78,11 @@ const getStores = asyncWrapper(async (req, res, next) => {
 });
 
 const getStore = asyncWrapper(async (req, res, next) => {
-    const store = await Store.findByPk(req.params.id);
+    const store = await Store.findByPk(req.params.id, {
+        attributes: ['id', 'name', 'socials', 'businessPhone', 'owner', 'logo', 'owner'],
+        // include delivery address
+        include: [{ model: DeliveryAddress, as: 'deliveryAddress', where: { isDefault: true } }]
+    });
     if (!store) {
         return next(new NotFoundError(`store not found`));
     }
