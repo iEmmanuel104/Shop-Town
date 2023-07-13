@@ -247,7 +247,7 @@ const signIn = asyncWrapper(async (req, res, next) => {
     if (!user.isVerified || !user.isActivated) {
         user.generateAndSendVerificationCode('verify');
 
-        return  res.status(422).json({ // 422 unprocessable entity 
+        return res.status(422).json({ // 422 unprocessable entity 
             success: true,
             message: 'User not verified, verification code sent successfully',
             access_token
@@ -319,15 +319,23 @@ const getloggedInUser = asyncWrapper(async (req, res, next) => {
     if (!user) return next(new BadRequestError('Unverified user'))
     // get all stores associated with the user and extract only the id and name fields
     const stores = (await user.getStores({
-        attributes: ['id', 'name', 'logo', 'businessPhone', 'socials'],
-        through: { attributes: ['role'] }
+        attributes: ['id', 'name', 'logo', 'businessPhone', 'businessEmail', 'socials'],
+        through: { attributes: ['role'] },
+        include: [{
+            model: DeliveryAddress,
+            as: 'deliveryAddress',
+            where: { isDefault: true },
+            attributes: ['id', 'address', 'city', 'state', 'country', 'isDefault']
+        }]
     })).map(store => ({
         id: store.id,
         name: store.name,
         role: store.UserStore.role,
         logo: store.logo,
         phone: store.businessPhone,
-        socials: store.socials
+        email: store.businessEmail,
+        socials: store.socials,
+        address: store.deliveryAddress
     }))
 
     return res.status(200).json({
@@ -550,7 +558,7 @@ const registerStore = asyncWrapper(async (req, res, next) => {
 
 
     const address_code = await validateAddress({
-        name: checkstoreName, 
+        name: checkstoreName,
         email,
         phone,
         address: `${address},${city},${state},${country}`
@@ -558,16 +566,16 @@ const registerStore = asyncWrapper(async (req, res, next) => {
 
     let url;
     if (req.file) {
-            url = await uploadSingleFile(req.file, { user: `Stores/${checkstoreName}`, folder: `Images` })
+        url = await uploadSingleFile(req.file, { user: `Stores/${checkstoreName}`, folder: `Images` })
     }
 
     // Create store, add user, and create new address using bulkCreate
     const createdStore = await Store.create({
-        name: storeName,        city: city,
-        businessPhone: phone,   businessEmail: email,
-        industry: industry,     country: country,
-        address,                state,
-        owner: payload.id,      
+        name: storeName, city: city,
+        businessPhone: phone, businessEmail: email,
+        industry: industry, country: country,
+        address, state,
+        owner: payload.id,
         // logo: LOGO
         logo: url ? url : LOGO,
     });
@@ -578,7 +586,7 @@ const registerStore = asyncWrapper(async (req, res, next) => {
 
         DeliveryAddress.create({
             storeId: createdStore.id,
-            address, 
+            address,
             city,
             state,
             country,
