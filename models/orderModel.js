@@ -1,9 +1,6 @@
 module.exports = (sequelize, DataTypes) => {
     const { generateCode } = require('../app/utils/stringGenerators')
-    const { DeliveryAddress } = require('./utilityModel')(sequelize, DataTypes);
-    const { Cart } = require('./storeModel')(sequelize, DataTypes);
-
-    
+    const { createshipment } = require('../app/services/shipbubble.service');
     const Order = sequelize.define("Order", {
         id: {
             type: DataTypes.UUID,
@@ -15,12 +12,8 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.JSONB, // cart item prices with shipping fees
             allowNull: false
         },
-        storeId: {
-            type: DataTypes.UUID,
-            allowNull: false
-        },
         shippingMethod: {
-            type: DataTypes.JSONB, // { type: "kship" | "seller" | "ksecure", fee: 0 }
+            type: DataTypes.STRING, // "kship" | "seller" | "ksecure"
             allowNull: false,
         },
         status: {
@@ -32,10 +25,12 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING,
             defaultValue: `#K-ID${generateCode(6)}`,
         },
+        kSecureFee: {
+            type: DataTypes.DECIMAL(10, 2), // 10 digits in total, 2 after decimal point
+        },
 
-        // shipbubble related fields
     }, {
-        tableName: 'Order', 
+        tableName: 'Order',
         timestamps: true,
     });
 
@@ -46,39 +41,22 @@ module.exports = (sequelize, DataTypes) => {
             primaryKey: true,
             allowNull: false
         },
-        orderId: {
-            type: DataTypes.UUID,
-            allowNull: false
-        },
         requestToken: {
             type: DataTypes.STRING,
             allowNull: false
         },
         courierInfo: {
-            type: DataTypes.JSONB, // { courierId: 0, courierName: "", courierImage: ""  }
+            type: DataTypes.JSONB, // { courierId: 0, courierName: "", serviceCode: 0, isCodAvailable: false, total: 0  }
         },
-        courierServiceInfo: {
-            type: DataTypes.JSONB, // { serviceCode: 0, serviceType: "", isCodAvailable: false, waybill:false  }
-        },
-        courierBenefits: {
-            type: DataTypes.JSONB, // {  insurance: {code: "", fee: 0}, discount: {percentage: 0, discounted: 0}, }
-        },
-        checkoutData: {
-            type: DataTypes.JSONB, 
-        },
-        isKSecure: {
-            type: DataTypes.BOOLEAN,
-            defaultValue: false,
-            allowNull: false
-        },
-        kSecureFee: {
-            type: DataTypes.DECIMAL(10, 2), // 10 digits in total, 2 after decimal point
-            allowNull: false,
-            defaultValue: 0
+        checkoutDetails: {
+            type: DataTypes.JSONB, // buyer and seller info from shipbubble
         },
         deliveryFee: {
-            type: DataTypes.DECIMAL(10, 2), // 10 digits in total, 2 after decimal point
-            allowNull: false
+            type: DataTypes.VIRTUAL,
+            get() {
+                if (this.courierInfo === undefined || this.courierInfo === null) return 0;
+                return this.courierInfo.total;
+            }
         },
         status: {
             type: DataTypes.STRING,
@@ -127,14 +105,19 @@ module.exports = (sequelize, DataTypes) => {
             allowNull: false
         },
         paymentMethod: {
-            type: DataTypes.ENUM(["card", "kcredit", "cash"]),
-            defaultValue: "card",
+            type: DataTypes.STRING,
+            validate: {
+                isIn: {
+                    args: [["card", "kcredit", "cash"]],
+                    msg: "Payment method must be card, kcredit or cash"
+                }
+            },
             allowNull: false
         },
         paymentService: {
             type: DataTypes.STRING, // flutterwave, seerbit, 
             // restrict to flutterwave or seerbit
-            validate: { 
+            validate: {
                 isIn: {
                     args: [['flutterwave', 'seerbit']],
                     msg: "Payment service must be flutterwave or seerbit"
@@ -142,13 +125,19 @@ module.exports = (sequelize, DataTypes) => {
             },
         },
         paymentStatus: {
-            type: DataTypes.ENUM(["pending", "paid", "failed", "cancelled"]),
+            type: DataTypes.ENUM(["pending", "success", "failed", "cancelled"]),
             defaultValue: "pending",
             allowNull: false
         },
-        refId: {
-            type: DataTypes.STRING, // id for order, wallet
-            allowNull: true
+        paymentType: {
+            type: DataTypes.STRING, // "deposit" | "withdrawal" | "order"
+            allowNull: false,
+            validate: {
+                isIn: {
+                    args: [["deposit", "withdrawal", "order"]],
+                    msg: "Payment type must be deposit, withdrawal or order"
+                }
+            }
         },
         amount: {
             type: DataTypes.DECIMAL(10, 2), // 10 digits in total, 2 after decimal point
@@ -163,18 +152,77 @@ module.exports = (sequelize, DataTypes) => {
         timestamps: true,
     });
 
+    Order.prototype.createShipment = async function (shippingObject) {
+        const { courierInfo, requestToken, serviceType, shippingMethod, orderId } = shippingObject;
+        
+        const { order_id, status, payment, tracking_url } = await createshipment({
+            request_token: requestToken,
+            service_code: courierInfo.serviceCode,
+            courier_id: courierInfo.courierId,
+        });
+
+        // update the order status to active
+        this.status = "active";
+        await this.save();
+
+        // create a shipbubble order
+        if (shippingMethod === "kship" || shippingMethod === "ksecure") {
+            await ShipbubbleOrder.create({
+                ...shippingObject,
+                status,
+                shippingReference: order_id,
+                trackingUrl: tracking_url,
+                orderId,
+            });
+        }
+
+        // generate payment record
+        await Payment.create({
+            paymentMethod: shippingMethod,
+            paymentService: serviceType,
+            paymentStatus: shippingMethod === "kcredit" ? "success" : "pending",
+            paymentType: "order",
+            amount: payment.shipping_fee,
+            paymentReference: order_id,
+            orderId,
+        });
+
+
+        let deliveryFee = payment.shipping_fee,
+            trackingUrl = tracking_url;
+
+        return { deliveryFee, trackingUrl };
+    }
+
+
+
     // ================== ASSOCIATIONS ================== //
 
     Order.associate = models => {
         Order.belongsTo(models.User, {
             foreignKey: 'userId',
-            as: 'user'
+            as: 'user',
+            onUpdate: 'CASCADE',
+        });
+        Order.belongsTo(models.Store, {
+            foreignKey: 'storeId',
+            as: 'store'
         });
         Order.hasOne(models.ShipbubbleOrder, {
             foreignKey: 'orderId',
-            });
-        Order.hasOne(models.Payment);
-        Order.hasOne(models.Review);
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE',
+        });
+        Order.hasOne(models.Payment, {
+            foreignKey: 'orderId',
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE',
+        });
+        Order.hasOne(models.Review, {
+            foreignKey: 'orderId',
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE',
+        });
     }
 
     Review.associate = models => {
@@ -189,6 +237,16 @@ module.exports = (sequelize, DataTypes) => {
             foreignKey: 'orderId',
         });
     }
+
+    Payment.associate = models => {
+        Payment.belongsTo(models.Order, {
+            foreignKey: 'orderId',
+        });
+        Payment.belongsTo(models.Wallet, {
+            foreignKey: 'walletId',
+        });
+    }
+
 
     return { Order, Review, Payment, ShipbubbleOrder }
 }

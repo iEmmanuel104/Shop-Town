@@ -76,7 +76,7 @@ app.get("/", (req, res) => {
 
 // // Routes
 app.use('/auth', require('./app/routes/authRoutes'))
-app.use('/brand', require('./app/routes/brandRoutes'))
+app.use('/store', require('./app/routes/storeRoutes'))
 app.use('/category', require('./app/routes/categoryRoutes'))
 app.use('/product', require('./app/routes/productRoutes'))
 app.use('/cart', require('./app/routes/cartRoutes'))

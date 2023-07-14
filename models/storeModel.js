@@ -1,5 +1,5 @@
 module.exports = (sequelize, DataTypes) => {
-    const { Brand } = require('./entityModel')(sequelize, DataTypes);
+    const { Store } = require('./entityModel')(sequelize, DataTypes);
 
     const Product = sequelize.define("Product", {
         id: {
@@ -71,22 +71,27 @@ module.exports = (sequelize, DataTypes) => {
             defaultValue: "active",
             allowNull: false
         },
+        isKSecure: {
+            type: DataTypes.BOOLEAN,
+            defaultValue: false,
+            allowNull: false
+        },
         images: {
             type: DataTypes.ARRAY(DataTypes.STRING)},
     }, {
         tableName: 'Product',
         timestamps: true,
         scopes: {
-            Brand(storeId) {
+            Store(storeId) {
                 return {
                     where: { storeId }
                 }
             },
-            includeBrand: {
+            includeStore: {
                 where: { status: 'active' },
                 include: [
                     {
-                        model: Brand,
+                        model: Store,
                         as: 'store',
                         attributes: ['name', 'businessPhone', 'socials', 'logo'],
                     }
@@ -121,7 +126,7 @@ module.exports = (sequelize, DataTypes) => {
             const discount = parseFloat(product.discount);
 
             // Fetch the current store discount for the product's store
-            const store = await Brand.findByPk(product.storeId, {
+            const store = await Store.findByPk(product.storeId, {
                 include: {
                     model: StoreDiscount,
                     as: 'storeDiscounts',
@@ -146,9 +151,11 @@ module.exports = (sequelize, DataTypes) => {
                 product.discountedPrice = (price * (1 - discount / 100)).toFixed(2);
             }
         }
-        if (product.quantity && product.quantity.instock === 0) {
-            product.status = "inactive";
-            product.quantity.total = 0; // Set the total quantity to zero as well
+        if (product.quantity) {
+            if (product.quantity.instock === 0) {
+                product.status = "inactive";
+                product.quantity.total = 0; // Set the total quantity to zero as well
+            }
         }
     });
 
@@ -279,7 +286,7 @@ module.exports = (sequelize, DataTypes) => {
         scopes: {
             includeStore: {
                 include: [{
-                    model: Brand,
+                    model: Store,
                     as: 'store'
                 }]
             }
@@ -392,7 +399,7 @@ module.exports = (sequelize, DataTypes) => {
             foreignKey: 'categoryId',
             as: 'category'
         });
-        Product.belongsTo(models.Brand, {
+        Product.belongsTo(models.Store, {
             foreignKey: 'storeId',
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE',
@@ -410,16 +417,20 @@ module.exports = (sequelize, DataTypes) => {
         // self association
         Cart.belongsTo(models.Cart, {
             foreignKey: 'parentId',
-            as: 'parent'
+            as: 'parent',
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE'
         });
         Cart.hasMany(models.Cart, {
             foreignKey: 'parentId',
-            as: 'Wishlists'
+            as: 'Wishlists',
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE'
         });
     };
 
     StoreDiscount.associate = (models) => {
-        StoreDiscount.belongsTo(models.Brand, {
+        StoreDiscount.belongsTo(models.Store, {
             foreignKey: 'storeId',
             as: 'store'
         });

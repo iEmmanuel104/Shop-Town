@@ -5,8 +5,8 @@ const { validate } = require('node-cron');
 /** @type {import('sequelize-cli').Migration} */
 module.exports = {
   async up(queryInterface, Sequelize) {
-    //  add store settings to Brand table
-    await queryInterface.addColumn('Brand', 'businessEmail', {
+    //  add store settings to Store table
+    await queryInterface.addColumn('Store', 'businessEmail', {
       type: Sequelize.STRING,
       allowNull: false,
       unique: true,
@@ -19,6 +19,6 @@ module.exports = {
   },
 
   async down(queryInterface, Sequelize) {
-    await queryInterface.removeColumn('Brand', 'businessEmail');
+    await queryInterface.removeColumn('Store', 'businessEmail');
   }
 };

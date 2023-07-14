@@ -1,5 +1,4 @@
 const axios = require('axios');
-const { DeliveryAddress } = require('../../models');
 const { BadRequestError } = require('../utils/customErrors');
 const { SHIPBUBBLE_API_KEY } = require('../utils/configs');
 
@@ -65,6 +64,7 @@ const getShippingRates = async (details) => {
         const requestobject = {
             request_token: response.data.data.request_token,
             cheapest_courier: response.data.data.cheapest_courier,
+            allcouriers: response.data.data.couriers,
             kship_courier: await findCourier(response.data.data),
             checkout_data: response.data.data.checkout_data
         }
@@ -222,7 +222,6 @@ const defaultboxes = {
         }
     ]
 }
-
 const getshippingboxes = async () => {
     const axios = require('axios');
 
@@ -275,10 +274,9 @@ const createshipment = async (details) => {
         return response.data.data;
     } catch (error) {
         console.log(error.response.data);
-        throw new BadRequestError('Error creating shipment');
+        throw new BadRequestError('Error creating shipment, Please refresh shipping rates');
     }
 }
-
 function findCourier(data) {
     const cheapestCourier = data.cheapest_courier;
     if (cheapestCourier.is_cod_available) {

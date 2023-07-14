@@ -1,4 +1,4 @@
-const {  User, Wallet, WalletTransaction, Brand, Cart } = require('../../models')
+const {  User, Wallet, WalletTransaction, Store, Cart } = require('../../models')
 const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/customErrors');
 const asyncWrapper = require('../middlewares/async')
 

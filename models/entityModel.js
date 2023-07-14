@@ -73,6 +73,7 @@ module.exports = (sequelize, DataTypes) => {
         },
         phone: {
             type: DataTypes.BIGINT,
+            unique: true,
             validate: {
                 len: {
                     args: [10, 15],
@@ -175,8 +176,8 @@ module.exports = (sequelize, DataTypes) => {
 
     });
 
-    //  ======  Brand Model  ====== //
-    const Brand = sequelize.define("Brand", {
+    //  ======  Store Model  ====== //
+    const Store = sequelize.define("Store", {
         id: {
             type: DataTypes.UUID,
             defaultValue: DataTypes.UUIDV4,
@@ -199,10 +200,10 @@ module.exports = (sequelize, DataTypes) => {
         socials: { type: DataTypes.JSONB },
         businessPhone: {
             type: DataTypes.BIGINT,
-            // unique: {
-            //     args: true,
-            //     msg: 'Business Phone number provided already in use!'
-            // },
+            unique: {
+                args: true,
+                msg: 'Business Phone number provided already in use!'
+            },
             validate: {
                 len: {
                     args: [10, 15],
@@ -248,7 +249,7 @@ module.exports = (sequelize, DataTypes) => {
         logo: { type: DataTypes.STRING },
         storeSettings: {type: DataTypes.JSONB}
     }, {
-        tableName: 'Brand',
+        tableName: 'Store',
         timestamps: true,
         // remove updatedAt from response
         defaultScope: {
@@ -279,8 +280,8 @@ module.exports = (sequelize, DataTypes) => {
         ]
     });
 
-    // ======  UserBrand Model  ====== //
-    const UserBrand = sequelize.define("UserBrand", {
+    // ======  UserStore Model  ====== //
+    const UserStore = sequelize.define("UserStore", {
         id: {
             type: DataTypes.UUID,
             defaultValue: DataTypes.UUIDV4,
@@ -290,7 +291,7 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.UUID,
             allowNull: false
         },
-        BrandId: {
+        StoreId: {
             type: DataTypes.UUID,
             allowNull: false
         },
@@ -306,7 +307,7 @@ module.exports = (sequelize, DataTypes) => {
             }
         },
     }, {
-        tableName: 'UserBrand',
+        tableName: 'UserStore',
         timestamps: true,
     });
 
@@ -369,8 +370,8 @@ module.exports = (sequelize, DataTypes) => {
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
         });
-        User.belongsToMany(models.Brand, {
-            through: models.UserBrand,
+        User.belongsToMany(models.Store, {
+            through: models.UserStore,
             foreignKey: 'UserId',
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
@@ -404,44 +405,49 @@ module.exports = (sequelize, DataTypes) => {
         });
     };
 
-    //  =========== BRAND ASSOCIATIONS =========== //
-    Brand.associate = (models) => {
-        Brand.hasMany(models.Product, {
+    //  =========== STORE ASSOCIATIONS =========== //
+    Store.associate = (models) => {
+        Store.hasMany(models.Product, {
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE',
             foreignKey: 'storeId',
             as: 'products'
         });
-        Brand.belongsToMany(models.User, {
+        Store.belongsToMany(models.User, {
             // onDelete: 'CASCADE',
             onUpdate: 'CASCADE',
-            through: models.UserBrand,
-            foreignKey: 'BrandId',
+            through: models.UserStore,
+            foreignKey: 'StoreId',
         });
-        Brand.hasOne(models.DeliveryAddress, {
+        Store.hasOne(models.DeliveryAddress, {
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE',
             foreignKey: 'storeId',
             as: 'deliveryAddress'
         });
-        Brand.hasMany(models.StoreDiscount, {
+        Store.hasMany(models.StoreDiscount, {
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE',
             foreignKey: 'storeId',
             as: 'storeDiscounts'
         });
-        Brand.hasOne(models.Wallet, {
+        Store.hasOne(models.Wallet, {
             foreignKey: 'storeId',
             as: 'storewallet',
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
         });
-        Brand.hasMany(models.Ksocial, {
+        Store.hasMany(models.Ksocial, {
             foreignKey: 'storeId',
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
         });
-        Brand.hasMany(models.AccountDetails, {
+        Store.hasMany(models.AccountDetails, {
+            foreignKey: 'storeId',
+            onDelete: 'CASCADE',
+            onUpdate: 'CASCADE'
+        });
+        Store.hasMany(models.Order, {
             foreignKey: 'storeId',
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE'
@@ -449,13 +455,13 @@ module.exports = (sequelize, DataTypes) => {
 
     };
 
-    // ================ USERBRAND ================//
-    UserBrand.associate = (models) => {
-        UserBrand.belongsTo(models.User)
-        UserBrand.belongsTo(models.Brand)
+    // ================ USERSTORE ================//
+    UserStore.associate = (models) => {
+        UserStore.belongsTo(models.User)
+        UserStore.belongsTo(models.Store)
     };
 
-    return { User, Brand, UserBrand };
+    return { User, Store, UserStore };
 };
 
 

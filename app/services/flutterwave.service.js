@@ -7,6 +7,7 @@ const request = require('request');
 const { BadRequestError, UnprocessableEntityError } = require('../utils/customErrors');
 
 const FlutterwavePay = async (paydetails) => {
+    const { amount, email, phone, fullName, tx_ref, storeName, storeLogo, isKSecure, kSecureFee, shippingfee } = paydetails;
     let StoreLogo = paydetails.storeLogo ? paydetails.storeLogo : LOGO;
     let title, meta = {};
     if (paydetails.storeName) {
@@ -15,7 +16,7 @@ const FlutterwavePay = async (paydetails) => {
             "shipping_id": paydetails.tx_ref,
             "is_ksecure": paydetails.isKSecure,
             "ksecure_fee": paydetails.kSecureFee,
-            "shipping_fee": paydetails.shippingfee,
+            "shipping_fee": paydetails.shippingFee,
         }
     } else {
         title = "Wallet Topup"

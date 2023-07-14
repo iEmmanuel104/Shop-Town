@@ -1,4 +1,4 @@
-const { Product, User, Brand, Ksocial, PostActivity } = require('../../models');
+const { Product, User, Store, Ksocial, PostActivity } = require('../../models');
 require('dotenv').config();
 const { sequelize, Sequelize } = require('../../models');
 const asyncWrapper = require('../middlewares/async');
@@ -22,7 +22,7 @@ const createPost = asyncWrapper(async (req, res, next) => {
         if (post_type !== 'status' && post_type !== 'ksocial') return next(new BadRequestError('Invalid post type'));
         const {storeId} = req.query;
         if (!storeId) return next(new BadRequestError('Please provide a storeId'));
-        const store = await Brand.scope('includeUsers').findByPk(storeId,
+        const store = await Store.scope('includeUsers').findByPk(storeId,
             { attributes: ['name', 'businessPhone', 'socials', 'owner'] }
         );
         
@@ -96,7 +96,7 @@ const getPosts = asyncWrapper(async (req, res, next) => {
         ],
         include: [
             {
-                model: Brand,
+                model: Store,
                 attributes: ['id', 'name', 'logo', 'socials'],
             },
         ],
@@ -143,7 +143,7 @@ const getStorePosts = asyncWrapper(async (req, res, next) => {
         ],
         include: [
             {
-                model: Brand,
+                model: Store,
                 attributes: ['id', 'name', 'logo', 'socials'],
             },
             {
@@ -164,7 +164,7 @@ const getPost = asyncWrapper(async (req, res, next) => {
         attributes: ['id', 'caption', 'postType', 'contentUrl', 'createdAt', 'likesCount', 'commentsCount'],
         include: [
             {
-                model: Brand,
+                model: Store,
                 attributes: ['id', 'name', 'logo'],
             },
             {

@@ -1,4 +1,4 @@
-const { User, Token, Password, BlacklistedTokens, Brand, DeliveryAddress, Cart, Wallet } = require('../../models');
+const { User, Token, Password, BlacklistedTokens, Store, DeliveryAddress, Cart, Wallet } = require('../../models');
 const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/customErrors');
 const { uploadSingleFile } = require('../services/imageupload.service');
 const { LOGO, accessTokenExpiry } = require('../utils/configs');
@@ -233,7 +233,6 @@ const signIn = asyncWrapper(async (req, res, next) => {
         : req.body.phone ? { phone: req.body.phone }
             : next(new BadRequestError('Please provide email or phone'));
 
-
     const user = await User.findOne({
         where: data,
         include: [
@@ -248,7 +247,7 @@ const signIn = asyncWrapper(async (req, res, next) => {
     if (!user.isVerified || !user.isActivated) {
         user.generateAndSendVerificationCode('verify');
 
-        return  res.status(422).json({ // 422 unprocessable entity 
+        return res.status(422).json({ // 422 unprocessable entity 
             success: true,
             message: 'User not verified, verification code sent successfully',
             access_token
@@ -263,14 +262,13 @@ const signIn = asyncWrapper(async (req, res, next) => {
     if (!passwordInstance.isValidPassword(password)) {
         return next(new BadRequestError('Invalid user Credentials'));
     }
-    console.log(user)
 
     const hasdefaultAddress = !!user.DeliveryAddresses[0]; // check if the user has a default address
     const hascheckoutData = !!user.Cart.checkoutData; // check if the user has checkout data
 
     let tokens;
     // check if the user has a store 
-    const stores = await user.getBrands()
+    const stores = await user.getStores()
     if (stores.length > 0) {
         await user.update({ status: 'active', vendorMode: true });
         tokens = await issueToken({ userid: user.id, storeId: stores[0].id })
@@ -306,30 +304,38 @@ const getloggedInUser = asyncWrapper(async (req, res, next) => {
                 {
                     model: Cart,
                     as: 'Cart',
-                    attributes: { exclude: ['checkoutData', 'createdAt', 'updatedAt'] },
+                    attributes: ['id'],
                     include: [{
                         model: Cart,
                         as: 'Wishlists',
                         attributes: ['id'],
                     }]
                 },
-                { model: Wallet, attributes: ['amount'] },
+                { model: Wallet, attributes: ['id', 'amount'] },
                 { model: DeliveryAddress, where: { isDefault: true } },
             ]
         }
     );
     if (!user) return next(new BadRequestError('Unverified user'))
     // get all stores associated with the user and extract only the id and name fields
-    const stores = (await user.getBrands({
-        attributes: ['id', 'name', 'logo', 'businessPhone', 'socials'],
-        through: { attributes: ['role'] }
+    const stores = (await user.getStores({
+        attributes: ['id', 'name', 'logo', 'businessPhone', 'businessEmail', 'socials'],
+        through: { attributes: ['role'] },
+        include: [{
+            model: DeliveryAddress,
+            as: 'deliveryAddress',
+            where: { isDefault: true },
+            attributes: ['id', 'address', 'city', 'state', 'country', 'isDefault']
+        }]
     })).map(store => ({
         id: store.id,
         name: store.name,
-        role: store.UserBrand.role,
+        role: store.UserStore.role,
         logo: store.logo,
         phone: store.businessPhone,
-        socials: store.socials
+        email: store.businessEmail,
+        socials: store.socials,
+        address: store.deliveryAddress
     }))
 
     return res.status(200).json({
@@ -459,13 +465,13 @@ const switchAccount = asyncWrapper(async (req, res, next) => {
     user.vendorMode = !user.vendorMode // flip the boolean value
 
     // get all stores associated with the user and extract only the id and name fields
-    const stores = (await user.getBrands({
+    const stores = (await user.getStores({
         attributes: ['id', 'name'],
         through: { attributes: ['role'] }
     })).map(store => ({
         id: store.id,
         name: store.name,
-        role: store.UserBrand.role
+        role: store.UserStore.role
     }))
 
     // if there is no store associated with the user, return a message
@@ -500,7 +506,7 @@ const selectStore = asyncWrapper(async (req, res, next) => {
     if (!user) return next(new BadRequestError('Invalid user'))
 
     // check if user is associated with the store
-    const store = await Brand.findByPk(storeId)
+    const store = await Store.findByPk(storeId)
     if (!store) return next(new BadRequestError('Invalid store'))
     const isAssociated = await store.hasUser(user)
     if (!isAssociated) return next(new BadRequestError('Unauthorized'))
@@ -535,7 +541,7 @@ const registerStore = asyncWrapper(async (req, res, next) => {
     }
     checkemail = email.trim().toLowerCase()
     checkstoreName = storeName.trim().toLowerCase()
-    const existingStore = await Brand.findOne({
+    const existingStore = await Store.findOne({
         where: {
             [Op.or]: [
                 { businessEmail: checkemail },
@@ -552,7 +558,7 @@ const registerStore = asyncWrapper(async (req, res, next) => {
 
 
     const address_code = await validateAddress({
-        name: checkstoreName, 
+        name: checkstoreName,
         email,
         phone,
         address: `${address},${city},${state},${country}`
@@ -560,16 +566,16 @@ const registerStore = asyncWrapper(async (req, res, next) => {
 
     let url;
     if (req.file) {
-            url = await uploadSingleFile(req.file, { user: `Stores/${checkstoreName}`, folder: `Images` })
+        url = await uploadSingleFile(req.file, { user: `Stores/${checkstoreName}`, folder: `Images` })
     }
 
     // Create store, add user, and create new address using bulkCreate
-    const createdStore = await Brand.create({
-        name: storeName,        city: city,
-        businessPhone: phone,   businessEmail: email,
-        industry: industry,     country: country,
-        address,                state,
-        owner: payload.id,      
+    const createdStore = await Store.create({
+        name: storeName, city: city,
+        businessPhone: phone, businessEmail: email,
+        industry: industry, country: country,
+        address, state,
+        owner: payload.id,
         // logo: LOGO
         logo: url ? url : LOGO,
     });
@@ -580,7 +586,7 @@ const registerStore = asyncWrapper(async (req, res, next) => {
 
         DeliveryAddress.create({
             storeId: createdStore.id,
-            address, 
+            address,
             city,
             state,
             country,

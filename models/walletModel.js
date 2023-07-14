@@ -1,4 +1,6 @@
 module.exports = (sequelize, DataTypes) => {
+    const { Order } = require('./orderModel')(sequelize, DataTypes);
+
     const Wallet = sequelize.define("Wallet", {
         id: {
             type: DataTypes.UUID,
@@ -72,13 +74,23 @@ module.exports = (sequelize, DataTypes) => {
         timestamps: true,
     });
 
+    Wallet.prototype.updateOrderStatus = async function ({status, orderId}) {
+        // update order status
+        const order = await Order.Update (
+            {status},
+            {where: {id: orderId}}
+        );
+        return order;
+    };
+
+
 
     Wallet.associate = (models) => {
         Wallet.belongsTo(models.User, {
             foreignKey: "userId",
             as: 'userwallet'
         });
-        Wallet.belongsTo(models.Brand, {
+        Wallet.belongsTo(models.Store, {
             foreignKey: 'storeId',
             as: 'storewallet'
         })

@@ -1,4 +1,4 @@
-const { Product, User, Brand, Category, Cart, DeliveryAddress } = require('../../models');
+const { Product, User, Store, Category, Cart, DeliveryAddress } = require('../../models');
 
 require('dotenv').config();
 
@@ -8,7 +8,7 @@ const { BadRequestError, NotFoundError, ForbiddenError } = require('./customErro
 const convertcart = async (cart, type) => {
     const { items } = cart;
     const itemIds = items.map(item => item.id);
-    const productsPromise = Product.scope('defaultScope', 'includePrice').findAll({
+    const productsPromise = Product.scope('defaultScope', 'includeStore').findAll({
         where: { id: itemIds }
     });
     const products = await productsPromise;
@@ -17,7 +17,7 @@ const convertcart = async (cart, type) => {
         throw new BadRequestError("Please add a valid product to the cart.");
     }
 
-    const sortedCart = new Map();
+    const sortedCart = [];
     let totalAmount = 0;
     let itemsProcessed = 0;
     let outOfStockItems = 0;
@@ -48,17 +48,29 @@ const convertcart = async (cart, type) => {
                     count: cartQuantity,
                     info: {
                         name: product.name,
-                        quantity: cartQuantity,
                         UnitPrice: product.price,
                         discount: product.discount,
                         image: product.images,
                         Discountprice: price,
                         status: itemStatus,
                         store: storeId,
+                        storeName: product.store.name,
                     }
                 };
 
-                sortedCart.set(product.id, cartQuantity);
+                if (type === 'checkout') {
+                    // add info to newItem
+                    const { specifications, description } = product;
+
+                    newItem.info.weight = specifications.weight;
+                    newItem.info.description = description;
+                    newItem.info.category = specifications.shippingcategory_id;
+                }
+
+                sortedCart.push({
+                    id: product.id,
+                    count: cartQuantity
+                })
 
                 if (itemStatus === 'instock') {
                     totalAmount += price * cartQuantity;
@@ -78,7 +90,7 @@ const convertcart = async (cart, type) => {
 
     cart.totalAmount = totalAmount;
     cart.errors = errors;
-    cart.sortedCart = Object.fromEntries(sortedCart);
+    cart.sortedCart = sortedCart;
     cart.analytics = {
         totalItemsAdded: itemIds.length,
         totalItemsProcessed: itemsProcessed,
@@ -90,70 +102,46 @@ const convertcart = async (cart, type) => {
     return cart;
 }
 
-
-
-
-const groupCartItems = async (items) => {
-    const itemIds = items.map(item => item.id);
-    if (itemIds.length === 0) throw new BadRequestError("Cart is empty");
-
-    // Retrieve products based on itemIds
-    const products = await Product.scope('defaultScope', 'includePrice').findAll({
-        where: { id: itemIds },
-        attributes: ['id', 'name', 'specifications', 'description'],
-    });
-
-    if (products.length === 0) throw new BadRequestError("Please add a valid product to cart");
+const checkCartStore = async (items) => {
+    console.log("items ======", items)
+    // check if items is an array
+    if (!Array.isArray(items)) {
+        throw new BadRequestError("Unprocessable Cart Items");
+    }
 
     const storeValues = items.map(item => item.info.store);
     const uniqueStores = [...new Set(storeValues)];
-    console.log("uniquestores ======", uniqueStores)
+
     if (uniqueStores.length !== 1) {
         const errorStores = uniqueStores.filter(store => !storeValues.includes(store));
         console.log('errorstores ==== ', errorStores)
-        const storeNames = await Promise.all(errorStores.map(async store => {
-            const storeData = await Brand.findOne({ where: { id: store } });
-            return storeData.name;
-        }));
+        const storeNames = errorStores.map(store => store.info.storeName);
         console.log("storenames ======", storeNames)
-        throw new BadRequestError(`Items have different stores: ${storeNames.join(", ")}`);
+        throw new BadRequestError(`Items have different stores: ${storeNames.join(", ")}, Select Items from one store only.`);
     }
     console.log("uniquestoresSingle ======", uniqueStores)
+
     const store = uniqueStores[0];
-
-    let groupedItems = {
-        store: store,
-        items: [],
-    };
-
-    items.forEach(item => {
-        const productId = item.id;
-        const product = products.find(product => product.id === productId);
-        const { specifications, description } = product;
-
-        // update the item with the product details
-        const shipping = {
-            id: productId,
-            name: product.name,
-            weight: specifications.weight,
-            description: description,
-            category: specifications.shippingcategory_id,
-            discountprice: item.info.Discountprice,
-            quantity: item.info.quantity,
-        };
-
-        // add the new item to the groupedItems object
-        groupedItems.items.push(shipping);
-
-    });
-
-
-    return groupedItems;
+    return { store };
 };
 
-const estimateBoxDimensions = (items, boxSizes) => {
-    // Calculate the accumulated weight of all items
-    const accumulatedWeight = items.reduce((sum, item) => sum + item.total_weight, 0);
+const estimateBoxDimensions = async (items, boxSizes) => {
+    // Calculate the accumulated weight of all items and 
+    // select the category of the item with the higst weight
+    const { accumulatedWeight, selectedCategory } = items.reduce(
+        (accumulator, item) => {
+            const sum = accumulator.accumulatedWeight + item.total_weight;
+            const selected = item.total_weight > accumulator.selectedCategory.total_weight ? { total_weight: item.total_weight, category: item.category } : accumulator.selectedCategory;
+            return { accumulatedWeight: sum, selectedCategory: selected };
+        },
+        { accumulatedWeight: 0, selectedCategory: { total_weight: 0, category: null } }
+    );
+
+    package_category = selectedCategory.category;
+
+    console.log("Accumulated Weight:", accumulatedWeight);
+    console.log("Selected Category:", selectedCategory.category);
+
 
     // Extract the boxes with their names and weights from boxSizes array
     const filtered = boxSizes.filter(box => box.max_weight >= accumulatedWeight)
@@ -163,7 +151,7 @@ const estimateBoxDimensions = (items, boxSizes) => {
     }));
 
     // check if the filtered array is empty
-    let selectedBox
+    let selectedBox;
     if (filtered.length === 0) {
         // get box with highest volume
         const maxfilter = boxSizes.reduce((max, box) => {
@@ -173,6 +161,7 @@ const estimateBoxDimensions = (items, boxSizes) => {
 
         selectedBox = maxfilter.box;
     } else {
+        // Find the box with the closest weight to the accumulated weight
         const closestWeight = suitableMaxWeights.reduce((closest, weight) => {
             const weightDifference = Math.abs(weight.weight - accumulatedWeight);
             const closestDifference = Math.abs(closest.weight - accumulatedWeight);
@@ -195,11 +184,11 @@ const estimateBoxDimensions = (items, boxSizes) => {
         dimensions.description = 'item size exceeds all available boxes, max boxsize used';
     }
 
-    return dimensions;
+    return {dimensions, package_category};
 };
 
 module.exports = {
     convertcart,
-    groupCartItems,
+    checkCartStore,
     estimateBoxDimensions
 }

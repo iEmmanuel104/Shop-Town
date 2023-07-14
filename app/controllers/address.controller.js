@@ -1,4 +1,4 @@
-const { Product, User, Brand, Category, Cart, DeliveryAddress } = require('../../models');
+const { Product, User, Store, Category, Cart, DeliveryAddress } = require('../../models');
 require('dotenv').config();
 const { sequelize, Sequelize } = require('../../models');
 const asyncWrapper = require('../middlewares/async')
@@ -147,11 +147,55 @@ const DeleteDeliveryAddress = asyncWrapper(async (req, res) => {
     });
 });
 
+const RevalidateDeliveryAddress = asyncWrapper(async (req, res) => {
+    const deliveryAddresses = await DeliveryAddress.findAll();
+
+    for (let i = 0; i < deliveryAddresses.length; i++) {
+        const deliveryAddress = deliveryAddresses[i];
+        let details;
+
+        // Find the referenced table (User or Store)
+        if (deliveryAddress.userId) {
+            // User reference
+            const user = await User.findOne({ where: { id: deliveryAddress.userId } });
+            details = {
+                name: user.fullName,
+                email: user.email,
+                phone: deliveryAddress.phone,
+                address: `${deliveryAddress.address}, ${deliveryAddress.city}, ${deliveryAddress.state}, ${deliveryAddress.country}`
+            };
+        } else if (deliveryAddress.storeId) {
+            // Store reference
+            const store = await Store.findOne({ where: { id: deliveryAddress.storeId } });
+            details = {
+                name: store.name,
+                email: store.businessEmail,
+                phone: store.businessPhone,
+                address: `${deliveryAddress.address}, ${deliveryAddress.city}, ${deliveryAddress.state}, ${deliveryAddress.country}`
+            };
+        } else {
+            continue; // Skip if no valid reference found
+        }
+
+        const address_code = await validateAddress(details);
+
+        // Update the addressCode column in the deliveryAddress table
+        await deliveryAddress.update({ addressCode: address_code });
+    }
+
+    return res.status(200).json({
+        success: true,
+        message: 'Delivery addresses revalidated successfully.'
+    });
+});
+
+
 module.exports = {
     AddNewAddress,
     GetDeliveryAddresses,
     GetDeliveryAddress, 
     UpdateDeliveryAddress,
     DeleteDeliveryAddress,
+    RevalidateDeliveryAddress
     // SetDefaultDeliveryAddress
 }

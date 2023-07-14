@@ -1,6 +1,6 @@
 module.exports = (sequelize, DataTypes) => {
     const { User } = require('./entityModel')(sequelize, DataTypes);
-    const { Brand } = require('./entityModel')(sequelize, DataTypes);
+    const { Store } = require('./entityModel')(sequelize, DataTypes);
 
     const ChatRoom = sequelize.define('ChatRoom', {
         id: {
@@ -16,7 +16,7 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.UUID,
             allowNull: false,
             references: {
-                model: Brand,
+                model: Store,
                 key: 'id'
             }
         },

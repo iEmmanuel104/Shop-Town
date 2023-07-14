@@ -5,19 +5,19 @@ const uploadFile = require('../middlewares/multerobject')
 
 
 const {
-    createBrand, getBrands, getBrand,
-    updateBrand, deleteBrand, getBrandStaff,
+    createStore, getStores, getStore,
+    updateStore, deleteStore, getStoreStaff,
     AddStoreDiscount, getStoreDiscounts,
     updateStoreDiscount, deleteStoreDiscount,
     increaseStoreProductPrice, addStoreAccount
-} = require('../controllers/brand.controller');
+} = require('../controllers/store.controller');
 
-router.post('/', basicAuth, createBrand);
-router.get('/', getBrands);
-router.get('/:id', getBrand);
-router.put('/update/:id', basicAuth, uploadFile.single('file'), updateBrand);
-router.delete('/delete/:id', basicAuth, deleteBrand);
-router.get('/staff/:id', basicAuth, getBrandStaff);
+router.post('/', basicAuth, createStore);
+router.get('/', getStores);
+router.get('/:id', getStore);
+router.put('/update/:id', basicAuth, uploadFile.single('file'), updateStore);
+router.delete('/delete/:id', basicAuth, deleteStore);
+router.get('/staff/:id', basicAuth, getStoreStaff);
 router.post('/discount/add/:id', basicAuth, AddStoreDiscount);
 router.get('/discount/:id', basicAuth, getStoreDiscounts);
 router.put('/discount/update/:id', basicAuth, updateStoreDiscount);
