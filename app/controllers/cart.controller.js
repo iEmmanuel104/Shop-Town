@@ -132,12 +132,13 @@ const updateCart = asyncWrapper(async (req, res, next) => {
       message = "Cart is Emptied"
     } else {
       const converted = await convertcart(updatedCart)
+      console.log("converted", converted.sortedCart)
       updatefields = {
         analytics: converted.analytics,
       }
 
       cartitems = {
-        items: converted.items,
+        items: converted.sortedCart,
         totalAmount: converted.totalAmount,
       }
 
@@ -193,20 +194,14 @@ const cartcheckout = asyncWrapper(async (req, res, next) => {
     const storeobj = { id: cartStore.store, type: "store" };
     const userobj = { id: userId, type: "user" };
 
-    let sender_address_code,
-      receiver_address_code,
-      pickup_date,
-      category_id,
-      package_items,
-      package_dimension,
-      description,
-      boxSizes;
-
     // Get sender and user address codes
     const [senderAddress, receiverAddress] = await Promise.all([
       DeliveryAddress.scope({ method: ["Default", storeobj] }).findOne(),
       DeliveryAddress.scope({ method: ["Default", userobj] }).findOne(),
     ]);
+
+    console.log("senderAddress", senderAddress);
+    console.log("receiverAddress", receiverAddress);
 
     if (!senderAddress) {
       return next(new NotFoundError("Error Validating store for this cart"));
