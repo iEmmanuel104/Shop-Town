@@ -17,7 +17,7 @@ const convertcart = async (cart, type) => {
         throw new BadRequestError("Please add a valid product to the cart.");
     }
 
-    // const sortedCart = new Map();
+    const sortedCart = [];
     let totalAmount = 0;
     let itemsProcessed = 0;
     let outOfStockItems = 0;
@@ -67,7 +67,10 @@ const convertcart = async (cart, type) => {
                     newItem.info.category = specifications.shippingcategory_id;
                 }
 
-                // sortedCart.set(product.id, cartQuantity);
+                sortedCart.push({
+                    id: product.id,
+                    count: cartQuantity
+                })
 
                 if (itemStatus === 'instock') {
                     totalAmount += price * cartQuantity;
@@ -87,7 +90,7 @@ const convertcart = async (cart, type) => {
 
     cart.totalAmount = totalAmount;
     cart.errors = errors;
-    // cart.sortedCart = Object.fromEntries(sortedCart);
+    cart.sortedCart = sortedCart;
     cart.analytics = {
         totalItemsAdded: itemIds.length,
         totalItemsProcessed: itemsProcessed,

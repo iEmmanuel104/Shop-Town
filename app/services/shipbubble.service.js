@@ -1,5 +1,4 @@
 const axios = require('axios');
-const { DeliveryAddress } = require('../../models');
 const { BadRequestError } = require('../utils/customErrors');
 const { SHIPBUBBLE_API_KEY } = require('../utils/configs');
 
@@ -275,7 +274,7 @@ const createshipment = async (details) => {
         return response.data.data;
     } catch (error) {
         console.log(error.response.data);
-        throw new BadRequestError('Error creating shipment');
+        throw new BadRequestError('Error creating shipment, Please refresh shipping rates');
     }
 }
 function findCourier(data) {

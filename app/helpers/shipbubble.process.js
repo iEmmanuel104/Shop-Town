@@ -76,7 +76,7 @@ async function checkoutWithShipbubble({ cart, converted, senderAddress, receiver
     } = await getShippingRates(details);
 
     if (request_token) {
-        await cart.update({ checkoutData: { requestToken: request_token, valid: true } });
+        await cart.update({ checkoutData: { requestToken: request_token, valid: true, checkoutDetails: JSON.stringify(checkout_data) } });
     }
 
     return { allcouriers, checkout_data };

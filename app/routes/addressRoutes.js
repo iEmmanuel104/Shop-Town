@@ -10,6 +10,7 @@ const {
     GetDeliveryAddress,
     UpdateDeliveryAddress,
     DeleteDeliveryAddress,
+    RevalidateDeliveryAddress
 } = require('../controllers/address.controller')
 
 router.route('/')
@@ -20,5 +21,8 @@ router.route('/:id')
     .get( GetDeliveryAddress)
     .put( UpdateDeliveryAddress)
     .delete(DeleteDeliveryAddress)
+
+router.route('/revalidate/address')
+    .get(RevalidateDeliveryAddress)
 
 module.exports = router
