@@ -19,7 +19,7 @@ const storeCart = asyncWrapper(async (req, res, next) => {
 
     const validateCartAndItems = async () => {
         const userCart = await Cart.findOne({
-            where: { userId: userId, isWishList: false },
+            where: { userId, isWishList: false },
             include: [
                 {
                     model: Cart,
@@ -66,7 +66,7 @@ const storeCart = asyncWrapper(async (req, res, next) => {
             message = 'Wishlist created successfully';
         } else {
             await Cart.update(
-                { items: items },
+                { items },
                 {
                     where: {
                         id: wishlists[0].id,
@@ -80,7 +80,7 @@ const storeCart = asyncWrapper(async (req, res, next) => {
 
         res.status(200).json({
             success: true,
-            message: message,
+            message,
         });
     });
 });
@@ -117,15 +117,15 @@ const updateCart = asyncWrapper(async (req, res, next) => {
         const { id } = req.params;
         const { items } = req.body;
 
-        const cart = await Cart.findOne({ where: { id: id } });
+        const cart = await Cart.findOne({ where: { id } });
 
-        let updatefields = {},
-            message = '',
-            cartitems = {};
+        let updatefields = {};
+        let message = '';
+        let cartitems = {};
         if (!cart) return next(new NotFoundError('Cart not found'));
 
         const updatedCart = { items };
-        let checkcart = updatedCart.items;
+        const checkcart = updatedCart.items;
 
         // console.log("checkcart", checkcart)
 
@@ -163,7 +163,7 @@ const updateCart = asyncWrapper(async (req, res, next) => {
 const deleteCart = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const { id } = req.params;
-        const cart = await Cart.findOne({ where: { id: id } });
+        const cart = await Cart.findOne({ where: { id } });
 
         if (!cart) return next(new NotFoundError('Cart not found'));
 
@@ -184,7 +184,7 @@ const cartcheckout = asyncWrapper(async (req, res, next) => {
     console.log('userId', userId);
 
     const cart = await Cart.findOne({
-        where: { userId: userId, isWishList: false },
+        where: { userId, isWishList: false },
     });
 
     if (!cart) return next(new NotFoundError('Cart not found'));
@@ -214,7 +214,7 @@ const cartcheckout = asyncWrapper(async (req, res, next) => {
             return next(new NotFoundError('Receiver address not found'));
         }
 
-        const { allcouriers, checkout_data } = await checkoutWithShipbubble({
+        const { allcouriers, checkoutData } = await checkoutWithShipbubble({
             cart,
             converted,
             senderAddress,
@@ -229,7 +229,7 @@ const cartcheckout = asyncWrapper(async (req, res, next) => {
                 info: 'Please note that the shipping fee is subject to change if the package dimensions are different from the estimated dimensions.',
                 shippingdetails: {
                     couriers: allcouriers,
-                    checkoutData: checkout_data,
+                    checkoutData,
                 },
             },
         });
