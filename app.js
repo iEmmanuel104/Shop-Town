@@ -20,19 +20,19 @@ const { serverAdapter } = require('./app/services/task.schedule.service');
 require('dotenv').config();
 require('./app/utils/passport.configs')(passport);
 
-let whitelist = ['http://localhost:8082']
+const whitelist = ['http://localhost:8082'];
 
-var corsOptions = {
+const corsOptions = {
     origin: (origin, callback) => {
         if (whitelist.indexOf(origin)) {
-            callback(null, true)
+            callback(null, true);
         } else {
-            callback(new Error('Not allowed by CORS'))
+            callback(new Error('Not allowed by CORS'));
         }
     },
     optionsSuccessStatus: 200,
-    credentials: true // enable set cookie
-}
+    credentials: true, // enable set cookie
+};
 
 app.use(cors(corsOptions));
 // app.use(cors());
@@ -46,9 +46,9 @@ app.use(bodyParser.urlencoded({ extended: false }));
 app.use(bodyParser.json());
 
 // Express body parser
-app.use(express.urlencoded({ extended: true }))
-app.use(express.json({ extended: true }))
-app.use(cookieParser())
+app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ extended: true }));
+app.use(cookieParser());
 app.use(
     session({
         secret: process.env.SESSION_SECRET || 'secret',
@@ -56,9 +56,9 @@ app.use(
         resave: false,
         saveUninitialized: false,
         cookie: {
-            maxAge: 1000 * 60 * 60 * 24 * 7 // 1 week
-        }
-    })
+            maxAge: 1000 * 60 * 60 * 24 * 7, // 1 week
+        },
+    }),
 );
 
 app.use(passport.initialize());
@@ -70,21 +70,20 @@ app.use(express.static('public'));
 const env = process.env.NODE_ENV;
 
 // simple route
-app.get("/", (req, res) => {
-    res.json({ message: "Welcome to EZCART API." });
+app.get('/', (req, res) => {
+    res.json({ message: 'Welcome to EZCART API.' });
 });
 
 // // Routes
-app.use('/auth', require('./app/routes/authRoutes'))
-app.use('/store', require('./app/routes/storeRoutes'))
-app.use('/category', require('./app/routes/categoryRoutes'))
-app.use('/product', require('./app/routes/productRoutes'))
-app.use('/cart', require('./app/routes/cartRoutes'))
+app.use('/auth', require('./app/routes/authRoutes'));
+app.use('/store', require('./app/routes/storeRoutes'));
+app.use('/category', require('./app/routes/categoryRoutes'));
+app.use('/product', require('./app/routes/productRoutes'));
+app.use('/cart', require('./app/routes/cartRoutes'));
 app.use('/address', require('./app/routes/addressRoutes'));
 app.use('/order', require('./app/routes/orderRoutes'));
 app.use('/post', require('./app/routes/ksocialRoutes'));
 app.use('/wallet', require('./app/routes/walletRoutes'));
-
 
 // bull-board
 app.use('/admin/queues', serverAdapter.getRouter());
@@ -97,6 +96,5 @@ app.use((req, res, next) => {
         message: `Can't find ${req.originalUrl} on this server!`,
     });
 });
-
 
 module.exports = app;
