@@ -4,10 +4,10 @@ const { generateRandomString } = require('../utils/stringGenerators');
 
 const uploadSingleFile = async (file, details) => {
     const fileBuffer = file.buffer;
-    let originalname = file.originalname;
+    const originalname = file.originalname;
     details.name = await generateRandomString(6);
 
-    let uploadresult = await uploadtocloudinary(fileBuffer, details);
+    const uploadresult = await uploadtocloudinary(fileBuffer, details);
     if (uploadresult.message === 'error') {
         throw new BadRequestError(uploadresult.error.message);
     }

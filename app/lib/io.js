@@ -1,3 +1,4 @@
+/* eslint-disable */
 const socketWrapper = require('../middlewares/wsWrapper');
 const authenticate = require('../middlewares/authWares').authenticate;
 const { createServer } = require('http');

@@ -4,14 +4,14 @@ const { SHIPBUBBLE_API_KEY } = require('../utils/configs');
 
 const validateAddress = async (details) => {
     console.log('ship bubble api called');
-    let data = JSON.stringify({
+    const data = JSON.stringify({
         name: details.name,
         email: details.email,
         phone: details.phone,
         address: details.address,
     });
 
-    let config = {
+    const config = {
         method: 'post',
         maxBodyLength: Infinity,
         url: 'https://api.shipbubble.com/v1/shipping/address/validate',
@@ -19,15 +19,15 @@ const validateAddress = async (details) => {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${SHIPBUBBLE_API_KEY}`,
         },
-        data: data,
+        data,
     };
 
     try {
         const response = await axios.request(config);
         console.log(response.data);
-        const address_code = response.data.data.address_code;
-        console.log('address code api', address_code);
-        return address_code;
+        const addressCode = response.data.data.addressCode;
+        console.log('address code api', addressCode);
+        return addressCode;
     } catch (error) {
         console.log(error.response.data);
         throw new BadRequestError('Error validating address: ' + error.response.data.message);
@@ -35,18 +35,18 @@ const validateAddress = async (details) => {
 };
 
 const getShippingRates = async (details) => {
-    let data = JSON.stringify({
-        sender_address_code: details.sender_address_code,
-        reciever_address_code: details.receiver_address_code,
-        pickup_date: details.pickup_date,
-        category_id: details.category_id,
-        package_items: details.package_items,
-        package_dimension: details.package_dimension,
-        delivery_instructions: details.delivery_instructions,
+    const data = JSON.stringify({
+        sender_address_code: details.senderAddressCode,
+        reciever_address_code: details.receiverAddressCode,
+        pickup_date: details.pickupDate,
+        category_id: details.categoryId,
+        package_items: details.packageItems,
+        package_dimension: details.packageDimension,
+        delivery_instructions: details.description,
         service_type: 'pickup',
     });
 
-    let config = {
+    const config = {
         method: 'post',
         maxBodyLength: Infinity,
         url: 'https://api.shipbubble.com/v1/shipping/fetch_rates',
@@ -55,17 +55,17 @@ const getShippingRates = async (details) => {
             Authorization: `Bearer ${SHIPBUBBLE_API_KEY}`,
             Cookie: 'connect.sid=s%3A7grPYQxxTQAPVglRsI2jviUSaeOocGbR.Vb40e8CphHenTW7eb9SmjZDVAJmGNciuMEdUz8T8JvE',
         },
-        data: data,
+        data,
     };
 
     try {
         const response = await axios.request(config);
         const requestobject = {
-            request_token: response.data.data.request_token,
-            cheapest_courier: response.data.data.cheapest_courier,
+            requestToken: response.data.data.request_token,
+            cheapestCourier: response.data.data.cheapest_courier,
             allcouriers: response.data.data.couriers,
-            kship_courier: await findCourier(response.data.data),
-            checkout_data: response.data.data.checkout_data,
+            kshipCourier: await findCourier(response.data.data),
+            checkoutData: response.data.data.checkout_data,
         };
         return requestobject;
     } catch (error) {
@@ -126,7 +126,7 @@ const defaultlabels = {
 };
 
 const getshippingcategories = async () => {
-    let config = {
+    const config = {
         method: 'get',
         maxBodyLength: Infinity,
         url: 'https://api.shipbubble.com/v1/shipping/labels/categories',
@@ -225,7 +225,7 @@ const defaultboxes = {
 const getshippingboxes = async () => {
     const axios = require('axios');
 
-    let config = {
+    const config = {
         method: 'get',
         maxBodyLength: Infinity,
         url: 'https://api.shipbubble.com/v1/shipping/labels/boxes',
@@ -247,13 +247,13 @@ const getshippingboxes = async () => {
 };
 
 const createshipment = async (details) => {
-    let data = JSON.stringify({
+    const data = JSON.stringify({
         request_token: details.request_token,
         service_code: details.service_code,
         courier_id: details.courier_id,
     });
 
-    let config = {
+    const config = {
         method: 'post',
         maxBodyLength: Infinity,
         url: 'https://api.shipbubble.com/v1/shipping/labels',
@@ -262,13 +262,12 @@ const createshipment = async (details) => {
             Authorization: `Bearer ${SHIPBUBBLE_API_KEY}`,
             Cookie: 'connect.sid=s%3Ag3JurJ5tS6rqUKrKuiUHBW8LM_YpI5hV.mXjdY0E3AqfZ8EeAdbNSrAB%2BnsMyO%2BYKVdTzVIGP80Y',
         },
-        data: data,
+        data,
     };
 
     try {
         const response = await axios.request(config);
         console.log(response.data);
-        const requestobject = {};
         return response.data.data;
     } catch (error) {
         console.log(error.response.data);
