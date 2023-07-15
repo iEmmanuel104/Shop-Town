@@ -21,15 +21,15 @@ const signUp = asyncWrapper(async (req, res, next) => {
     if (!email | !firstName | !lastName | !location | !city | !state | !phone)
         return next(new BadRequestError('Please fill all required fields'));
 
-    let access_token, address_code;
-    const addressdetails = location + ',' + city + ',' + state + ',' + country,
-        details = {
-            name: firstName + ' ' + lastName,
-            email: email,
-            phone: phone,
-            address: addressdetails,
-        };
-    address_code = await validateAddress(details);
+    let accessToken;
+    const addressdetails = location + ',' + city + ',' + state + ',' + country;
+    const details = {
+        name: firstName + ' ' + lastName,
+        email,
+        phone,
+        address: addressdetails,
+    };
+    const addressCode = await validateAddress(details);
 
     const user = await User.create({
         email,
@@ -40,29 +40,29 @@ const signUp = asyncWrapper(async (req, res, next) => {
         phone,
     });
 
-    console.log('user address code', address_code);
+    console.log('user address code', addressCode);
 
     await Promise.all([
-        Password.create({ userId: user.id, password: password }),
+        Password.create({ userId: user.id, password }),
         // create new address in address table
         DeliveryAddress.create({
             userId: user.id,
             address: location,
-            city: city,
-            state: state,
-            country: country,
+            city,
+            state,
+            country,
             type: 'home',
             phone: phone ? user.phone : user.phone,
-            addressCode: address_code,
+            addressCode,
             isDefault: true,
         }),
-        (access_token = (await issueToken({ userid: user.id })).access_token),
+        (accessToken = (await issueToken({ userid: user.id })).accessToken),
     ]);
 
     return res.status(201).json({
         success: true,
         message: 'User created successfully, check your email for verification code',
-        access_token,
+        access_token: accessToken,
     });
 });
 
@@ -122,7 +122,7 @@ const resendVerificationCode = asyncWrapper(async (req, res, next) => {
 });
 
 const profileOnboarding = asyncWrapper(async (req, res, next) => {
-    const { location, city, state, country } = req.body;
+    const { location, city, phone, state, country } = req.body;
     const payload = req.decoded;
     const userId = payload.id;
     const user = await User.findByPk(userId);
@@ -136,23 +136,23 @@ const profileOnboarding = asyncWrapper(async (req, res, next) => {
         await user.save();
     }
 
-    const addressdetails = location + ',' + city + ',' + state + ',' + country,
-        details = {
-            name: user.firstName + ' ' + user.lastName,
-            email: user.email,
-            phone: user.phone,
-            address: addressdetails,
-        };
-    const address_code = await validateAddress(details);
+    const addressdetails = location + ',' + city + ',' + state + ',' + country;
+    const details = {
+        name: user.firstName + ' ' + user.lastName,
+        email: user.email,
+        phone: user.phone,
+        address: addressdetails,
+    };
+    const addressCode = await validateAddress(details);
     // create new address in address table
     await DeliveryAddress.create({
         userId,
         address: location,
-        city: city,
-        state: state,
-        country: country,
+        city,
+        state,
+        country,
         phone: phone ? user.phone : user.phone,
-        addressCode: address_code,
+        addressCode,
         isDefault: true,
     });
 
@@ -185,13 +185,13 @@ const forgotPassword = asyncWrapper(async (req, res, next) => {
         return res.status(200).json({
             success: true,
             message: 'Password reset code sent successfully, proceed to reset password',
-            // access_token
+            // accessToken
         });
     });
 });
 
 const resetPassword = asyncWrapper(async (req, res, next) => {
-    const { email, current_password, new_password } = req.body;
+    const { email, currentPassword, newPassword } = req.body;
 
     const { code } = req.query;
     console.log(code);
@@ -204,24 +204,24 @@ const resetPassword = asyncWrapper(async (req, res, next) => {
 
     if (req.query.code) {
         // offline reset -- new password and email in req , code in query
-        const user_token = await Token.findOne({ where: { userId: user.id, passwordResetToken: code } });
-        if (!user_token) {
+        const userToken = await Token.findOne({ where: { userId: user.id, passwordResetToken: code } });
+        if (!userToken) {
             throw new BadRequestError('Invalid password reset code provided');
         }
-        passwordobj = { password: new_password };
+        passwordobj = { password: newPassword };
         // destroy token
         // await Token.destroy({ where: { userId: user.id } })
-    } else if (current_password) {
+    } else if (currentPassword) {
         // online reset -- current password, new password and email in req body
         const passwordInstance = await Password.findOne({ where: { id: user.id } });
         if (!passwordInstance) {
             return next(new BadRequestError('User has no prior password set'));
         }
 
-        if (!passwordInstance.isValidPassword(current_password)) {
+        if (!passwordInstance.isValidPassword(currentPassword)) {
             return next(new BadRequestError('Invalid current password'));
         }
-        passwordobj = { password: new_password };
+        passwordobj = { password: newPassword };
     } else {
         throw new BadRequestError('Invalid password reset request');
     }
@@ -252,12 +252,13 @@ const signIn = asyncWrapper(async (req, res, next) => {
 
     if (!user.isVerified || !user.isActivated) {
         user.generateAndSendVerificationCode('verify');
+        const { accessToken } = await issueToken({ userid: user.id });
 
         return res.status(422).json({
             // 422 unprocessable entity
             success: true,
             message: 'User not verified, verification code sent successfully',
-            access_token,
+            access_token: accessToken,
         });
     }
 
@@ -284,7 +285,7 @@ const signIn = asyncWrapper(async (req, res, next) => {
         tokens = await issueToken({ userid: user.id });
     }
 
-    const { access_token, refresh_token } = tokens;
+    const { accessToken, refreshToken } = tokens;
 
     return res.status(200).json({
         success: true,
@@ -292,8 +293,8 @@ const signIn = asyncWrapper(async (req, res, next) => {
         // user,
         hasdefaultAddress,
         hascheckoutData,
-        access_token,
-        refresh_token,
+        access_token: accessToken,
+        refresh_token: refreshToken,
     });
 });
 
@@ -351,7 +352,7 @@ const getloggedInUser = asyncWrapper(async (req, res, next) => {
         success: true,
         message: 'User retrieved successfully',
         user,
-        stores: stores,
+        stores,
     });
 });
 
@@ -362,21 +363,21 @@ const getNewAccessToken = asyncWrapper(async (req, res, next) => {
         throw new BadRequestError('Invalid authorization');
     }
 
-    const [, refresh_token] = authorization.split(' ');
+    const [, refreshToken] = authorization.split(' ');
 
-    const { id: userId } = await decodeJWT(refresh_token, 'refresh');
+    const { id: userId } = await decodeJWT(refreshToken, 'refresh');
     const user = await User.findByPk(userId);
 
     if (!user) {
         throw new BadRequestError('Invalid user');
     }
 
-    const { access_token } = await issueToken({ userid: user.id, type: 'access' });
+    const { accessToken } = await issueToken({ userid: user.id, type: 'access' });
 
     return res.status(200).json({
         success: true,
         message: 'New access token retrieved successfully',
-        access_token,
+        accessToken,
     });
 });
 
@@ -394,20 +395,20 @@ const facebookauth = asyncWrapper(async (req, res, next) => {
     }
 
     // Generate a JWT token for authentication
-    const { access_token, refresh_token } = await issueToken({ userid: user.id });
+    const { accessToken, refreshToken } = await issueToken({ userid: user.id });
 
     return res.status(200).json({
         success: true,
         message: 'User signed in successfully',
-        access_token,
-        refresh_token,
+        access_token: accessToken,
+        refresh_token: refreshToken,
     });
 });
 
 const googleSignIn = asyncWrapper(async (req, res, next) => {
     const { googleId, email } = req.user;
 
-    let user = await User.findOne({ where: { email } });
+    const user = await User.findOne({ where: { email } });
 
     if (user.googleId !== googleId) {
         return next(new BadRequestError('Invalid user'));
@@ -416,13 +417,13 @@ const googleSignIn = asyncWrapper(async (req, res, next) => {
     await user.save();
 
     // Generate a JWT token for authentication
-    const { access_token, refresh_token } = await issueToken({ userid: user.id });
+    const { accessToken, refreshToken } = await issueToken({ userid: user.id });
 
     return res.status(200).json({
         success: true,
         message: 'User signed in successfully',
-        access_token,
-        refresh_token,
+        accessToken,
+        refreshToken,
     });
 });
 
@@ -496,7 +497,7 @@ const switchAccount = asyncWrapper(async (req, res, next) => {
     await user.save();
 
     const message = `User switched to ${user.vendorMode ? 'seller' : 'customer'} mode successfully`;
-    let responseData = {
+    const responseData = {
         success: true,
         message,
     };
@@ -521,15 +522,15 @@ const selectStore = asyncWrapper(async (req, res, next) => {
     const isAssociated = await store.hasUser(user);
     if (!isAssociated) return next(new BadRequestError('Unauthorized'));
 
-    let responseData = {
+    const responseData = {
         success: true,
         message: `User switched to ${store.name} successfully`,
         data: store,
     };
 
     if (req.query.token === 'true') {
-        const { access_token } = await issueToken({ userid: user.id, storeId });
-        responseData.access_token = access_token;
+        const { accessToken } = await issueToken({ userid: user.id, storeId });
+        responseData.accessToken = accessToken;
     }
 
     return res.status(200).json(responseData);
@@ -549,8 +550,8 @@ const registerStore = asyncWrapper(async (req, res, next) => {
     if (!payload.isVerified || !payload.isActivated) {
         return next(new BadRequestError('Please verify your account to create a store'));
     }
-    checkemail = email.trim().toLowerCase();
-    checkstoreName = storeName.trim().toLowerCase();
+    const checkemail = email.trim().toLowerCase();
+    const checkstoreName = storeName.trim().toLowerCase();
     const existingStore = await Store.findOne({
         where: {
             [Op.or]: [{ businessEmail: checkemail }, { name: checkstoreName }],
@@ -565,7 +566,7 @@ const registerStore = asyncWrapper(async (req, res, next) => {
         return next(new BadRequestError(errorMessage));
     }
 
-    const address_code = await validateAddress({
+    const addressCode = await validateAddress({
         name: checkstoreName,
         email,
         phone,
@@ -580,16 +581,16 @@ const registerStore = asyncWrapper(async (req, res, next) => {
     // Create store, add user, and create new address using bulkCreate
     const createdStore = await Store.create({
         name: storeName,
-        city: city,
+        city,
         businessPhone: phone,
         businessEmail: email,
-        industry: industry,
-        country: country,
+        industry,
+        country,
         address,
         state,
         owner: payload.id,
         // logo: LOGO
-        logo: url ? url : LOGO,
+        logo: url || LOGO,
     });
 
     const [storeuser, deliveryAddress] = await Promise.all([
@@ -602,7 +603,7 @@ const registerStore = asyncWrapper(async (req, res, next) => {
             state,
             country,
             phone,
-            addressCode: address_code,
+            addressCode,
             isDefault: true,
         }),
     ]);
