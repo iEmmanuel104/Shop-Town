@@ -4,13 +4,17 @@
         "ecmaVersion": 12,
         "sourceType": "module"
     },
-    "extends": ["eslint:recommended", "prettier", "standard", "prettier/standard"],
+    "extends": ["eslint:recommended", "prettier", "standard", "plugin:prettier/recommended"],
     "plugins": ["import", "prettier", "standard"],
     "env": {
         "es2021": true,
         "node": true
     },
     "rules": {
-        "new-cap": "error"
+        "new-cap": "error",
+        "no-unused-vars": "off", // Disable the no-unused-vars rule
+        "no-extra-semi": "off",
+        // leave indentation to prettier
+        "indent": "off"
     }
 }
