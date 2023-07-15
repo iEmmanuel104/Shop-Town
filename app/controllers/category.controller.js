@@ -1,8 +1,8 @@
 const { Category } = require('../../models');
 require('dotenv').config();
-const asyncWrapper = require('../middlewares/async')
+const asyncWrapper = require('../middlewares/async');
 const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/customErrors');
-const Op = require("sequelize").Op;
+const Op = require('sequelize').Op;
 const { sequelize } = require('../../models');
 const path = require('path');
 const { uploadSingleFile, uploadFiles } = require('../services/imageupload.service');
@@ -10,7 +10,7 @@ const { uploadSingleFile, uploadFiles } = require('../services/imageupload.servi
 const createCategory = asyncWrapper(async (req, res, next) => {
     if (req.query.bulk === 'true') {
         const { categories } = req.body; // Array of category objects [{ name: 'Category 1', description: 'Description 1' }, { name: 'Category 2', description: 'Description 2' }, ...]
-        console.log(categories)
+        console.log(categories);
 
         if (!categories) {
             return next(new BadRequestError('use the key "categories" to send the array of categories'));
@@ -36,11 +36,13 @@ const createCategory = asyncWrapper(async (req, res, next) => {
                 const image = await uploadSingleFile(req.file, 'categories');
             }
 
-
-            const category = await Category.create({
-                name,
-                description,
-            }, { transaction: t });
+            const category = await Category.create(
+                {
+                    name,
+                    description,
+                },
+                { transaction: t },
+            );
             return res.status(201).json({
                 success: true,
                 data: category,
@@ -60,7 +62,6 @@ const createCategory = asyncWrapper(async (req, res, next) => {
 //         data: createdCategories,
 //     });
 // });
-
 
 const getCategories = asyncWrapper(async (req, res, next) => {
     const categories = await Category.findAll();

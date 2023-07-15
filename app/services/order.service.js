@@ -5,12 +5,10 @@ const { SeerbitPay, validateSeerbitPay } = require('../services/seerbit.service'
 const { createshipment } = require('../services/shipbubble.service');
 const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/customErrors');
 const { sendorderpushNotification } = require('../utils/mailTemplates');
-const { getPagination, getPagingData } = require('../utils/pagination')
-const { generateCode } = require('../utils/stringGenerators')
-
+const { getPagination, getPagingData } = require('../utils/pagination');
+const { generateCode } = require('../utils/stringGenerators');
 
 const validateShippingMethod = ({ shipMethod, option, service, shippingCourier }) => {
-
     const validShippingMethods = ['seller', 'kship', 'ksecure'];
     if (!validShippingMethods.includes(shipMethod)) {
         throw new BadRequestError('Invalid shipping method');
@@ -59,62 +57,53 @@ const validateShippingMethod = ({ shipMethod, option, service, shippingCourier }
 
 const handleShippingActions = async ({ order, store, courier }) => {
     let orderobj = {
-        orderId: order.id,
-        orderstatus: order.status,
-        orderdate: order.createdAt,
-        orderamount: order.cartdetails.totalAmount,
-        userId: order.userId,
-        storeId: order.storeId,
-        orderNumber: order.orderNumber,
-        shippingMethod: order.shippingMethod
-    },
+            orderId: order.id,
+            orderstatus: order.status,
+            orderdate: order.createdAt,
+            orderamount: order.cartdetails.totalAmount,
+            userId: order.userId,
+            storeId: order.storeId,
+            orderNumber: order.orderNumber,
+            shippingMethod: order.shippingMethod,
+        },
         socials = {
             links: store.socials,
             phone: store.businessPhone,
-            email: store.businessEmail
+            email: store.businessEmail,
         },
-
         shipMethod = order.shippingMethod,
-
-    paymentamt = parseFloat(orderobj.orderamount);
+        paymentamt = parseFloat(orderobj.orderamount);
     let returnobject = {
-        order: orderobj, socials, subTotal: orderobj.orderamount,
-        paymentAmount: paymentamt, shippingMethod: shipMethod
+        order: orderobj,
+        socials,
+        subTotal: orderobj.orderamount,
+        paymentAmount: paymentamt,
+        shippingMethod: shipMethod,
     };
 
     if (shipMethod === 'seller') {
         // send order request notification to seller
-
     } else if (shipMethod === 'kship') {
-
         returnobject.deliveryFee = courier.total;
         paymentamt += parseFloat(courier.total);
-
     } else if (shipMethod === 'ksecure') {
-
         returnobject.deliveryFee = courier.total;
         returnobject.kSecureFee = parseFloat(KSECURE_FEE);
         paymentamt += parseFloat(courier.total) + parseFloat(KSECURE_FEE);
-
     } else {
-
         throw new BadRequestError('Invalid shipping method');
-
     }
 
-
-
-    return { returnobject, paymentamt  };
+    return { returnobject, paymentamt };
 };
 
 const handleOrderPayment = async ({ option, service, paydetails, courier, checkoutData, order }) => {
-
     let shippingObject = {
         orderId: order.id,
         courierInfo: { ...courier },
         requestToken: checkoutData.requestToken,
         serviceType: service, // flutterwave or seerbit
-        shippingMethod: order.shippingMethod // kship or ksecure or seller
+        shippingMethod: order.shippingMethod, // kship or ksecure or seller
     };
 
     let paymentLink, trackingUrl, deliveryFee;
@@ -127,22 +116,18 @@ const handleOrderPayment = async ({ option, service, paydetails, courier, checko
 
             linkobj = await FlutterwavePay(paydetails);
             link = linkobj.data.link;
-
-
         } else if (service === 'seerbit') {
             console.log('seerbit payment');
 
             // SEERBIT payment
             link = await SeerbitPay(paydetails);
-
-        } else { throw new BadRequestError('Invalid payment service') }
+        } else {
+            throw new BadRequestError('Invalid payment service');
+        }
 
         // returns payment link, paystatus
         paymentLink = link;
- 
-
     } else if (option === 'cash') {
-
         console.log('cash payment');
 
         // cash on delivery service
@@ -151,10 +136,7 @@ const handleOrderPayment = async ({ option, service, paydetails, courier, checko
         // pay on delivery
         const { deliveryFee, trackingUrl } = await order.createShipment(shippingObject);
         trackingUrl = trackingUrl;
-
-
     } else if (option === 'kcredit') {
-
         console.log('kcredit payment');
 
         let amount = order.cartdetails.totalAmount;
@@ -167,21 +149,17 @@ const handleOrderPayment = async ({ option, service, paydetails, courier, checko
 
         await Wallet.decrement('amount', { by: amount, where: { id: wallet.id } });
 
-        wallet.updateOrderStatus({ orderId: order.id, status: 'active' })
+        wallet.updateOrderStatus({ orderId: order.id, status: 'active' });
 
         const { deliveryFee, trackingUrl } = await order.createShipment(shippingObject);
         trackingUrl = trackingUrl;
     }
 
-
     return { paymentLink, trackingUrl };
-
-
 };
-
 
 module.exports = {
     validateShippingMethod,
     handleShippingActions,
-    handleOrderPayment
-}
+    handleOrderPayment,
+};

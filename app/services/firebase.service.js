@@ -14,7 +14,9 @@ const sendPushNotification = (registrationToken, title, body) => {
         token: registrationToken,
     };
 
-    admin.messaging().send(message)
+    admin
+        .messaging()
+        .send(message)
         .then((response) => {
             // return response
             console.log('Successfully sent notification:', response);
@@ -31,4 +33,4 @@ const sendPushNotification = (registrationToken, title, body) => {
 // const notificationBody = 'Notification Body';
 // sendPushNotification(registrationToken, notificationTitle, notificationBody);
 
-module.exports = {sendPushNotification};
+module.exports = { sendPushNotification };

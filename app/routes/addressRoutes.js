@@ -1,8 +1,8 @@
-const express = require('express')
-const router = express.Router()
-const { basicAuth } = require('../middlewares/authWares')
+const express = require('express');
+const router = express.Router();
+const { basicAuth } = require('../middlewares/authWares');
 
-router.use(basicAuth)
+router.use(basicAuth);
 
 const {
     AddNewAddress,
@@ -10,19 +10,13 @@ const {
     GetDeliveryAddress,
     UpdateDeliveryAddress,
     DeleteDeliveryAddress,
-    RevalidateDeliveryAddress
-} = require('../controllers/address.controller')
+    RevalidateDeliveryAddress,
+} = require('../controllers/address.controller');
 
-router.route('/')
-    .post( AddNewAddress)
-    .get( GetDeliveryAddresses)
+router.route('/').post(AddNewAddress).get(GetDeliveryAddresses);
 
-router.route('/:id')
-    .get( GetDeliveryAddress)
-    .put( UpdateDeliveryAddress)
-    .delete(DeleteDeliveryAddress)
+router.route('/:id').get(GetDeliveryAddress).put(UpdateDeliveryAddress).delete(DeleteDeliveryAddress);
 
-router.route('/revalidate/address')
-    .get(RevalidateDeliveryAddress)
+router.route('/revalidate/address').get(RevalidateDeliveryAddress);
 
-module.exports = router
+module.exports = router;

@@ -4,11 +4,10 @@ require('dotenv').config();
 const { sequelize, Sequelize } = require('../../models');
 const { validateAddress } = require('../services/shipbubble.service');
 const asyncWrapper = require('../middlewares/async');
-const Op = require("sequelize").Op;
+const Op = require('sequelize').Op;
 const { uploadSingleFile, uploadFiles } = require('../services/imageupload.service');
 const { at } = require('lodash');
 const { generateWallet } = require('../services/wallet.service');
-
 
 //quick create a store
 const createStore = asyncWrapper(async (req, res, next) => {
@@ -16,11 +15,14 @@ const createStore = asyncWrapper(async (req, res, next) => {
         const payload = req.decoded;
         const userId = payload.id;
         const { name, socials } = req.body;
-        const store = await Store.create({
-            name,
-            socials,
-            userId
-        }, { transaction: t });
+        const store = await Store.create(
+            {
+                name,
+                socials,
+                userId,
+            },
+            { transaction: t },
+        );
 
         return res.status(201).json({
             success: true,
@@ -35,14 +37,14 @@ const addStoreAccount = asyncWrapper(async (req, res, next) => {
         const userId = payload.id;
         const { accountName, accountNumber, bankName, bankCode } = req.body;
         const store = await Store.findByPk(req.params.id);
-        
+
         if (!store) {
             return next(new NotFoundError(`store not found`));
         }
 
         // Check if the store already has any existing account details
         const existingAccount = await AccountDetails.findOne({
-            where: { storeId: store.id }
+            where: { storeId: store.id },
         });
 
         if (!existingAccount) {
@@ -50,13 +52,16 @@ const addStoreAccount = asyncWrapper(async (req, res, next) => {
             await generateWallet({ id: store.id, type: 'store' });
         }
 
-        const account = await AccountDetails.create({
-            accountName,
-            accountNumber,
-            bankName,
-            bankCode,
-            storeId: store.id
-        }, { transaction: t });
+        const account = await AccountDetails.create(
+            {
+                accountName,
+                accountNumber,
+                bankName,
+                bankCode,
+                storeId: store.id,
+            },
+            { transaction: t },
+        );
 
         return res.status(201).json({
             success: true,
@@ -70,8 +75,14 @@ const getStores = asyncWrapper(async (req, res, next) => {
         const stores = await Store.findAll({
             attributes: ['id', 'name', 'socials', 'businessPhone', 'owner', 'logo', 'owner'],
             // include delivery address
-            include: [{ model: DeliveryAddress, as: 'deliveryAddress', where: { isDefault: true },
-                attributes: [ 'address', 'city', 'state', 'country', 'isDefault'] }]
+            include: [
+                {
+                    model: DeliveryAddress,
+                    as: 'deliveryAddress',
+                    where: { isDefault: true },
+                    attributes: ['address', 'city', 'state', 'country', 'isDefault'],
+                },
+            ],
         });
         return res.status(200).json({
             success: true,
@@ -84,8 +95,14 @@ const getStore = asyncWrapper(async (req, res, next) => {
     const store = await Store.findByPk(req.params.id, {
         attributes: ['id', 'name', 'socials', 'businessPhone', 'owner', 'logo', 'owner'],
         // include delivery address
-        include: [{ model: DeliveryAddress, as: 'deliveryAddress', where: { isDefault: true }, 
-            attributes: [ 'address', 'city', 'state', 'country', 'isDefault'] }]
+        include: [
+            {
+                model: DeliveryAddress,
+                as: 'deliveryAddress',
+                where: { isDefault: true },
+                attributes: ['address', 'city', 'state', 'country', 'isDefault'],
+            },
+        ],
     });
     if (!store) {
         return next(new NotFoundError(`store not found`));
@@ -101,14 +118,16 @@ const getStoreStaff = asyncWrapper(async (req, res, next) => {
         const payload = req.decoded;
         const userId = payload.id;
 
-        const store = await Store.scope('includeUsers').findByPk(req.params.id,
-            { attributes: ['name', 'businessPhone', 'socials', 'owner'] }
-        );
+        const store = await Store.scope('includeUsers').findByPk(req.params.id, {
+            attributes: ['name', 'businessPhone', 'socials', 'owner'],
+        });
 
-        if (!store) { return next(new NotFoundError(`Store not found`)) }
+        if (!store) {
+            return next(new NotFoundError(`Store not found`));
+        }
 
         if (store.owner !== userId) {
-            return next(new ForbiddenError("You are not allowed to access this resource"));
+            return next(new ForbiddenError('You are not allowed to access this resource'));
         }
 
         return res.status(200).json({
@@ -124,13 +143,17 @@ const updateStore = asyncWrapper(async (req, res, next) => {
     const storeId = req.params.id;
     const { storeName, socials, phone, industry, settings } = req.body;
 
-    if (!storeId) { return next(new BadRequestError("No store id provided"))}
+    if (!storeId) {
+        return next(new BadRequestError('No store id provided'));
+    }
 
     const storeExists = await Store.findByPk(storeId);
-    if (!storeExists) { return next(new NotFoundError("Store not found"))}
+    if (!storeExists) {
+        return next(new NotFoundError('Store not found'));
+    }
 
     if (!storeName && !socials && !phone && !industry && !settings && !req.file) {
-        return next(new BadRequestError("No update data provided"));
+        return next(new BadRequestError('No update data provided'));
     }
 
     const storeUpdate = {};
@@ -140,10 +163,11 @@ const updateStore = asyncWrapper(async (req, res, next) => {
     if (industry) storeUpdate.industry = industry;
     if (settings) storeUpdate.storeSettings = settings;
 
-    let url, uploadname = storeName? storeName: storeExists.name;
+    let url,
+        uploadname = storeName ? storeName : storeExists.name;
     if (req.file) {
         const details = {
-            user: storeName? `Stores/${storeName.trim().toLowerCase()}`: `Stores/${storeExists.name}`,
+            user: storeName ? `Stores/${storeName.trim().toLowerCase()}` : `Stores/${storeExists.name}`,
             folder: `Images`,
         };
         url = await uploadSingleFile(req.file, details);
@@ -155,7 +179,7 @@ const updateStore = asyncWrapper(async (req, res, next) => {
     });
 
     if (updatedCount === 0) {
-        return next(new NotFoundError("Store not found or access denied"));
+        return next(new NotFoundError('Store not found or access denied'));
     }
 
     const updatedStore = await Store.findByPk(storeId);
@@ -197,27 +221,26 @@ const AddStoreDiscount = asyncWrapper(async (req, res, next) => {
             include = [{ model: Product, attributes: ['id'], where: { category: { [Op.in]: categories } } }];
         }
 
-        const store = await Store.findByPk(req.params.id,
-            { attributes: ['owner'] },
-            include
-        );
-
+        const store = await Store.findByPk(req.params.id, { attributes: ['owner'] }, include);
 
         if (!store) {
             return next(new NotFoundError(`store not found`));
         }
 
         if (store.owner !== userId) {
-            return next(new ForbiddenError("You are not allowed to access this resource"));
+            return next(new ForbiddenError('You are not allowed to access this resource'));
         }
-        const newStoreDiscount = await StoreDiscount.create({
-            title,
-            type: type ? type : 'percentage',
-            value,
-            endDate,
-            categoryIds: categories,
-            storeId: req.params.id
-        }, { transaction: t });
+        const newStoreDiscount = await StoreDiscount.create(
+            {
+                title,
+                type: type ? type : 'percentage',
+                value,
+                endDate,
+                categoryIds: categories,
+                storeId: req.params.id,
+            },
+            { transaction: t },
+        );
 
         return res.status(201).json({
             success: true,
@@ -238,7 +261,7 @@ const getStoreDiscounts = asyncWrapper(async (req, res, next) => {
 
         const storeDiscounts = await StoreDiscount.findAll({
             where: { storeId: req.params.id },
-            attributes: ['id', 'title', 'type', 'value', 'endDate']
+            attributes: ['id', 'title', 'type', 'value', 'endDate'],
         });
         return res.status(200).json({
             success: true,
@@ -259,7 +282,7 @@ const updateStoreDiscount = asyncWrapper(async (req, res, next) => {
         }
 
         if (store.owner !== userId) {
-            return next(new ForbiddenError("You are not allowed to access this resource"));
+            return next(new ForbiddenError('You are not allowed to access this resource'));
         }
 
         const storeDiscount = await StoreDiscount.findByPk(discountId);
@@ -275,7 +298,7 @@ const updateStoreDiscount = asyncWrapper(async (req, res, next) => {
 
         await storeDiscount.save({ transaction: t });
 
-        // update the product table 
+        // update the product table
         return res.status(200).json({
             success: true,
             data: storeDiscount,
@@ -294,7 +317,7 @@ const deleteStoreDiscount = asyncWrapper(async (req, res, next) => {
         }
 
         if (store.owner !== userId) {
-            return next(new ForbiddenError("You are not allowed to access this resource"));
+            return next(new ForbiddenError('You are not allowed to access this resource'));
         }
 
         const storeDiscount = await StoreDiscount.findByPk(req.query.discountId);
@@ -306,7 +329,7 @@ const deleteStoreDiscount = asyncWrapper(async (req, res, next) => {
 
         return res.status(200).json({
             success: true,
-            message: "Store Discount deleted successfully",
+            message: 'Store Discount deleted successfully',
             data: {},
         });
     });
@@ -327,7 +350,7 @@ const increaseStoreProductPrice = asyncWrapper(async (req, res, next) => {
         }
 
         if (store.owner !== userId) {
-            return next(new ForbiddenError("You are not allowed to access this resource"));
+            return next(new ForbiddenError('You are not allowed to access this resource'));
         }
 
         // Define the filter based on the category
@@ -358,12 +381,8 @@ const increaseStoreProductPrice = asyncWrapper(async (req, res, next) => {
 });
 
 const storeAnalytics = asyncWrapper(async (req, res, next) => {
-    await sequelize.transaction(async (t) => {
-
-    });
+    await sequelize.transaction(async (t) => {});
 });
-
-
 
 module.exports = {
     createStore,
@@ -377,6 +396,5 @@ module.exports = {
     getStoreDiscounts,
     updateStoreDiscount,
     deleteStoreDiscount,
-    increaseStoreProductPrice
+    increaseStoreProductPrice,
 };
-

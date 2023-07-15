@@ -1,6 +1,6 @@
-const express = require('express')
-const router = express.Router()
-const { basicAuth } = require('../middlewares/authWares')
+const express = require('express');
+const router = express.Router();
+const { basicAuth } = require('../middlewares/authWares');
 
 const {
     fundWallet,
@@ -15,40 +15,28 @@ const {
     checkTransferStatus,
     walletPayout,
     flutterwavecallback,
-} = require('../controllers/wallet.controller')
+} = require('../controllers/wallet.controller');
 
-router.route('/')
-    .post(basicAuth, fundWallet)
-    .get(basicAuth, getWallets)
+router.route('/').post(basicAuth, fundWallet).get(basicAuth, getWallets);
 
-router.route('/transactions')
-    .get(basicAuth, getWalletTransactions)
+router.route('/transactions').get(basicAuth, getWalletTransactions);
 
-router.route('/balance')
-    .get(basicAuth, getWalletBalance)   
+router.route('/balance').get(basicAuth, getWalletBalance);
 
-router.route('/:id')
-    .get(basicAuth, getWallet)
+router.route('/:id').get(basicAuth, getWallet);
 
-router.route('/receipt/:transactionId')
-    .get(basicAuth, generatereceipt)
+router.route('/receipt/:transactionId').get(basicAuth, generatereceipt);
 
-router.route('/payout/banks')
-    .get(basicAuth, getallPayoutBanks)
+router.route('/payout/banks').get(basicAuth, getallPayoutBanks);
 
-router.route('/payout/fee')
-    .get(basicAuth, getpayoutfee)
+router.route('/payout/fee').get(basicAuth, getpayoutfee);
 
-router.route('/payout/status/:id')
-    .get(basicAuth, checkTransferStatus)
+router.route('/payout/status/:id').get(basicAuth, checkTransferStatus);
 
-router.route('/payout')
-    .post(basicAuth, walletPayout)
+router.route('/payout').post(basicAuth, walletPayout);
 
-router.route('/flutterwave/callback')
-    .post(flutterwavecallback) 
+router.route('/flutterwave/callback').post(flutterwavecallback);
 
-router.route('/validate')
-    .post(basicAuth, validateWalletFund)
+router.route('/validate').post(basicAuth, validateWalletFund);
 
-module.exports = router
+module.exports = router;

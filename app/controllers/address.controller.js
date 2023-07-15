@@ -1,10 +1,10 @@
 const { Product, User, Store, Category, Cart, DeliveryAddress } = require('../../models');
 require('dotenv').config();
 const { sequelize, Sequelize } = require('../../models');
-const asyncWrapper = require('../middlewares/async')
+const asyncWrapper = require('../middlewares/async');
 const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/customErrors');
-const { getPagination, getPagingData } = require('../utils/pagination')
-const Op = require("sequelize").Op;
+const { getPagination, getPagingData } = require('../utils/pagination');
+const Op = require('sequelize').Op;
 const path = require('path');
 const { validateAddress } = require('../services/shipbubble.service');
 
@@ -14,17 +14,17 @@ const AddNewAddress = asyncWrapper(async (req, res) => {
         const userId = payload.id;
         const user = await User.findOne({ where: { id: userId } });
         const { address, city, state, country, postal, phone, type, defaults } = req.body;
-        const addressdetails = address + ',' + city + ',' + state + ',' + country
-        const name = user.fullName
+        const addressdetails = address + ',' + city + ',' + state + ',' + country;
+        const name = user.fullName;
 
         const detailss = {
             name: name,
             email: user.email,
             phone: phone,
             address: addressdetails,
-        }
+        };
 
-        const address_code = await validateAddress(detailss)
+        const address_code = await validateAddress(detailss);
 
         const deliveryAddress = await DeliveryAddress.create({
             address: address,
@@ -36,12 +36,12 @@ const AddNewAddress = asyncWrapper(async (req, res) => {
             isDefault: defaults ? defaults : false,
             postal: postal ? postal : null,
             addressCode: address_code,
-            userId
+            userId,
         });
 
         return res.status(200).json({
             success: true,
-            data: deliveryAddress
+            data: deliveryAddress,
         });
     });
 });
@@ -52,12 +52,12 @@ const GetDeliveryAddresses = asyncWrapper(async (req, res) => {
         const userId = payload.id;
 
         const deliveryAddresses = await DeliveryAddress.findAll({
-            where: { userId: userId }
+            where: { userId: userId },
         });
 
         return res.status(200).json({
             success: true,
-            data: deliveryAddresses
+            data: deliveryAddresses,
         });
     });
 });
@@ -71,8 +71,8 @@ const GetDeliveryAddress = asyncWrapper(async (req, res) => {
         const deliveryAddress = await DeliveryAddress.findOne({
             where: {
                 id: id,
-                userId: userId
-            }
+                userId: userId,
+            },
         });
 
         if (!deliveryAddress) {
@@ -81,7 +81,7 @@ const GetDeliveryAddress = asyncWrapper(async (req, res) => {
 
         return res.status(200).json({
             success: true,
-            data: deliveryAddress
+            data: deliveryAddress,
         });
     });
 });
@@ -95,8 +95,8 @@ const UpdateDeliveryAddress = asyncWrapper(async (req, res) => {
         const deliveryAddress = await DeliveryAddress.findOne({
             where: {
                 id: id,
-                userId: userId
-            }
+                userId: userId,
+            },
         });
 
         if (!deliveryAddress) {
@@ -116,7 +116,7 @@ const UpdateDeliveryAddress = asyncWrapper(async (req, res) => {
         return res.status(200).json({
             success: true,
             message: 'Delivery Address updated successfully',
-            data: deliveryAddress
+            data: deliveryAddress,
         });
     });
 });
@@ -130,8 +130,8 @@ const DeleteDeliveryAddress = asyncWrapper(async (req, res) => {
         const deliveryAddress = await DeliveryAddress.findOne({
             where: {
                 id: id,
-                userId: userId
-            }
+                userId: userId,
+            },
         });
 
         if (!deliveryAddress) {
@@ -139,10 +139,10 @@ const DeleteDeliveryAddress = asyncWrapper(async (req, res) => {
         }
 
         await deliveryAddress.destroy();
-        
+
         return res.status(200).json({
             success: true,
-            message: 'Delivery Address deleted successfully'
+            message: 'Delivery Address deleted successfully',
         });
     });
 });
@@ -162,7 +162,7 @@ const RevalidateDeliveryAddress = asyncWrapper(async (req, res) => {
                 name: user.fullName,
                 email: user.email,
                 phone: deliveryAddress.phone,
-                address: `${deliveryAddress.address}, ${deliveryAddress.city}, ${deliveryAddress.state}, ${deliveryAddress.country}`
+                address: `${deliveryAddress.address}, ${deliveryAddress.city}, ${deliveryAddress.state}, ${deliveryAddress.country}`,
             };
         } else if (deliveryAddress.storeId) {
             // Store reference
@@ -171,7 +171,7 @@ const RevalidateDeliveryAddress = asyncWrapper(async (req, res) => {
                 name: store.name,
                 email: store.businessEmail,
                 phone: store.businessPhone,
-                address: `${deliveryAddress.address}, ${deliveryAddress.city}, ${deliveryAddress.state}, ${deliveryAddress.country}`
+                address: `${deliveryAddress.address}, ${deliveryAddress.city}, ${deliveryAddress.state}, ${deliveryAddress.country}`,
             };
         } else {
             continue; // Skip if no valid reference found
@@ -185,17 +185,16 @@ const RevalidateDeliveryAddress = asyncWrapper(async (req, res) => {
 
     return res.status(200).json({
         success: true,
-        message: 'Delivery addresses revalidated successfully.'
+        message: 'Delivery addresses revalidated successfully.',
     });
 });
-
 
 module.exports = {
     AddNewAddress,
     GetDeliveryAddresses,
-    GetDeliveryAddress, 
+    GetDeliveryAddress,
     UpdateDeliveryAddress,
     DeleteDeliveryAddress,
-    RevalidateDeliveryAddress
+    RevalidateDeliveryAddress,
     // SetDefaultDeliveryAddress
-}
+};

@@ -17,15 +17,17 @@ const uploadtocloudinary = async (fileBuffer, details) => {
         };
 
         const result = await new Promise((resolve, reject) => {
-            cloudinary.uploader.upload_stream(options, (error, result) => {
-                if (error) {
-                    console.log("error from uploads ::::::::: ", error);
-                    reject({ message: 'error', error });
-                } else {
-                    console.log("result from upload :::::::: ", result);
-                    resolve({ message: 'success', url: result.secure_url });
-                }
-            }).end(fileBuffer);
+            cloudinary.uploader
+                .upload_stream(options, (error, result) => {
+                    if (error) {
+                        console.log('error from uploads ::::::::: ', error);
+                        reject({ message: 'error', error });
+                    } else {
+                        console.log('result from upload :::::::: ', result);
+                        resolve({ message: 'success', url: result.secure_url });
+                    }
+                })
+                .end(fileBuffer);
         });
 
         return result;
@@ -56,13 +58,15 @@ const uploadresizeToCloudinary = async (fileBuffer, details) => {
     };
 
     return new Promise((resolve, reject) => {
-        cloudinary.uploader.upload_stream(options, (error, result) => {
-            if (error) {
-                console.log(error);
-                reject({ message: 'error', error: error });
-            }
-            resolve({ message: 'success', url: result.secure_url });
-        }).end(resizedImage);
+        cloudinary.uploader
+            .upload_stream(options, (error, result) => {
+                if (error) {
+                    console.log(error);
+                    reject({ message: 'error', error: error });
+                }
+                resolve({ message: 'success', url: result.secure_url });
+            })
+            .end(resizedImage);
     });
 };
 

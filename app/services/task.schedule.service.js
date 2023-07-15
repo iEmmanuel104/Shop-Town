@@ -1,4 +1,4 @@
-const Bull = require('bull')
+const Bull = require('bull');
 const client = require('../utils/redis');
 const { createBullBoard } = require('@bull-board/api');
 const { BullAdapter } = require('@bull-board/api/bullAdapter');
@@ -19,27 +19,22 @@ postDeletionQueue.process(async (job) => {
     if (!post) {
         console.log(`Post with ID ${postId} not found.`);
         return;
-
     }
     console.log(`Deleting post with ID ${postId}...`);
     await post.destroy();
 
     console.log(`Post with ID ${postId} deleted.`);
-
-})
+});
 
 const serverAdapter = new ExpressAdapter();
 serverAdapter.setBasePath('/admin/queues');
 
 const { addQueue, removeQueue, setQueues, replaceQueues } = createBullBoard({
-    queues: [
-        new BullAdapter(postDeletionQueue)
-    ],
+    queues: [new BullAdapter(postDeletionQueue)],
     serverAdapter: serverAdapter,
 });
 
 module.exports = {
     postDeletionQueue,
     serverAdapter,
-
-}
+};

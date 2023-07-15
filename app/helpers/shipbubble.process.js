@@ -8,8 +8,8 @@ const { KSECURE_FEE } = require('../utils/configs');
 // const validator = require('validator');
 const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/customErrors');
 const { convertcart, checkCartStore, estimateBoxDimensions } = require('../utils/carthelpers');
-const { getPagination, getPagingData } = require('../utils/pagination')
-const Op = require("sequelize").Op;
+const { getPagination, getPagingData } = require('../utils/pagination');
+const Op = require('sequelize').Op;
 const path = require('path');
 
 async function checkoutWithShipbubble({ cart, converted, senderAddress, receiverAddress }) {
@@ -23,14 +23,12 @@ async function checkoutWithShipbubble({ cart, converted, senderAddress, receiver
         boxSizes;
 
     sender_address_code = senderAddress?.addressCode;
-    if (!sender_address_code) return next(new NotFoundError("Store validation pending"));
+    if (!sender_address_code) return next(new NotFoundError('Store validation pending'));
 
     receiver_address_code = receiverAddress?.addressCode;
-    if (!receiver_address_code) return next(new NotFoundError("Please add a delivery address"));
+    if (!receiver_address_code) return next(new NotFoundError('Please add a delivery address'));
 
-    pickup_date = new Date(new Date().getTime() + 60 * 60 * 1000)
-        .toISOString()
-        .split("T")[0]; // set pickup date to UTC + 1 hour 
+    pickup_date = new Date(new Date().getTime() + 60 * 60 * 1000).toISOString().split('T')[0]; // set pickup date to UTC + 1 hour
 
     package_items = converted.items.map((item) => {
         const weightsum = item.count * item.info.weight;
@@ -46,10 +44,7 @@ async function checkoutWithShipbubble({ cart, converted, senderAddress, receiver
     });
 
     boxSizes = (await getshippingboxes()).data;
-    const { dimensions, package_category } = await estimateBoxDimensions(
-        package_items,
-        boxSizes
-    );
+    const { dimensions, package_category } = await estimateBoxDimensions(package_items, boxSizes);
     package_dimension = dimensions;
     category_id = package_category; // get category id from first item in cart
     description = package_dimension.description
@@ -65,23 +60,21 @@ async function checkoutWithShipbubble({ cart, converted, senderAddress, receiver
         package_dimension,
         delivery_instructions: description,
     };
-    console.log("details", details);
+    console.log('details', details);
 
-    const {
-        request_token,
-        allcouriers,
-        kship_courier,
-        cheapest_courier,
-        checkout_data,
-    } = await getShippingRates(details);
+    const { request_token, allcouriers, kship_courier, cheapest_courier, checkout_data } = await getShippingRates(
+        details,
+    );
 
     if (request_token) {
-        await cart.update({ checkoutData: { requestToken: request_token, valid: true, checkoutDetails: JSON.stringify(checkout_data) } });
+        await cart.update({
+            checkoutData: { requestToken: request_token, valid: true, checkoutDetails: JSON.stringify(checkout_data) },
+        });
     }
 
     return { allcouriers, checkout_data };
 }
 
 module.exports = {
-    checkoutWithShipbubble
-}
+    checkoutWithShipbubble,
+};
