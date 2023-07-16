@@ -1,5 +1,5 @@
 const { generateCode } = require('../app/utils/stringGenerators');
-const { sendverificationEmail, sendForgotPasswordEmail } = require('../app/utils/mailTemplates');
+const { sendVerificationEmail, sendForgotPasswordEmail } = require('../app/utils/mailTemplates');
 // const { generateWallet } = require('../app/services/wallet.service');
 
 module.exports = (sequelize, DataTypes) => {
@@ -347,7 +347,7 @@ module.exports = (sequelize, DataTypes) => {
         const emailData = { email, phone };
         let emailPromise, codePromise;
         if (type === 'verify') {
-            emailPromise = sendverificationEmail(emailData, code);
+            emailPromise = sendVerificationEmail(emailData, code);
             codePromise = { verificationCode: code };
         } else {
             emailPromise = sendForgotPasswordEmail(emailData, code);
