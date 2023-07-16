@@ -52,7 +52,7 @@ const createOrder = asyncWrapper(async (req, res, next) => {
         if (!store) return next(new NotFoundError('Store not found'));
 
         //  ==== create order ==== //
-        const order = await Order.create({ userId, shippingMethod, cartdetails, storeId }, { transaction: t });
+        const order = await Order.create({ userId, shippingMethod, cartdetails, storeId });
         if (!order) return next(new BadRequestError('Oops! There was an error creating your order, please try again'));
 
         const { returnobject, paymentamt } = await handleShippingActions({

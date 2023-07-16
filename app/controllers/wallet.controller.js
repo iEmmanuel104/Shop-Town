@@ -70,20 +70,20 @@ const fundWallet = asyncWrapper(async (req, res, next) => {
 const validateWalletFund = asyncWrapper(async (req, res, next) => {
     const decoded = req.decoded;
     const userId = decoded.id;
-    const { tx_ref, transaction_id, status } = req.query;
+    // const { tx_ref, transaction_id, status } = req.query;
 
-    const transaction = await WalletTransaction.findOne({ where: { id: tx_ref.split('_')[1] } });
+    const transaction = await WalletTransaction.findOne({ where: { id: req.query.tx_ref.split('_')[1] } });
     if (!transaction) {
         throw new NotFoundError('Transaction not found');
     }
     if (transaction.status === 'success') {
         throw new BadRequestError('Transaction already validated');
     }
-    details = { transactionId: req.query.transaction_id };
+    const details = { transactionId: req.query.transaction_id };
     let validtrx, message;
     console.log('hererererer');
     await sequelize.transaction(async (t) => {
-        if (status === 'successful') {
+        if (req.query.status === 'successful') {
             validtrx = await validateFlutterwavePay(details);
             console.log('return from flutterwave', validtrx);
             // Increase the wallet balance
@@ -93,19 +93,19 @@ const validateWalletFund = asyncWrapper(async (req, res, next) => {
             });
             // Update the transaction status
             await WalletTransaction.update(
-                { status: 'success', reference: transaction_id },
+                { status: 'success', reference: req.query.transaction_id },
                 { where: { id: transaction.id } },
             );
             message = 'Wallet fund validated successfully';
         } else {
             await WalletTransaction.update(
-                { status: 'failed', reference: transaction_id },
+                { status: 'failed', reference: req.query.transaction_id },
                 { where: { id: transaction.id } },
             );
             message = 'Wallet fund validation failed';
         }
 
-        return res.status(200).json({ success: true, message: message });
+        return res.status(200).json({ success: true, message });
     });
 });
 
@@ -215,7 +215,7 @@ const walletPayout = asyncWrapper(async (req, res, next) => {
     }
     // const detailss = { amount: parseInt(amount)}
     // const fee = (await FlutterwaveTransferfee(detailss)) ? (await FlutterwaveTransferfee(detailss)) : 0;
-    const totalAmount = parseInt(amount); //+ parseInt(fee);
+    const totalAmount = parseInt(amount); // + parseInt(fee);
     if (wallet.amount < totalAmount) {
         throw new BadRequestError('Insufficient wallet balance');
     }

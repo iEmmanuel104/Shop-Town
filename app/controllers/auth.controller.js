@@ -8,7 +8,7 @@ const Op = Sequelize.Op;
 require('dotenv').config();
 const asyncWrapper = require('../middlewares/async');
 const { generateCode } = require('../utils/stringGenerators');
-const { sendverificationEmail, sendForgotPasswordEmail } = require('../utils/mailTemplates');
+const { sendVerificationEmail, sendForgotPasswordEmail } = require('../utils/mailTemplates');
 const { issueToken, decodeJWT } = require('../services/auth.service');
 const { validateAddress } = require('../services/shipbubble.service');
 const { phoneNumberLookup } = require('../services/sms.service');
