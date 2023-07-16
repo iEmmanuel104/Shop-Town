@@ -1,6 +1,7 @@
 const axios = require('axios');
 const { BadRequestError } = require('../utils/customErrors');
 const { SHIPBUBBLE_API_KEY } = require('../utils/configs');
+const { sendShipbubblePaymentErrorEmail } = require('../utils/mailTemplates');
 
 const validateAddress = async (details) => {
     console.log('ship bubble api called');
@@ -25,7 +26,7 @@ const validateAddress = async (details) => {
     try {
         const response = await axios.request(config);
         console.log(response.data);
-        const addressCode = response.data.data.addressCode;
+        const addressCode = response.data.data.address_code;
         console.log('address code api', addressCode);
         return addressCode;
     } catch (error) {
@@ -271,7 +272,11 @@ const createshipment = async (details) => {
         return response.data.data;
     } catch (error) {
         console.log(error.response.data);
-        throw new BadRequestError('Error creating shipment, Please refresh shipping rates');
+        if (error.response.data.status === 'failed') {
+            await getShippingRates({ message: `Error creating shipment due to ${error.response.data.message}` });
+        } else {
+            throw new BadRequestError('Error creating shipment, Please refresh shipping rates');
+        }
     }
 };
 function findCourier(data) {

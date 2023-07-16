@@ -104,7 +104,10 @@ const handleOrderPayment = async ({ option, service, paydetails, courier, checko
         requestToken: checkoutData.requestToken,
         serviceType: service, // flutterwave or seerbit
         shippingMethod: order.shippingMethod, // kship or ksecure or seller
+        paymentMethod: option,
     };
+
+    const { userId } = paydetails;
 
     let paymentLink, trackingUrl, deliveryFee;
 
@@ -136,14 +139,15 @@ const handleOrderPayment = async ({ option, service, paydetails, courier, checko
         // pay on delivery
         const shipment = await order.createShipment(shippingObject);
         trackingUrl = shipment.trackingUrl;
+        deliveryFee = shipment.deliveryFee;
     } else if (option === 'kcredit') {
         console.log('kcredit payment');
 
-        let amount = order.cartdetails.totalAmount;
+        const amount = order.cartdetails.totalAmount;
 
         // pay with wallet
         const wallet = await Wallet.findOne({ where: { userId }, attributes: ['id', 'amount'] });
-        if (!wallet) return next(new NotFoundError('Wallet not found'));
+        if (!wallet) throw new NotFoundError('Wallet not found');
 
         if (wallet.amount < amount) throw new BadRequestError('Insufficient wallet balance');
 
@@ -151,8 +155,9 @@ const handleOrderPayment = async ({ option, service, paydetails, courier, checko
 
         wallet.updateOrderStatus({ orderId: order.id, status: 'active' });
 
-        const { deliveryFee, trackingUrl } = await order.createShipment(shippingObject);
-        trackingUrl = trackingUrl;
+        const shipment = await order.createShipment(shippingObject);
+        trackingUrl = shipment.trackingUrl;
+        deliveryFee = shipment.deliveryFee;
     }
 
     return { paymentLink, trackingUrl };

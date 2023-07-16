@@ -62,7 +62,7 @@ const uploadresizeToCloudinary = async (fileBuffer, details) => {
             .upload_stream(options, (error, result) => {
                 if (error) {
                     console.log(error);
-                    reject({ message: 'error', error: error });
+                    reject(error);
                 }
                 resolve({ message: 'success', url: result.secure_url });
             })
