@@ -32,7 +32,7 @@ const validateShippingMethod = ({ shipMethod, option, service, shippingCourier }
         courier = shippingCourier;
 
         // Check courier ID and service code
-        let { courierId, serviceCode, courierName, cod, total } = courier;
+        const { courierId, serviceCode, courierName, cod, total } = courier;
         if (!courier || !courierId || !serviceCode || !courierName || !cod || !total) {
             throw new BadRequestError('Invalid shipping courier details');
         }
@@ -56,24 +56,24 @@ const validateShippingMethod = ({ shipMethod, option, service, shippingCourier }
 };
 
 const handleShippingActions = async ({ order, store, courier }) => {
-    let orderobj = {
-            orderId: order.id,
-            orderstatus: order.status,
-            orderdate: order.createdAt,
-            orderamount: order.cartdetails.totalAmount,
-            userId: order.userId,
-            storeId: order.storeId,
-            orderNumber: order.orderNumber,
-            shippingMethod: order.shippingMethod,
-        },
-        socials = {
-            links: store.socials,
-            phone: store.businessPhone,
-            email: store.businessEmail,
-        },
-        shipMethod = order.shippingMethod,
-        paymentamt = parseFloat(orderobj.orderamount);
-    let returnobject = {
+    const orderobj = {
+        orderId: order.id,
+        orderstatus: order.status,
+        orderdate: order.createdAt,
+        orderamount: order.cartdetails.totalAmount,
+        userId: order.userId,
+        storeId: order.storeId,
+        orderNumber: order.orderNumber,
+        shippingMethod: order.shippingMethod,
+    };
+    const socials = {
+        links: store.socials,
+        phone: store.businessPhone,
+        email: store.businessEmail,
+    };
+    const shipMethod = order.shippingMethod;
+    let paymentamt = parseFloat(orderobj.orderamount);
+    const returnobject = {
         order: orderobj,
         socials,
         subTotal: orderobj.orderamount,
@@ -98,7 +98,7 @@ const handleShippingActions = async ({ order, store, courier }) => {
 };
 
 const handleOrderPayment = async ({ option, service, paydetails, courier, checkoutData, order }) => {
-    let shippingObject = {
+    const shippingObject = {
         orderId: order.id,
         courierInfo: { ...courier },
         requestToken: checkoutData.requestToken,
@@ -114,7 +114,7 @@ const handleOrderPayment = async ({ option, service, paydetails, courier, checko
         if (service === 'flutterwave') {
             console.log('flutterwave payment');
 
-            linkobj = await FlutterwavePay(paydetails);
+            const linkobj = await FlutterwavePay(paydetails);
             link = linkobj.data.link;
         } else if (service === 'seerbit') {
             console.log('seerbit payment');
@@ -134,8 +134,8 @@ const handleOrderPayment = async ({ option, service, paydetails, courier, checko
         if (!courier.cod) throw new BadRequestError('Select a courier that accepts cash on delivery');
 
         // pay on delivery
-        const { deliveryFee, trackingUrl } = await order.createShipment(shippingObject);
-        trackingUrl = trackingUrl;
+        const shipment = await order.createShipment(shippingObject);
+        trackingUrl = shipment.trackingUrl;
     } else if (option === 'kcredit') {
         console.log('kcredit payment');
 

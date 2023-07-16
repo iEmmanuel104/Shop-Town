@@ -1,3 +1,4 @@
+/* eslint-disable */
 const { randomUUID } = require('crypto');
 const { ChatRoom, Message, User, Store } = require('../../models');
 const { clients, joinRoom } = require('../utils/clients');

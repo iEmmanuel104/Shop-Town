@@ -13,24 +13,15 @@ const Op = require('sequelize').Op;
 const path = require('path');
 
 async function checkoutWithShipbubble({ cart, converted, senderAddress, receiverAddress }) {
-    let sender_address_code,
-        receiver_address_code,
-        pickup_date,
-        category_id,
-        package_items,
-        package_dimension,
-        description,
-        boxSizes;
+    const senderAddressCode = senderAddress?.addressCode;
+    if (!senderAddressCode) throw new NotFoundError('Store validation pending');
 
-    sender_address_code = senderAddress?.addressCode;
-    if (!sender_address_code) return next(new NotFoundError('Store validation pending'));
+    const receiverAddressCode = receiverAddress?.addressCode;
+    if (!receiverAddressCode) throw new NotFoundError('Please add a delivery address');
 
-    receiver_address_code = receiverAddress?.addressCode;
-    if (!receiver_address_code) return next(new NotFoundError('Please add a delivery address'));
+    const pickupDate = new Date(new Date().getTime() + 60 * 60 * 1000).toISOString().split('T')[0]; // set pickup date to UTC + 1 hour
 
-    pickup_date = new Date(new Date().getTime() + 60 * 60 * 1000).toISOString().split('T')[0]; // set pickup date to UTC + 1 hour
-
-    package_items = converted.items.map((item) => {
+    const packageItems = converted.items.map((item) => {
         const weightsum = item.count * item.info.weight;
         return {
             name: item.info.name,
@@ -43,36 +34,34 @@ async function checkoutWithShipbubble({ cart, converted, senderAddress, receiver
         };
     });
 
-    boxSizes = (await getshippingboxes()).data;
-    const { dimensions, package_category } = await estimateBoxDimensions(package_items, boxSizes);
-    package_dimension = dimensions;
-    category_id = package_category; // get category id from first item in cart
-    description = package_dimension.description
-        ? `Please handle with care as ${package_dimension.description}`
+    const boxSizes = (await getshippingboxes()).data;
+    const { dimensions, packageCategory } = await estimateBoxDimensions(packageItems, boxSizes);
+    const packageDimension = dimensions;
+    const categoryId = packageCategory; // get category id from first item in cart
+    const description = packageDimension.description
+        ? `Please handle with care as ${packageDimension.description}`
         : `Please handle with care and do not shake`;
 
     const details = {
-        sender_address_code,
-        receiver_address_code,
-        pickup_date,
-        category_id,
-        package_items,
-        package_dimension,
-        delivery_instructions: description,
+        senderAddressCode,
+        receiverAddressCode,
+        pickupDate,
+        categoryId,
+        packageItems,
+        packageDimension,
+        description,
     };
     console.log('details', details);
 
-    const { request_token, allcouriers, kship_courier, cheapest_courier, checkout_data } = await getShippingRates(
-        details,
-    );
+    const { requestToken, allcouriers, kshipourier, cheapestCourier, checkoutData } = await getShippingRates(details);
 
-    if (request_token) {
+    if (requestToken) {
         await cart.update({
-            checkoutData: { requestToken: request_token, valid: true, checkoutDetails: JSON.stringify(checkout_data) },
+            checkoutData: { requestToken, valid: true, checkoutDetails: JSON.stringify(checkoutData) },
         });
     }
 
-    return { allcouriers, checkout_data };
+    return { allcouriers, checkoutData };
 }
 
 module.exports = {

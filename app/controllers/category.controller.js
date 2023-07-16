@@ -31,7 +31,7 @@ const createCategory = asyncWrapper(async (req, res, next) => {
             return next(new BadRequestError('name and description are required'));
         }
         await sequelize.transaction(async (t) => {
-            let image = null;
+            const image = null;
             if (req.file) {
                 const image = await uploadSingleFile(req.file, 'categories');
             }

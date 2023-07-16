@@ -22,7 +22,7 @@ const createProduct = asyncWrapper(async (req, res, next) => {
         return next(new BadRequestError('Please provide all required fields'));
     }
 
-    filefound = req.files;
+    const filefound = req.files;
 
     console.log(req.files);
 
@@ -66,7 +66,7 @@ const createProduct = asyncWrapper(async (req, res, next) => {
     let fileUrls = [];
     // check if filefound is an empty array
 
-    if (filefound || filefound.length == 0) {
+    if (filefound || filefound.length === 0) {
         const details = {
             user: `Stores/${storeExists.name}`,
             folder: 'Products',
@@ -386,14 +386,14 @@ const updateProduct = asyncWrapper(async (req, res, next) => {
         // Update the product
         const updated = await product.update(
             {
-                name: name ? name : product.name,
-                description: description ? description : product.description,
-                price: price ? price : product.price,
-                quantity: quantity ? quantity : product.quantity,
-                specifications: specifications ? specifications : product.specifications,
-                subcategory: subcategory ? subcategory : product.subcategory,
-                discount: discount ? discount : product.discount,
-                images: fileUrls ? fileUrls : product.images,
+                name: name || product.name,
+                description: description || product.description,
+                price: price || product.price,
+                quantity: quantity || product.quantity,
+                specifications: specifications || product.specifications,
+                subcategory: subcategory || product.subcategory,
+                discount: discount || product.discount,
+                images: fileUrls || product.images,
             },
             { transaction: t },
         );
@@ -524,115 +524,6 @@ const searchProduct = asyncWrapper(async (req, res, next) => {
         });
     });
 });
-
-// const searchProduct = asyncWrapper(async (req, res) => {
-//     const { searchQuery, rating, review, minPrice, maxPrice, category, store, sortBy, sortOrder, limit, page } = queryString.parse(req.url.split('?')[1]);
-
-//     // Validation for query parameters
-//     if (!searchQuery) {
-//         throw new BadRequestError('Please provide a search query');
-//     }
-
-//     if (rating && !validator.isInt(rating, { min: 1, max: 5 })) {
-//         throw new BadRequestError('Rating should be an integer between 1 and 5');
-//     }
-
-//     if (review && !validator.isInt(review, { min: 1 })) {
-//         throw new BadRequestError('Review should be an integer greater than 0');
-//     }
-
-//     if (minPrice && !validator.isFloat(minPrice, { min: 0 })) {
-//         throw new BadRequestError('Minimum price should be a non-negative number');
-//     }
-
-//     if (maxPrice && !validator.isFloat(maxPrice, { min: 0 })) {
-//         throw new BadRequestError('Maximum price should be a non-negative number');
-//     }
-
-//     if (category && !validator.isInt(category, { min: 1 })) {
-//         throw new BadRequestError('Category ID should be a positive integer');
-//     }
-
-//     if (store && !validator.isInt(store, { min: 1 })) {
-//         throw new BadRequestError('Store ID should be a positive integer');
-//     }
-
-//     if (sortBy && !['name', 'price', 'rating', 'review'].includes(sortBy)) {
-//         throw new BadRequestError('Invalid sort parameter. Valid options are "name", "price", "rating", and "review".');
-//     }
-
-//     if (sortOrder && !['asc', 'desc'].includes(sortOrder)) {
-//         throw new BadRequestError('Invalid sort order. Valid options are "asc" and "desc".');
-//     }
-
-//     if (limit && (!validator.isInt(limit, { min: 1, max: 100 }) || parseInt(limit) < 1)) {
-//         throw new BadRequestError('Limit should be an integer between 1 and 100');
-//     }
-
-//     if (page && (!validator.isInt(page, { min: 1 }) || parseInt(page) < 1)) {
-//         throw new BadRequestError('Page should be a positive integer');
-//     }
-
-//     // Construct the filter object
-//     const filters = {
-//         [Op.or]: [
-//             { name: { [Op.iLike]: `%${searchQuery}%` } },
-//             { description: { [Op.iLike]: `%${searchQuery}%` } },
-//             { '$store.name$': { [Op.iLike]: `%${searchQuery}%` } },
-//         ],
-//     };
-
-//     if (rating) {
-//         filters.rating = {
-//             [Op.gte]: rating,
-//         };
-//     }
-
-//     if (review) {
-//         filters.review = {
-//             [Op.gte]: review,
-//         };
-//     }
-
-//     if (minPrice && maxPrice) {
-//         filters.price = {
-//             [Op.between]: [minPrice, maxPrice],
-//         };
-//     } else if (minPrice) {
-//         filters.price = {
-//             [Op.gte]: minPrice,
-//         };
-//     } else if (maxPrice) {
-//         filters.price = {
-//             [Op.lte]: maxPrice,
-//         }
-//     }
-
-//     if (category) {
-//         filters.categoryId = category;
-//     }
-
-//     if (store) {
-//         filters.storeId = store;
-//     }
-
-//     // Construct the sorting object
-//     let order = [['createdAt', 'DESC']];
-//     if (sortBy) {
-//         order = [[sortBy, sortOrder === 'desc' ? 'DESC' : 'ASC']];
-//     }
-
-//     // Perform the search query
-//     const { count, rows } = await Product.findAndCountAll({
-//         where: filters,
-//         include: [{ model: Store, as: 'store' }],
-//         order,
-//         limit: limit ? parseInt(limit) : 10,
-//         offset: page ? (parseInt(page) - 1) * (limit ? parseInt(limit) : 10) : 0,
-//     });
-
-//     return res.status(200).json({ count, rows });
-// });
 
 module.exports = {
     createProduct,

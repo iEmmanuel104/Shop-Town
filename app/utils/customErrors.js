@@ -1,8 +1,10 @@
+/* eslint-disable no-useless-constructor */
 // custom errors for API
 class CustomAPIError extends Error {
     constructor(message) {
         super(message);
     }
+
     // return the error message as JSON with the status code
     serializeErrors() {
         return {
@@ -17,6 +19,7 @@ class BadRequestError extends CustomAPIError {
         super(message);
         this.statusCode = 400;
     }
+
     // response to the client
     serializeErrors() {
         return {

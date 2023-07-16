@@ -9,7 +9,7 @@ const { uploadSingleFile, uploadFiles } = require('../services/imageupload.servi
 const { at } = require('lodash');
 const { generateWallet } = require('../services/wallet.service');
 
-//quick create a store
+//  quick create a store
 const createStore = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const payload = req.decoded;
@@ -163,8 +163,7 @@ const updateStore = asyncWrapper(async (req, res, next) => {
     if (industry) storeUpdate.industry = industry;
     if (settings) storeUpdate.storeSettings = settings;
 
-    let url,
-        uploadname = storeName ? storeName : storeExists.name;
+    let url;
     if (req.file) {
         const details = {
             user: storeName ? `Stores/${storeName.trim().toLowerCase()}` : `Stores/${storeExists.name}`,
@@ -233,7 +232,7 @@ const AddStoreDiscount = asyncWrapper(async (req, res, next) => {
         const newStoreDiscount = await StoreDiscount.create(
             {
                 title,
-                type: type ? type : 'percentage',
+                type: type || 'percentage',
                 value,
                 endDate,
                 categoryIds: categories,
@@ -290,11 +289,11 @@ const updateStoreDiscount = asyncWrapper(async (req, res, next) => {
             return next(new NotFoundError(`Store Discount not found`));
         }
 
-        storeDiscount.title = title ? title : storeDiscount.title;
-        storeDiscount.type = type ? type : storeDiscount.type;
-        storeDiscount.value = value ? value : storeDiscount.value;
-        storeDiscount.endDate = endDate ? endDate : storeDiscount.endDate;
-        storeDiscount.status = status ? status : storeDiscount.status;
+        storeDiscount.title = title || storeDiscount.title;
+        storeDiscount.type = type || storeDiscount.type;
+        storeDiscount.value = value || storeDiscount.value;
+        storeDiscount.endDate = endDate || storeDiscount.endDate;
+        storeDiscount.status = status || storeDiscount.status;
 
         await storeDiscount.save({ transaction: t });
 
@@ -375,7 +374,7 @@ const increaseStoreProductPrice = asyncWrapper(async (req, res, next) => {
 
         return res.status(200).json({
             success: true,
-            message: `Product prices increased successfully by ${amount ? amount : percentage + '%'}}`,
+            message: `Product prices increased successfully by ${amount || percentage + '%'}}`,
         });
     });
 });

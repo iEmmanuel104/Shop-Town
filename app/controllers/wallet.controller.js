@@ -52,7 +52,7 @@ const fundWallet = asyncWrapper(async (req, res, next) => {
         };
         const link = await FlutterwavePay(paydetails);
         console.log('return from flutterwave', link.data.link);
-        let paymentLink = link.data.link;
+        const paymentLink = link.data.link;
         // // Increase the wallet balance
         // await Wallet.increment('amount', {
         //     by: amount,
@@ -79,7 +79,7 @@ const validateWalletFund = asyncWrapper(async (req, res, next) => {
     if (transaction.status === 'success') {
         throw new BadRequestError('Transaction already validated');
     }
-    let details = { transactionId: transaction_id };
+    details = { transactionId: req.query.transaction_id };
     let validtrx, message;
     console.log('hererererer');
     await sequelize.transaction(async (t) => {

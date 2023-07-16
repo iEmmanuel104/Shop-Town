@@ -1,3 +1,4 @@
+/* eslint-disable */
 require('dotenv').config();
 
 // Jwt configs

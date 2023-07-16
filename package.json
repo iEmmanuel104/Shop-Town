@@ -7,8 +7,8 @@
         "start": "node server.js",
         "lint:check": "eslint .",
         "lint:fix": "eslint --fix .",
-        "p": "prettier --write app/**/*.js",
-        "p:w": "onchange app/**/*.js -- prettier --write {{changed}}",
+        "p": "prettier --write .",
+        "p:w": "onchange **/*. -- prettier --write {{changed}}",
         "dev": "cross-env NODE_ENV=development nodemon server.js",
         "build": "cross-env NODE_ENV=production node server.js",
         "render": "cross-env NODE_ENV=render node server.js",
@@ -98,6 +98,7 @@
         "eslint-plugin-node": "^11.1.0",
         "eslint-plugin-prettier": "^5.0.0",
         "eslint-plugin-promise": "^6.1.1",
+        "eslint-plugin-standard": "^5.0.0",
         "onchange": "^7.1.0",
         "prettier": "^3.0.0",
         "sequelize-cli": "^6.6.0"

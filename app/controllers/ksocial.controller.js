@@ -13,21 +13,21 @@ const { post } = require('../routes/authRoutes');
 // Controller for creating a post
 const createPost = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
-        const { caption, post_type } = req.body,
-            decoded = req.decoded,
-            useremail = decoded.email;
+        const { caption, postType } = req.body;
+        const decoded = req.decoded;
+        const useremail = decoded.email;
         // if (!caption) return next(new BadRequestError('Please provide a caption'));
-        if (!post_type) return next(new BadRequestError('Please provide a post type'));
+        if (!postType) return next(new BadRequestError('Please provide a post type'));
 
-        if (post_type !== 'status' && post_type !== 'ksocial') return next(new BadRequestError('Invalid post type'));
+        if (postType !== 'status' && postType !== 'ksocial') return next(new BadRequestError('Invalid post type'));
         const { storeId } = req.query;
         if (!storeId) return next(new BadRequestError('Please provide a storeId'));
         const store = await Store.scope('includeUsers').findByPk(storeId, {
             attributes: ['name', 'businessPhone', 'socials', 'owner'],
         });
 
-        const userEmails = store.Users.map((user) => user.email),
-            isEmailInStoreUsers = userEmails.includes(useremail);
+        const userEmails = store.Users.map((user) => user.email);
+        const isEmailInStoreUsers = userEmails.includes(useremail);
 
         if (!isEmailInStoreUsers) {
             return next(new ForbiddenError('You are not authorized to create a post'));
@@ -39,7 +39,7 @@ const createPost = asyncWrapper(async (req, res, next) => {
             console.log(req.files);
             const details = {
                 user: `Stores/${store.name}`,
-                folder: `Ksocial/${post_type}`,
+                folder: `Ksocial/${postType}`,
             };
             fileUrls = await uploadFiles(req, details);
         }
@@ -47,9 +47,9 @@ const createPost = asyncWrapper(async (req, res, next) => {
         const post = await Ksocial.create(
             {
                 caption,
-                postType: post_type,
+                postType,
                 contentUrl: fileUrls,
-                storeId: storeId,
+                storeId,
             },
             { transaction: t },
         );
@@ -87,7 +87,7 @@ const getPosts = asyncWrapper(async (req, res, next) => {
     const size = req.query.size ? Number(req.query.size) : 10;
     const { limit, offset } = getPagination(page, size);
 
-    let queryData = {
+    const queryData = {
         order: [['createdAt', 'DESC']],
         attributes: ['id', 'caption', 'postType', 'contentUrl', 'createdAt', 'likesCount', 'commentsCount'],
         include: [
@@ -206,7 +206,7 @@ const updatePost = asyncWrapper(async (req, res, next) => {
     }
 
     await post.update({
-        caption: caption ? caption : post.caption,
+        caption: caption || post.caption,
         contentUrl: fileUrls.length > 0 ? fileUrls : post.contentUrl,
     });
 
@@ -233,26 +233,26 @@ const addPostActivity = asyncWrapper(async (req, res, next) => {
     });
 
     let message;
-    newlike = like ? 'true' : 'false';
+    const newlike = like ? 'true' : 'false';
     if (!activity) {
         await PostActivity.create({
             KsocialId: req.params.id,
             userId,
             like: newlike,
-            comment: comment ? comment : null,
+            comment: comment || null,
         });
         message = 'Post activity added successfully';
     } else {
         await activity.update({
             like: newlike,
-            comment: comment ? comment : activity.comment,
+            comment: comment || activity.comment,
         });
         message = 'Post activity updated successfully';
     }
 
     return res.status(200).json({
         success: true,
-        message: message,
+        message,
     });
 });
 

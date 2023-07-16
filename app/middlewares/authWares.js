@@ -28,7 +28,7 @@ const basicAuth = asyncWrapper(async (req, res, next) => {
 
 const authenticate = async (socket) => {
     try {
-        const token = socket.handshake.query?.access_token;
+        const token = socket.handshake.query?.accessToken;
         if (!token) {
             throw new Error('Authentication token not provided');
         }

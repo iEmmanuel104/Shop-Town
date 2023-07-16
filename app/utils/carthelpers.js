@@ -20,7 +20,7 @@ const convertcart = async (cart, type) => {
     let totalAmount = 0;
     let itemsProcessed = 0;
     let outOfStockItems = 0;
-    let errors = [];
+    const errors = [];
     let itemsNotFound = 0;
     let invalidQuantity = 0;
 
@@ -34,8 +34,8 @@ const convertcart = async (cart, type) => {
                 return;
             }
 
-            let cartQuantity = item.count;
-            let storeId = product.storeId;
+            const cartQuantity = item.count;
+            const storeId = product.storeId;
 
             if (cartQuantity >= 1) {
                 const price = product.discountedPrice ? product.discountedPrice : product.price;
@@ -141,7 +141,7 @@ const estimateBoxDimensions = async (items, boxSizes) => {
         { accumulatedWeight: 0, selectedCategory: { total_weight: 0, category: null } },
     );
 
-    package_category = selectedCategory.category;
+    const packageCategory = selectedCategory.category;
 
     console.log('Accumulated Weight:', accumulatedWeight);
     console.log('Selected Category:', selectedCategory.category);
@@ -192,7 +192,7 @@ const estimateBoxDimensions = async (items, boxSizes) => {
         dimensions.description = 'item size exceeds all available boxes, max boxsize used';
     }
 
-    return { dimensions, package_category };
+    return { dimensions, packageCategory };
 };
 
 module.exports = {

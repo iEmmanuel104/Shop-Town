@@ -1,3 +1,4 @@
+/* eslint-disable camelcase */
 const { CompositionListInstance } = require('twilio/lib/rest/video/v1/composition');
 
 const clients = new Map();

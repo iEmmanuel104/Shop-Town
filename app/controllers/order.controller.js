@@ -31,19 +31,19 @@ const { v4: uuidv4 } = require('uuid');
 
 const createOrder = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
-        const payload = req.decoded,
-            userId = payload.id,
-            { storeId } = req.query,
-            { shipMethod, option, service, shippingCourier } = req.body;
+        const payload = req.decoded;
+        const userId = payload.id;
+        const { storeId } = req.query;
+        const { shipMethod, option, service, shippingCourier } = req.body;
 
-        let { shippingMethod, courier } = validateShippingMethod({ shipMethod, option, service, shippingCourier });
+        const { shippingMethod, courier } = validateShippingMethod({ shipMethod, option, service, shippingCourier });
         console.log(shippingMethod, courier);
 
         const cart = await Cart.findOne({ where: { userId } });
 
         if (!cart) return next(new NotFoundError('Cart not found'));
-        let { items, totalAmount, checkoutData } = cart,
-            cartdetails = { items, totalAmount };
+        const { items, totalAmount, checkoutData } = cart;
+        const cartdetails = { items, totalAmount };
 
         const store = await Store.findOne({
             where: { id: storeId },
@@ -61,12 +61,12 @@ const createOrder = asyncWrapper(async (req, res, next) => {
             store,
         });
 
-        let requestobject = {
+        const requestobject = {
             ...returnobject,
         };
         if (
-            (shippingMethod == 'ksecure' && checkoutData.requestToken) ||
-            (shippingMethod == 'kship' && checkoutData.requestToken)
+            (shippingMethod === 'ksecure' && checkoutData.requestToken) ||
+            (shippingMethod === 'kship' && checkoutData.requestToken)
         ) {
             const paydetails = {
                 amount: parseFloat(paymentamt),
@@ -117,7 +117,7 @@ const createOrder = asyncWrapper(async (req, res, next) => {
 
         return res.status(200).json({
             success: true,
-            message: message,
+            message,
             data: requestobject,
         });
     });
@@ -168,9 +168,9 @@ const validateOrderPayment = asyncWrapper(async (req, res) => {
     const decoded = req.decoded;
     const userId = decoded.id;
     console.log(userId);
-    const { tx_ref, transaction_id, status } = req.query;
-    console.log(tx_ref.split('_')[1]);
-    const order = await Order.findOne({ where: { id: tx_ref.split('_')[1], userId } });
+    // const { tx_ref, transaction_id, status } = req.query;
+    console.log(req.query.tx_ref.split('_')[1]);
+    const order = await Order.findOne({ where: { id: req.query.tx_ref.split('_')[1], userId } });
     if (!order) throw new NotFoundError('Order not found');
 
     // if (order.status === 'completed') {
@@ -178,16 +178,16 @@ const validateOrderPayment = asyncWrapper(async (req, res) => {
     // }
     const paymentt = await Payment.findOne({ where: { refId: order.id } });
 
-    let details = { transactionId: transaction_id };
+    const details = { transactionId: req.query.transaction_id };
     let validtrx;
     await sequelize.transaction(async (t) => {
-        if (status === 'successful') {
+        if (req.query.status === 'successful') {
             validtrx = await validateFlutterwavePay(details);
             console.log('validtrx', validtrx);
             await Payment.update(
                 {
                     paymentStatus: 'paid',
-                    paymentReference: transaction_id,
+                    paymentReference: req.query.transaction_id,
                     amount: validtrx.amount === paymentt.amount ? paymentt.amount : validtrx.amount,
                 },
                 { where: { refId: order.id }, transaction: t },
@@ -196,8 +196,10 @@ const validateOrderPayment = asyncWrapper(async (req, res) => {
             await Order.update({ status: 'completed' }, { where: { id: order.id }, transaction: t });
 
             if (order.shippingMethod === 'kship' || order.shippingMethod === 'ksecure') {
-                const kship_order = await ShipbubbleOrder.findOne({ where: { orderId: order.id } });
-                await kship_order.update({ status: 'processing' }, { transaction: t });
+                await ShipbubbleOrder.update(
+                    { status: 'processing' },
+                    { where: { orderId: order.id }, transaction: t },
+                );
             }
 
             const shipbubbledetails = await ShipbubbleOrder.findOne({
@@ -211,22 +213,20 @@ const validateOrderPayment = asyncWrapper(async (req, res) => {
                 shipbubbledetails.courierInfo.courierId,
             );
             // shipment request to kship
-            const { order_id, status, payment, tracking_url } = await createshipment({
+            const shipment = await createshipment({
                 request_token: shipbubbledetails.requestToken,
                 service_code: shipbubbledetails.courierServiceInfo.serviceCode,
                 courier_id: shipbubbledetails.courierInfo.courierId,
             });
 
-            console.log(order_id, status, payment, tracking_url);
-
             await ShipbubbleOrder.update(
                 {
-                    status: status,
-                    deliveryFee: (payment.shipping_fee = shipbubbledetails.deliveryFee
+                    status: req.query.status,
+                    deliveryFee: (shipment.payment.shipping_fee = shipbubbledetails.deliveryFee
                         ? shipbubbledetails.deliveryFee
-                        : payment.shipping_fee),
-                    shippingReference: order_id,
-                    trackingUrl: tracking_url,
+                        : shipment.payment.shipping_fee),
+                    shippingReference: shipment.order_id,
+                    trackingUrl: shipment.tracking_url,
                 },
                 { where: { orderId: order.id }, transaction: t },
             );
@@ -234,7 +234,7 @@ const validateOrderPayment = asyncWrapper(async (req, res) => {
             await Payment.update(
                 {
                     paymentStatus: 'failed',
-                    paymentReference: transaction_id,
+                    paymentReference: req.query.transaction_id,
                     amount: validtrx.amount === paymentt.amount ? paymentt.amount : validtrx.amount,
                 },
                 { where: { refId: order.id }, transaction: t },
@@ -259,7 +259,7 @@ const validateOrderPayment = asyncWrapper(async (req, res) => {
 
         return res.status(200).json({
             success: true,
-            message: message,
+            message,
         });
     });
 });
