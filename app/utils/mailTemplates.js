@@ -2,6 +2,7 @@ const sendEmail = require('../services/email.service');
 const { sendWhatsappSMS, verifyCode, sendPhoneSMS } = require('../services/sms.service');
 const { sendPushNotification } = require('../services/firebase.service');
 const options = {};
+const { SUPER_ADMIN_EMAIL } = require('../utils/configs');
 
 const sendWhatsappMessage = async (phone, message) => {
     options.phone = phone;
@@ -9,7 +10,7 @@ const sendWhatsappMessage = async (phone, message) => {
     await sendEmail(options);
 };
 
-const sendverificationEmail = async (details, code) => {
+const sendVerificationEmail = async (details, code) => {
     const { email, phone } = details;
     console.log(code);
     options.email = email;
@@ -47,9 +48,19 @@ const sendorderpushNotification = async (details) => {
     await sendPushNotification(registrationToken, title, body);
 };
 
+const sendShipbubblePaymentErrorEmail = async (details) => {
+    const { message } = details;
+    options.email = SUPER_ADMIN_EMAIL;
+    options.subject = 'Shipbubble Payment Processing Error';
+    options.message = `Shipbubble payment error.`;
+    // options.html = `${options.message}`;
+    await sendEmail(options);
+};
+
 module.exports = {
-    sendverificationEmail,
+    sendVerificationEmail,
     sendForgotPasswordEmail,
     orderConfirmationEmail,
     sendorderpushNotification,
+    sendShipbubblePaymentErrorEmail,
 };

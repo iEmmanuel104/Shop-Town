@@ -167,7 +167,7 @@ module.exports = (sequelize, DataTypes) => {
     );
 
     Order.prototype.createShipment = async function (shippingObject) {
-        const { courierInfo, requestToken, serviceType, shippingMethod, orderId } = shippingObject;
+        const { courierInfo, requestToken, serviceType, shippingMethod, paymentMethod, orderId } = shippingObject;
 
         const shipment = await createshipment({
             request_token: requestToken,
@@ -186,14 +186,13 @@ module.exports = (sequelize, DataTypes) => {
                 status: shipment.status,
                 shippingReference: shipment.order_id,
                 trackingUrl: shipment.tracking_url,
-                orderId,
             });
         }
 
         // generate payment record
         await Payment.create({
-            paymentMethod: shippingMethod,
-            paymentService: serviceType,
+            paymentMethod,
+            paymentService: serviceType && paymentMethod === 'card' ? serviceType : null,
             paymentStatus: shippingMethod === 'kcredit' ? 'success' : 'pending',
             paymentType: 'order',
             amount: shipment.payment.shipping_fee,
