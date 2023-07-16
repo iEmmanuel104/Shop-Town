@@ -551,7 +551,7 @@ const registerStore = asyncWrapper(async (req, res, next) => {
         return next(new BadRequestError('Please verify your account to create a store'));
     }
     const checkemail = email.trim().toLowerCase();
-    const checkstoreName = storeName.trim().toLowerCase();
+    const checkstoreName = storeName.trim().toLowerCase() + ' ' + 'Klick';
     const existingStore = await Store.findOne({
         where: {
             [Op.or]: [{ businessEmail: checkemail }, { name: checkstoreName }],
