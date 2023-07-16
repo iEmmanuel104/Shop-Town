@@ -1,0 +1,72 @@
+<!-- email-template.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{subject}}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+            margin: 0;
+            padding: 0;
+            line-height: 1.6;
+        }
+
+        header {
+            background-color: #ffc107;
+            text-align: center;
+            padding: 20px;
+        }
+
+        header img {
+            max-width: 200px;
+            height: auto;
+        }
+
+        main {
+            padding: 20px;
+            background-color: #ffffff;
+        }
+
+        footer {
+            background-color: #2196f3;
+            text-align: center;
+            color: #ffffff;
+            padding: 10px;
+        }
+
+        /* Add your responsive styles here */
+        @media (max-width: 600px) {
+            main {
+                padding: 10px;
+            }
+
+            header img {
+                max-width: 150px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <img src="https://res.cloudinary.com/drc6omjqc/image/upload/v1689471314/klick_logo_g1jrxn.png" alt="Company Logo">
+        <!-- Add other header content here -->
+    </header>
+
+    <!-- Main Content -->
+    <main>
+        <h1>{{subject}}</h1>
+        <p>{{body}}</p>
+        <!-- Add other dynamic content here -->
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        © 2023 Klick All rights reserved.
+    </footer>
+</body>
+</html>
