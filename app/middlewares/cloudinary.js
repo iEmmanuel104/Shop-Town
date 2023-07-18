@@ -12,7 +12,7 @@ const uploadtocloudinary = async (fileBuffer, details) => {
     try {
         const options = {
             use_filename: true,
-            folder: `Klick/${details.user}/${details.folder}`,
+            folder: `Shop-Town/${details.user}/${details.folder}`,
             public_id: details.name,
         };
 
@@ -53,7 +53,7 @@ const uploadresizeToCloudinary = async (fileBuffer, details) => {
     const resizedImage = await image.resize({ width: 200, height: 200 }).toBuffer();
     const options = {
         use_filename: true,
-        folder: `EZcart/${details.user}/${details.folder}`,
+        folder: `Shop-Town/${details.user}/${details.folder}`,
         public_id: details.name,
     };
 

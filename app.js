@@ -71,7 +71,7 @@ const env = process.env.NODE_ENV;
 
 // simple route
 app.get('/', (req, res) => {
-    res.json({ message: 'Welcome to EZCART API.' });
+    res.json({ message: 'Welcome to Shop-Town API.' });
 });
 
 // // Routes
