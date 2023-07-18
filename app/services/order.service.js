@@ -19,7 +19,11 @@ const validateShippingMethod = ({ shipMethod, option, service, shippingCourier }
 
     // Case 1: Seller
     if (shipMethod === 'seller') {
-        if (option || service || shippingCourier) {
+        if (
+            (option !== null && option !== '') ||
+            (service !== null && service !== '') ||
+            Object.keys(shippingCourier).length !== 0
+        ) {
             throw new BadRequestError('Invalid inputs for seller shipping method');
         }
     }
