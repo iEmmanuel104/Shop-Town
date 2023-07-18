@@ -1,6 +1,6 @@
 name: 'Github CI — Deploy to GAE'
 env:
-    IMAGE_NAME: 'klick-server'
+    IMAGE_NAME: 'Shop-Town-server'
 on:
     pull_request:
         branches:
