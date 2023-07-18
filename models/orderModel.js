@@ -186,13 +186,14 @@ module.exports = (sequelize, DataTypes) => {
                 status: shipment.status,
                 shippingReference: shipment.order_id,
                 trackingUrl: shipment.tracking_url,
+                checkoutDetails: shipment.checkout_details,
             });
         }
 
         // generate payment record
         await Payment.create({
             paymentMethod,
-            paymentService: serviceType && paymentMethod === 'card' ? serviceType : null,
+            paymentService: paymentMethod === 'card' ? serviceType : null,
             paymentStatus: shippingMethod === 'kcredit' ? 'success' : 'pending',
             paymentType: 'order',
             amount: shipment.payment.shipping_fee,
@@ -205,6 +206,28 @@ module.exports = (sequelize, DataTypes) => {
 
         return { deliveryFee, trackingUrl };
     };
+
+    // Inside the model definition for Order
+    Order.addScope('withShipbubbleAndPayment', {
+        include: [
+            {
+                model: ShipbubbleOrder,
+                attributes: ['id', 'status', 'shippingReference', 'trackingUrl', 'checkoutDetails', 'deliveryFee'],
+            },
+            {
+                model: Payment,
+                attributes: [
+                    'id',
+                    'paymentMethod',
+                    'paymentService',
+                    'paymentStatus',
+                    'paymentType',
+                    'amount',
+                    'paymentReference',
+                ],
+            },
+        ],
+    });
 
     // ================== ASSOCIATIONS ================== //
 
