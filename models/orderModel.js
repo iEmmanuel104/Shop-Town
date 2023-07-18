@@ -190,6 +190,8 @@ module.exports = (sequelize, DataTypes) => {
             });
         }
 
+        console.log(serviceType, paymentMethod, shippingMethod);
+
         // generate payment record
         await Payment.create({
             paymentMethod,
