@@ -11,14 +11,14 @@ const Op = require('sequelize').Op;
 const path = require('path');
 
 const createProduct = asyncWrapper(async (req, res, next) => {
-    const { name, description, price, quantity, specifications, shippingcategory } = req.body;
+    const { name, description, price, quantity, specifications, shippingcategory, shippingId } = req.body;
     const { storeId, category } = req.query;
     const decoded = req.decoded;
 
     console.log(name, description, price, quantity, specifications, shippingcategory, storeId, category);
     console.log(req.query);
 
-    if (!name || !price || !quantity || !shippingcategory) {
+    if (!name || !price || !quantity || !shippingcategory || !shippingId) {
         return next(new BadRequestError('Please provide all required fields'));
     }
 
@@ -85,6 +85,7 @@ const createProduct = asyncWrapper(async (req, res, next) => {
                 subcategory: shippingcategory,
                 categoryId: category,
                 storeId,
+                shippingId,
                 images: fileUrls,
             },
             { transaction: t },
@@ -119,7 +120,7 @@ const createBulkProducts = asyncWrapper(async (req, res, next) => {
     }
 
     const productData = products.map(
-        ({ name, description, price, quantity, specifications, category, shippingcategory }) => ({
+        ({ name, description, price, quantity, specifications, category, shippingcategory, shippingId }) => ({
             name,
             description: description || null,
             price,
@@ -127,6 +128,7 @@ const createBulkProducts = asyncWrapper(async (req, res, next) => {
             specifications: specifications || null,
             subcategory: shippingcategory || null,
             categoryId: category,
+            shippingId,
             storeId,
         }),
     );
@@ -337,7 +339,7 @@ const toggleProduct = asyncWrapper(async (req, res, next) => {
 const updateProduct = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const productId = req.params.id;
-        const { name, description, price, quantity, specifications, subcategory, discount } = req.body;
+        const { name, description, price, quantity, specifications, shippingcategory, shippingId, discount } = req.body;
         const decoded = req.decoded;
         // const storeId = decoded.storeId;
         const { storeId } = req.query;
@@ -391,7 +393,8 @@ const updateProduct = asyncWrapper(async (req, res, next) => {
                 price: price || product.price,
                 quantity: quantity || product.quantity,
                 specifications: specifications || product.specifications,
-                subcategory: subcategory || product.subcategory,
+                subcategory: shippingcategory || product.subcategory,
+                shippingId: shippingId || product.shippingId,
                 discount: discount || product.discount,
                 images: fileUrls || product.images,
             },
