@@ -1,5 +1,5 @@
-const express = require('express')
-const router = express.Router()
+const express = require('express');
+const router = express.Router();
 
 const {
     createCategory,
@@ -15,4 +15,4 @@ router.get('/:id', getCategory);
 router.put('/update/:id', updateCategory);
 router.delete('/delete/:id', deleteCategory);
 
-module.exports = router
+module.exports = router;

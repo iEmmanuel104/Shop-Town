@@ -6,8 +6,8 @@ const { getshippingcategories } = require('../services/shipbubble.service');
 // const queryString = require('query-string');
 const { uploadSingleFile, uploadFiles } = require('../services/imageupload.service');
 const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/customErrors');
-const { getPagination, getPagingData } = require('../utils/pagination')
-const Op = require("sequelize").Op;
+const { getPagination, getPagingData } = require('../utils/pagination');
+const Op = require('sequelize').Op;
 const path = require('path');
 
 const createProduct = asyncWrapper(async (req, res, next) => {
@@ -15,24 +15,30 @@ const createProduct = asyncWrapper(async (req, res, next) => {
     const { storeId, category } = req.query;
     const decoded = req.decoded;
 
-    console.log(name, description, price, quantity, specifications, shippingcategory, storeId, category)
-    console.log(req.query)
+    console.log(name, description, price, quantity, specifications, shippingcategory, storeId, category);
+    console.log(req.query);
 
     if (!name || !price || !quantity || !shippingcategory) {
         return next(new BadRequestError('Please provide all required fields'));
     }
 
+    const filefound = req.files;
 
-    filefound = req.files;
-
-    console.log(req.files)
+    console.log(req.files);
 
     if (!filefound || !filefound.length) {
         throw new BadRequestError('No files found for upload');
     }
 
-    if (quantity.instock >= 0 && quantity.total >= 0 && quantity.instock > quantity.total && quantity.total !== quantity.instock) {
-        throw new BadRequestError('Quantity instock cannot be greater than total quantity, both values must be greater than 0 and must be equal');
+    if (
+        quantity.instock >= 0 &&
+        quantity.total >= 0 &&
+        quantity.instock > quantity.total &&
+        quantity.total !== quantity.instock
+    ) {
+        throw new BadRequestError(
+            'Quantity instock cannot be greater than total quantity, both values must be greater than 0 and must be equal',
+        );
     }
 
     const storeExists = await Store.findByPk(storeId);
@@ -44,7 +50,7 @@ const createProduct = asyncWrapper(async (req, res, next) => {
         Category.findByPk(category),
         Store.findByPk(storeId),
         DeliveryAddress.findOne({ where: { storeId, isDefault: true } }),
-        storeExists.hasUser(decoded)
+        storeExists.hasUser(decoded),
     ]);
 
     if (!categoryExists) {
@@ -54,32 +60,35 @@ const createProduct = asyncWrapper(async (req, res, next) => {
         return next(new NotFoundError('Store has no delivery address'));
     }
     if (!isAssociated) {
-        return next(new ForbiddenError("You are not allowed to access this resource"));
+        return next(new ForbiddenError('You are not allowed to access this resource'));
     }
 
     let fileUrls = [];
     // check if filefound is an empty array
 
-    if (filefound || filefound.length == 0) {
+    if (filefound || filefound.length === 0) {
         const details = {
             user: `Stores/${storeExists.name}`,
-            folder: "Products"
+            folder: 'Products',
         };
         fileUrls = await uploadFiles(req, details);
     }
 
     const product = await sequelize.transaction(async (t) => {
-        return Product.create({
-            name,
-            description,
-            price,
-            quantity,
-            specifications,
-            subcategory: shippingcategory,
-            categoryId: category,
-            storeId,
-            images: fileUrls
-        }, { transaction: t });
+        return Product.create(
+            {
+                name,
+                description,
+                price,
+                quantity,
+                specifications,
+                subcategory: shippingcategory,
+                categoryId: category,
+                storeId,
+                images: fileUrls,
+            },
+            { transaction: t },
+        );
     });
 
     return res.status(201).json({
@@ -88,12 +97,11 @@ const createProduct = asyncWrapper(async (req, res, next) => {
     });
 });
 
-
 const getshippingcategory = asyncWrapper(async (req, res, next) => {
     const categories = await getshippingcategories();
     return res.status(200).json({
         success: true,
-        data: categories
+        data: categories,
     });
 });
 
@@ -107,19 +115,21 @@ const createBulkProducts = asyncWrapper(async (req, res, next) => {
 
     const store = await Store.findByPk(storeId);
     if (!store) {
-        return next(new NotFoundError("Store not found"));
+        return next(new NotFoundError('Store not found'));
     }
 
-    const productData = products.map(({ name, description, price, quantity, specifications, category, shippingcategory }) => ({
-        name,
-        description: description || null,
-        price,
-        quantity,
-        specifications: specifications || null,
-        subcategory: shippingcategory || null,
-        categoryId: category,
-        storeId
-    }));
+    const productData = products.map(
+        ({ name, description, price, quantity, specifications, category, shippingcategory }) => ({
+            name,
+            description: description || null,
+            price,
+            quantity,
+            specifications: specifications || null,
+            subcategory: shippingcategory || null,
+            categoryId: category,
+            storeId,
+        }),
+    );
 
     try {
         await sequelize.transaction(async (t) => {
@@ -131,7 +141,7 @@ const createBulkProducts = asyncWrapper(async (req, res, next) => {
         console.error(`Failed to create products: ${err.message}`);
         return res.status(207).json({
             success: false,
-            message: "Bulk create completed with errors",
+            message: 'Bulk create completed with errors',
             processed,
             errors: products.map((_, index) => ({
                 index,
@@ -142,12 +152,11 @@ const createBulkProducts = asyncWrapper(async (req, res, next) => {
 
     return res.status(200).json({
         success: true,
-        message: "All products created successfully",
+        message: 'All products created successfully',
         processed,
         productNames,
     });
 });
-
 
 const getProducts = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
@@ -156,11 +165,17 @@ const getProducts = asyncWrapper(async (req, res, next) => {
         const filters = {};
         const globalfilters = {};
 
-        if (category) { filters.categoryId = category; }
+        if (category) {
+            filters.categoryId = category;
+        }
 
-        if (subcategory) { filters.subcategory = subcategory; }
+        if (subcategory) {
+            filters.subcategory = subcategory;
+        }
 
-        if (store) { filters.storeId = store; }
+        if (store) {
+            filters.storeId = store;
+        }
 
         if (price) {
             filters.price = { [Op.lte]: parseFloat(price) };
@@ -181,11 +196,7 @@ const getProducts = asyncWrapper(async (req, res, next) => {
 
         if (percentageDiscount && parseFloat(percentageDiscount) >= 0 && parseFloat(percentageDiscount) <= 100) {
             filters.discount = {
-                [Op.and]: [
-                    { [Op.gte]: 0 },
-                    { [Op.lte]: 100 },
-                    { [Op.lte]: parseFloat(percentageDiscount) },
-                ],
+                [Op.and]: [{ [Op.gte]: 0 }, { [Op.lte]: 100 }, { [Op.lte]: parseFloat(percentageDiscount) }],
             };
         }
 
@@ -194,12 +205,13 @@ const getProducts = asyncWrapper(async (req, res, next) => {
             const fieldFilters = Object.entries(filters).map(([key, value]) => ({ [key]: value })); // convert filters object to array of objects
             const queryFilter = { name: { [Op.iLike]: `%${queryfields}%` } }; // filter by name using query field
             whereClause = { [Op.and]: [...fieldFilters, queryFilter] }; // combine the filters and query field
-        } else if (Object.keys(filters).length > 0) { // if no query field
+        } else if (Object.keys(filters).length > 0) {
+            // if no query field
             whereClause = filters;
-        } else if (queryfields) { // if no filters
+        } else if (queryfields) {
+            // if no filters
             whereClause = { name: { [Op.iLike]: `%${queryfields}%` } };
         }
-
 
         const page = req.query.page ? Number(req.query.page) : 1;
         const size = req.query.size ? Number(req.query.size) : 10;
@@ -213,13 +225,16 @@ const getProducts = asyncWrapper(async (req, res, next) => {
             ({ limit, offset } = getPagination(page, size));
         }
 
-        const products = await Product.scope('includeStore').findAndCountAll({
-            where: whereClause,
-            include: [{ model: Category, as: 'category', attributes: ['id', 'name'] }],
-            order: [['updatedAt', 'DESC']],
-            limit,
-            offset,
-        }, { transaction: t });
+        const products = await Product.scope('includeStore').findAndCountAll(
+            {
+                where: whereClause,
+                include: [{ model: Category, as: 'category', attributes: ['id', 'name'] }],
+                order: [['updatedAt', 'DESC']],
+                limit,
+                offset,
+            },
+            { transaction: t },
+        );
 
         const specificCount = products.rows.length;
 
@@ -240,7 +255,6 @@ const getProducts = asyncWrapper(async (req, res, next) => {
     });
 });
 
-
 const getProduct = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const product = await Product.findByPk(req.params.id);
@@ -251,80 +265,82 @@ const getProduct = asyncWrapper(async (req, res, next) => {
             success: true,
             data: product,
         });
-    })
+    });
 });
 
 const getStoreProducts = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         // const decoded = req.decoded;
         // const storeId = decoded.storeId;
-        const { storeId } = req.query
+        const { storeId } = req.query;
         if (!storeId) {
-            return next(new ForbiddenError("please ensure you are connected to a store"));
+            return next(new ForbiddenError('please ensure you are connected to a store'));
         }
         const store = await Store.findByPk(storeId);
         if (!store) {
-            return next(new NotFoundError("Store not found"));
+            return next(new NotFoundError('Store not found'));
         }
         const products = await Product.findAll({
             where: {
-                storeId
-            }
+                storeId,
+            },
         });
         return res.status(200).json({
             success: true,
             message: `Products for store: ${store.name} retrieved successfully`,
             data: products,
         });
-    })
+    });
 });
 
 const toggleProduct = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
         const decoded = req.decoded;
         // const storeId = decoded.storeId;
-        const { storeId } = req.query
-        const { id } = req.params
+        const { storeId } = req.query;
+        const { id } = req.params;
 
         if (!storeId) {
-            return next(new ForbiddenError("please ensure you are connected to a store"));
+            return next(new ForbiddenError('please ensure you are connected to a store'));
         }
         const store = await Store.findByPk(storeId);
         if (!store) {
-            return next(new NotFoundError("Store not found"));
+            return next(new NotFoundError('Store not found'));
         }
 
         const product = await Product.findByPk(id);
         if (!product) {
             return next(new NotFoundError(`Product with id ${req.params.id} not found`));
         }
-        const newproductStatus = product.status === 'active' ? 'inactive' : 'active'
+        const newproductStatus = product.status === 'active' ? 'inactive' : 'active';
         let messsage;
         if (newproductStatus === 'active') {
-            messsage = 'Product has been successfully activated'
+            messsage = 'Product has been successfully activated';
         } else {
-            messsage = 'Product has been hidden successfully'
+            messsage = 'Product has been hidden successfully';
         }
-        await Product.update({
-            status: newproductStatus
-        }, { where: { id, storeId } }, { transaction: t });
+        await Product.update(
+            {
+                status: newproductStatus,
+            },
+            { where: { id, storeId } },
+            { transaction: t },
+        );
 
         return res.status(200).json({
             success: true,
             message: messsage,
         });
-    })
+    });
 });
-
 
 const updateProduct = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
-
         const productId = req.params.id;
         const { name, description, price, quantity, specifications, subcategory, discount } = req.body;
         const decoded = req.decoded;
         // const storeId = decoded.storeId;
-        const { storeId } = req.query
+        const { storeId } = req.query;
 
         if (quantity.instock >= 0 && quantity.total >= 0 && quantity.instock > quantity.total) {
             throw new BadRequestError('Quantity in stock cannot be greater than total quantity');
@@ -344,61 +360,64 @@ const updateProduct = asyncWrapper(async (req, res, next) => {
         // Check if the user is authorized to update the product
         const user = await User.findByPk(decoded.id);
         if (!user) {
-            return next(new NotFoundError("User not found"));
+            return next(new NotFoundError('User not found'));
         }
 
         const store = await Store.findByPk(storeId);
         if (!store) {
-            return next(new NotFoundError("Store not found"));
+            return next(new NotFoundError('Store not found'));
         }
 
         const isAssociated = await store.hasUser(user);
         if (!isAssociated) {
-            return next(new ForbiddenError("You are not allowed to access this resource"));
+            return next(new ForbiddenError('You are not allowed to access this resource'));
         }
         let fileUrls = [];
 
         if (req.files) {
-            console.log(req.files)
+            console.log(req.files);
             const details = {
                 user: `Stores/${store.name}`,
-                folder: "Products"
+                folder: 'Products',
             };
             fileUrls = await uploadFiles(req, details);
         }
 
         // Update the product
-        const updated = await product.update({
-            name: name ? name : product.name,
-            description: description ? description : product.description,
-            price: price ? price : product.price,
-            quantity: quantity ? quantity : product.quantity,
-            specifications: specifications ? specifications : product.specifications,
-            subcategory: subcategory ? subcategory : product.subcategory,
-            discount: discount ? discount : product.discount,
-            images: fileUrls ? fileUrls : product.images
-        }, { transaction: t });
+        const updated = await product.update(
+            {
+                name: name || product.name,
+                description: description || product.description,
+                price: price || product.price,
+                quantity: quantity || product.quantity,
+                specifications: specifications || product.specifications,
+                subcategory: subcategory || product.subcategory,
+                discount: discount || product.discount,
+                images: fileUrls || product.images,
+            },
+            { transaction: t },
+        );
 
         return res.status(200).json({
             success: true,
             message: `Product Updated: ${updated.name} has been successfully updated`,
         });
-    })
+    });
 });
 
 const updateProductdiscount = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
-        const { discount } = req.body
-        const { id } = req.params
-        const decoded = req.decoded
+        const { discount } = req.body;
+        const { id } = req.params;
+        const decoded = req.decoded;
         // const storeId = decoded.storeId
-        const { storeId } = req.query
-        const userId = decoded.id
+        const { storeId } = req.query;
+        const userId = decoded.id;
 
         // check if user is authorized to create product
         const user = await User.findByPk(userId);
         if (!user) {
-            return next(new NotFoundError("User not found"));
+            return next(new NotFoundError('User not found'));
         }
 
         // if (user.role !== 'admin' && user.role !== 'vendor') {
@@ -408,30 +427,32 @@ const updateProductdiscount = asyncWrapper(async (req, res, next) => {
         // check if store exists
         const store = await Store.findByPk(storeId);
         if (!store) {
-            return next(new NotFoundError("Store not found"));
+            return next(new NotFoundError('Store not found'));
         }
         const isAssociated = await store.hasUser(user);
         if (!isAssociated) {
-            return next(new ForbiddenError("You are not allowed to access this resource"));
+            return next(new ForbiddenError('You are not allowed to access this resource'));
         }
         const product = await Product.findByPk(id);
         if (!product) {
             return next(new NotFoundError(`Product with ID ${id} not found`));
         }
-        const updated = await product.update({
-            discount
-        }, { transaction: t });
+        const updated = await product.update(
+            {
+                discount,
+            },
+            { transaction: t },
+        );
         return res.status(200).json({
             success: true,
             message: `Product Updated: ${updated.name} has been successfully updated`,
         });
-    })
-})
+    });
+});
 
 const deleteProduct = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
-
-        const { id } = req.params
+        const { id } = req.params;
         const product = await Product.findByPk(id);
         if (!product) {
             return next(new NotFoundError(`Product with id ${req.params.id} not found`));
@@ -441,14 +462,13 @@ const deleteProduct = asyncWrapper(async (req, res, next) => {
 
         return res.status(200).json({
             success: true,
-            message: `${product.name} deleted successfully`
+            message: `${product.name} deleted successfully`,
         });
-    })
-})
+    });
+});
 
 const searchProduct = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
-
         const { search, rating, review, minPrice, maxPrice } = req.query;
         const filters = {};
 
@@ -502,119 +522,8 @@ const searchProduct = asyncWrapper(async (req, res, next) => {
             success: true,
             data: products,
         });
-    })
+    });
 });
-
-
-// const searchProduct = asyncWrapper(async (req, res) => {
-//     const { searchQuery, rating, review, minPrice, maxPrice, category, store, sortBy, sortOrder, limit, page } = queryString.parse(req.url.split('?')[1]);
-
-//     // Validation for query parameters
-//     if (!searchQuery) {
-//         throw new BadRequestError('Please provide a search query');
-//     }
-
-//     if (rating && !validator.isInt(rating, { min: 1, max: 5 })) {
-//         throw new BadRequestError('Rating should be an integer between 1 and 5');
-//     }
-
-//     if (review && !validator.isInt(review, { min: 1 })) {
-//         throw new BadRequestError('Review should be an integer greater than 0');
-//     }
-
-//     if (minPrice && !validator.isFloat(minPrice, { min: 0 })) {
-//         throw new BadRequestError('Minimum price should be a non-negative number');
-//     }
-
-//     if (maxPrice && !validator.isFloat(maxPrice, { min: 0 })) {
-//         throw new BadRequestError('Maximum price should be a non-negative number');
-//     }
-
-//     if (category && !validator.isInt(category, { min: 1 })) {
-//         throw new BadRequestError('Category ID should be a positive integer');
-//     }
-
-//     if (store && !validator.isInt(store, { min: 1 })) {
-//         throw new BadRequestError('Store ID should be a positive integer');
-//     }
-
-//     if (sortBy && !['name', 'price', 'rating', 'review'].includes(sortBy)) {
-//         throw new BadRequestError('Invalid sort parameter. Valid options are "name", "price", "rating", and "review".');
-//     }
-
-//     if (sortOrder && !['asc', 'desc'].includes(sortOrder)) {
-//         throw new BadRequestError('Invalid sort order. Valid options are "asc" and "desc".');
-//     }
-
-//     if (limit && (!validator.isInt(limit, { min: 1, max: 100 }) || parseInt(limit) < 1)) {
-//         throw new BadRequestError('Limit should be an integer between 1 and 100');
-//     }
-
-//     if (page && (!validator.isInt(page, { min: 1 }) || parseInt(page) < 1)) {
-//         throw new BadRequestError('Page should be a positive integer');
-//     }
-
-//     // Construct the filter object
-//     const filters = {
-//         [Op.or]: [
-//             { name: { [Op.iLike]: `%${searchQuery}%` } },
-//             { description: { [Op.iLike]: `%${searchQuery}%` } },
-//             { '$store.name$': { [Op.iLike]: `%${searchQuery}%` } },
-//         ],
-//     };
-
-//     if (rating) {
-//         filters.rating = {
-//             [Op.gte]: rating,
-//         };
-//     }
-
-//     if (review) {
-//         filters.review = {
-//             [Op.gte]: review,
-//         };
-//     }
-
-//     if (minPrice && maxPrice) {
-//         filters.price = {
-//             [Op.between]: [minPrice, maxPrice],
-//         };
-//     } else if (minPrice) {
-//         filters.price = {
-//             [Op.gte]: minPrice,
-//         };
-//     } else if (maxPrice) {
-//         filters.price = {
-//             [Op.lte]: maxPrice,
-//         }
-//     }
-
-//     if (category) {
-//         filters.categoryId = category;
-//     }
-
-//     if (store) {
-//         filters.storeId = store;
-//     }
-
-//     // Construct the sorting object
-//     let order = [['createdAt', 'DESC']];
-//     if (sortBy) {
-//         order = [[sortBy, sortOrder === 'desc' ? 'DESC' : 'ASC']];
-//     }
-
-//     // Perform the search query
-//     const { count, rows } = await Product.findAndCountAll({
-//         where: filters,
-//         include: [{ model: Store, as: 'store' }],
-//         order,
-//         limit: limit ? parseInt(limit) : 10,
-//         offset: page ? (parseInt(page) - 1) * (limit ? parseInt(limit) : 10) : 0,
-//     });
-
-//     return res.status(200).json({ count, rows });
-// });
-
 
 module.exports = {
     createProduct,
@@ -627,5 +536,5 @@ module.exports = {
     searchProduct,
     getStoreProducts,
     toggleProduct,
-    updateProductdiscount
+    updateProductdiscount,
 };

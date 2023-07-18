@@ -1,316 +1,329 @@
 const { generateCode } = require('../app/utils/stringGenerators');
-const { sendverificationEmail, sendForgotPasswordEmail } = require('../app/utils/mailTemplates');
+const { sendVerificationEmail, sendForgotPasswordEmail } = require('../app/utils/mailTemplates');
 // const { generateWallet } = require('../app/services/wallet.service');
 
 module.exports = (sequelize, DataTypes) => {
-
     // imports
     const { Wallet } = require('./walletModel')(sequelize, DataTypes);
     const { DeliveryAddress, Token } = require('./utilityModel')(sequelize, DataTypes);
     // const { Cart } = require('./storeModel');
 
     //  ======  User Model  ====== //
-    const User = sequelize.define("User", {
-        id: {
-            type: DataTypes.UUID,
-            defaultValue: DataTypes.UUIDV4,
-            primaryKey: true,
-            allowNull: false
-        },
-        firstName: {
-            type: DataTypes.STRING,
-            allowNull: false,
-            // remove empty spaces
-            set(value) {    
-                if(value)
-                this.setDataValue('firstName', value.trim().toLowerCase());
-            }
-        },
-        lastName: {
-            type: DataTypes.STRING,
-            allowNull: false,
-            // remove empty spaces
-            set(value) {
-                if (value)
-                this.setDataValue('lastName', value.trim().toLowerCase());
-            }
-        },
-        fullName: {
-            type: DataTypes.VIRTUAL,
-            get() {
-                return `${this.firstName} ${this.lastName}`
+    const User = sequelize.define(
+        'User',
+        {
+            id: {
+                type: DataTypes.UUID,
+                defaultValue: DataTypes.UUIDV4,
+                primaryKey: true,
+                allowNull: false,
             },
-            set(value) {
-                throw new Error('Do not try to set the `fullName` value!')
-            }
-        },
-        email: {
-            type: DataTypes.STRING,
-            unique: true,
-            validate: {
-                isEmail: true,
-                notNull: {
-                    msg: "Please enter a valid Email address"
-                }
-            },
-            allowNull: false,
-            set(value) {
-                if (value)
-                // remove whitespaces and convert to lowercase
-                this.setDataValue('email', value.trim().toLowerCase());
-            }
-        },
-        role: {
-            type: DataTypes.ENUM(["super_admin", "admin", "vendor", "guest"]),
-            defaultValue: "guest",
-            allowNull: false,
-            validate: {
-                isIn: {
-                    args: [["super_admin", "admin", "vendor", "guest"]],
-                    msg: "invalid Role input: Please select correct option"
-                }
-            }
-        },
-        phone: {
-            type: DataTypes.BIGINT,
-            unique: true,
-            validate: {
-                len: {
-                    args: [10, 15],
-                    msg: 'Phone number should be between 10 and 15 digits!'
+            firstName: {
+                type: DataTypes.STRING,
+                allowNull: false,
+                // remove empty spaces
+                set(value) {
+                    if (value) this.setDataValue('firstName', value.trim().toLowerCase());
                 },
-                isNumeric: {
-                    msg: 'Please enter a valid numeric Phone number!'
-                }
-            }
-        },
-        status: {
-            type: DataTypes.ENUM(["active", "inactive"]),
-            defaultValue: "inactive",
-            allowNull: false
-        },
-        // terms: {
-        //     type: DataTypes.ENUM(["on", "off"]),
-        //     defaultValue: "off",
-        //     validate: {
-        //         isIn: {
-        //             args: [["on", "off"]],
-        //             msg: "invalid Terms inout: Please select correct option"
-        //         }
-        //     }
-        // },
-        googleId: {
-            type: DataTypes.STRING,
-            allowNull: true
-        },
-        facebookId: {
-            type: DataTypes.STRING,
-            allowNull: true
-        },
-        vendorMode: {
-            type: DataTypes.BOOLEAN,
-            defaultValue: false,
-            allowNull: false
-        },
-        isActivated: {
-            type: DataTypes.BOOLEAN,
-            defaultValue: true,
-            allowNull: false
-        },
-        isVerified: {
-            type: DataTypes.BOOLEAN,
-            defaultValue: false,
-            allowNull: false
-        },
-        profileImage: { type: DataTypes.STRING },
-    }, {
-        tableName: 'User',
-        timestamps: true,
-        // specify default scope to check for act
-        // defaultScope: {
-        //     attributes: { exclude: ['password'] }
-        // },
-        scopes: {
-            verified: {
-                where: {
-                    status: 'active',
-                    isActivated: true,
-                    isVerified: true
+            },
+            lastName: {
+                type: DataTypes.STRING,
+                allowNull: false,
+                // remove empty spaces
+                set(value) {
+                    if (value) this.setDataValue('lastName', value.trim().toLowerCase());
                 },
-                attributes: ['id', 'firstName', 'lastName', 'email', 'phone', 'role', 'status', 'vendorMode', 'createdAt', 'updatedAt']
-            }
-        },
-        hooks: {
-            beforeCreate: (user) => {
-                user.email = user.email.toLowerCase();
-                // remove white spaces from email
-                user.email = user.email.replace(/\s/g, '');
-
             },
-            beforeUpdate: (user) => {
-                user.email = user.email.toLowerCase();
+            fullName: {
+                type: DataTypes.VIRTUAL,
+                get() {
+                    return `${this.firstName} ${this.lastName}`;
+                },
+                set(value) {
+                    throw new Error('Do not try to set the `fullName` value!');
+                },
             },
-            beforeFind: (options) => {
-                if (options.where && options.where.email) {
-                    options.where.email = options.where.email.toLowerCase();
-                }
-            },
-            beforeCreate: (record, options) => {
-                record.dataValues.createdAt = new Date().toISOString().replace(/T/, ' ').replace(/\..+/g, '');
-                record.dataValues.updatedAt = new Date().toISOString().replace(/T/, ' ').replace(/\..+/g, '');
-            },
-            beforeUpdate: (record, options) => {
-                record.dataValues.updatedAt = new Date().toISOString().replace(/T/, ' ').replace(/\..+/g, '');
-            },
-            // send email to user after creating account
-            afterCreate: (user) => {
-                user.generateAndSendVerificationCode('verify');
-            }
-        },
-        indexes: [
-            {
+            email: {
+                type: DataTypes.STRING,
                 unique: true,
-                fields: ['email']
-            }
-        ]
+                validate: {
+                    isEmail: true,
+                    notNull: {
+                        msg: 'Please enter a valid Email address',
+                    },
+                },
+                allowNull: false,
+                set(value) {
+                    if (value)
+                        // remove whitespaces and convert to lowercase
+                        this.setDataValue('email', value.trim().toLowerCase());
+                },
+            },
+            role: {
+                type: DataTypes.ENUM(['super_admin', 'admin', 'vendor', 'guest']),
+                defaultValue: 'guest',
+                allowNull: false,
+                validate: {
+                    isIn: {
+                        args: [['super_admin', 'admin', 'vendor', 'guest']],
+                        msg: 'invalid Role input: Please select correct option',
+                    },
+                },
+            },
+            phone: {
+                type: DataTypes.BIGINT,
+                unique: true,
+                validate: {
+                    len: {
+                        args: [10, 15],
+                        msg: 'Phone number should be between 10 and 15 digits!',
+                    },
+                    isNumeric: {
+                        msg: 'Please enter a valid numeric Phone number!',
+                    },
+                },
+            },
+            status: {
+                type: DataTypes.ENUM(['active', 'inactive']),
+                defaultValue: 'inactive',
+                allowNull: false,
+            },
+            // terms: {
+            //     type: DataTypes.ENUM(["on", "off"]),
+            //     defaultValue: "off",
+            //     validate: {
+            //         isIn: {
+            //             args: [["on", "off"]],
+            //             msg: "invalid Terms inout: Please select correct option"
+            //         }
+            //     }
+            // },
+            googleId: {
+                type: DataTypes.STRING,
+                allowNull: true,
+            },
+            facebookId: {
+                type: DataTypes.STRING,
+                allowNull: true,
+            },
+            vendorMode: {
+                type: DataTypes.BOOLEAN,
+                defaultValue: false,
+                allowNull: false,
+            },
+            isActivated: {
+                type: DataTypes.BOOLEAN,
+                defaultValue: true,
+                allowNull: false,
+            },
+            isVerified: {
+                type: DataTypes.BOOLEAN,
+                defaultValue: false,
+                allowNull: false,
+            },
+            profileImage: { type: DataTypes.STRING },
+        },
+        {
+            tableName: 'User',
+            timestamps: true,
+            // specify default scope to check for act
+            // defaultScope: {
+            //     attributes: { exclude: ['password'] }
+            // },
+            scopes: {
+                verified: {
+                    where: {
+                        status: 'active',
+                        isActivated: true,
+                        isVerified: true,
+                    },
+                    attributes: [
+                        'id',
+                        'firstName',
+                        'lastName',
+                        'email',
+                        'phone',
+                        'role',
+                        'status',
+                        'vendorMode',
+                        'createdAt',
+                        'updatedAt',
+                    ],
+                },
+            },
+            hooks: {
+                beforeCreate: (user) => {
+                    user.email = user.email.toLowerCase();
+                    user.email = user.email.replace(/\s/g, '');
 
-    });
+                    user.dataValues.createdAt = new Date().toISOString().replace(/T/, ' ').replace(/\..+/g, '');
+                    user.dataValues.updatedAt = new Date().toISOString().replace(/T/, ' ').replace(/\..+/g, '');
+                },
+                beforeUpdate: (user) => {
+                    user.email = user.email.toLowerCase();
+                    user.dataValues.updatedAt = new Date().toISOString().replace(/T/, ' ').replace(/\..+/g, '');
+                },
+                beforeFind: (options) => {
+                    if (options.where && options.where.email) {
+                        options.where.email = options.where.email.toLowerCase();
+                    }
+                },
+                afterCreate: (user) => {
+                    user.generateAndSendVerificationCode('verify');
+                },
+            },
+
+            indexes: [
+                {
+                    unique: true,
+                    fields: ['email'],
+                },
+            ],
+        },
+    );
 
     //  ======  Store Model  ====== //
-    const Store = sequelize.define("Store", {
-        id: {
-            type: DataTypes.UUID,
-            defaultValue: DataTypes.UUIDV4,
-            primaryKey: true,
-            allowNull: false
-        },
-        name: {
-            type: DataTypes.STRING,
-            unique: {
-                args: true,
-                msg: 'Store name already in use!'
+    const Store = sequelize.define(
+        'Store',
+        {
+            id: {
+                type: DataTypes.UUID,
+                defaultValue: DataTypes.UUIDV4,
+                primaryKey: true,
+                allowNull: false,
             },
-            allowNull: false,
-            //remove white spaces
-            set(value) {
-                if (value)
-                this.setDataValue('name', value.trim().toLowerCase());
-            }
-        },
-        socials: { type: DataTypes.JSONB },
-        businessPhone: {
-            type: DataTypes.BIGINT,
-            unique: {
-                args: true,
-                msg: 'Business Phone number provided already in use!'
-            },
-            validate: {
-                len: {
-                    args: [10, 15],
-                    msg: 'Phone number should be between 10 and 15 digits!'
+            name: {
+                type: DataTypes.STRING,
+                unique: {
+                    args: true,
+                    msg: 'Store name already in use!',
                 },
-                isNumeric: {
-                    msg: 'Please enter a valid numeric Phone number!'
-                }
+                allowNull: false,
+                set(value) {
+                    if (value) this.setDataValue('name', value.trim().toLowerCase());
+                },
             },
-            allowNull: false
-        },
-        businessEmail: {
-            type: DataTypes.STRING,
-            unique: {
-                args: true,
-                msg: 'Business Email provided already in use!'
+            socials: { type: DataTypes.JSONB },
+            businessPhone: {
+                type: DataTypes.BIGINT,
+                unique: {
+                    args: true,
+                    msg: 'Business Phone number provided already in use!',
+                },
+                validate: {
+                    len: {
+                        args: [10, 15],
+                        msg: 'Phone number should be between 10 and 15 digits!',
+                    },
+                    isNumeric: {
+                        msg: 'Please enter a valid numeric Phone number!',
+                    },
+                },
+                allowNull: false,
             },
-            allowNull: false,
-            validate: {
-                isEmail: {
-                    msg: 'Please enter a valid email address!'
-                }
+            businessEmail: {
+                type: DataTypes.STRING,
+                unique: {
+                    args: true,
+                    msg: 'Business Email provided already in use!',
+                },
+                allowNull: false,
+                validate: {
+                    isEmail: {
+                        msg: 'Please enter a valid email address!',
+                    },
+                },
+                set(value) {
+                    if (value) this.setDataValue('businessEmail', value.trim().toLowerCase());
+                },
             },
-            set(value) {
-                if (value)
-                this.setDataValue('businessEmail', value.trim().toLowerCase());
-            }
-        },
-        industry: {
-            type: DataTypes.STRING,
-            allowNull: false,
-            set(value) {
-                if (value)
-                this.setDataValue('industry', value.trim().toLowerCase());
-            }
-        },
-        owner: { type: DataTypes.STRING },
-        isDisabled: {
-            type: DataTypes.BOOLEAN,
-            defaultValue: false,
-            allowNull: false
-        },
-        logo: { type: DataTypes.STRING },
-        storeSettings: {type: DataTypes.JSONB}
-    }, {
-        tableName: 'Store',
-        timestamps: true,
-        // remove updatedAt from response
-        defaultScope: {
-            attributes: { exclude: ['updatedAt'] }
-        },
-        scopes: {
-            includeProducts: {
-                include: [{
-                    model: 'Product',
-                    as: 'products'
-                }]
+            industry: {
+                type: DataTypes.STRING,
+                allowNull: false,
+                set(value) {
+                    if (value) this.setDataValue('industry', value.trim().toLowerCase());
+                },
             },
-            includeUsers: {
-                include: [{
-                    model: User,
-                    attributes: ['id', 'firstName', 'lastName', 'email', 'status'],
-                    through: {
-                        attributes: ['role']
-                    }
-                }]
-            }
+            owner: { type: DataTypes.STRING },
+            isDisabled: {
+                type: DataTypes.BOOLEAN,
+                defaultValue: false,
+                allowNull: false,
+            },
+            logo: { type: DataTypes.STRING },
+            storeSettings: { type: DataTypes.JSONB },
         },
-        indexes: [
-            {
-                unique: true,
-                fields: ['businessEmail']
-            }
-        ]
-    });
+        {
+            tableName: 'Store',
+            timestamps: true,
+            // remove updatedAt from response
+            defaultScope: {
+                attributes: { exclude: ['updatedAt'] },
+            },
+            scopes: {
+                includeProducts: {
+                    include: [
+                        {
+                            model: 'Product',
+                            as: 'products',
+                        },
+                    ],
+                },
+                includeUsers: {
+                    include: [
+                        {
+                            model: User,
+                            attributes: ['id', 'firstName', 'lastName', 'email', 'status'],
+                            through: {
+                                attributes: ['role'],
+                            },
+                        },
+                    ],
+                },
+            },
+            indexes: [
+                {
+                    unique: true,
+                    fields: ['businessEmail'],
+                },
+            ],
+        },
+    );
 
     // ======  UserStore Model  ====== //
-    const UserStore = sequelize.define("UserStore", {
-        id: {
-            type: DataTypes.UUID,
-            defaultValue: DataTypes.UUIDV4,
-            primaryKey: true
+    const UserStore = sequelize.define(
+        'UserStore',
+        {
+            id: {
+                type: DataTypes.UUID,
+                defaultValue: DataTypes.UUIDV4,
+                primaryKey: true,
+            },
+            UserId: {
+                type: DataTypes.UUID,
+                allowNull: false,
+            },
+            StoreId: {
+                type: DataTypes.UUID,
+                allowNull: false,
+            },
+            role: {
+                type: DataTypes.ENUM(['owner', 'staff']),
+                defaultValue: 'staff',
+                allowNull: false,
+                validate: {
+                    isIn: {
+                        args: [['owner', 'staff']],
+                        msg: 'invalid Role input: Please select correct option',
+                    },
+                },
+            },
         },
-        UserId: {
-            type: DataTypes.UUID,
-            allowNull: false
+        {
+            tableName: 'UserStore',
+            timestamps: true,
         },
-        StoreId: {
-            type: DataTypes.UUID,
-            allowNull: false
-        },
-        role: {
-            type: DataTypes.ENUM(["owner", "staff"]),
-            defaultValue: "staff",
-            allowNull: false,
-            validate: {
-                isIn: {
-                    args: [["owner", "staff"]],
-                    msg: "invalid Role input: Please select correct option"
-                }
-            }
-        },
-    }, {
-        tableName: 'UserStore',
-        timestamps: true,
-    });
-
+    );
 
     User.addScope('fulldetails', {
         include: [
@@ -320,22 +333,21 @@ module.exports = (sequelize, DataTypes) => {
                 where: {
                     isDefault: true,
                 },
-                attributes: ['id', 'address', 'city', 'state', 'country', 'postal', 'phone', 'type', 'addressCode']
+                attributes: ['id', 'address', 'city', 'state', 'country', 'postal', 'phone', 'type', 'addressCode'],
             },
             { model: Wallet, as: 'Wallet', attributes: ['id', 'amount', 'type', 'currency', 'isActive'] },
             // { model: Cart, as: 'Cart', attributes: ['items', 'checkoutData', 'totalAmouny'] },
-        ]
+        ],
     });
 
     User.prototype.generateAndSendVerificationCode = async function (type) {
-        let code = await generateCode();
-
+        const code = await generateCode();
 
         const { id, email, phone } = this;
         const emailData = { email, phone };
         let emailPromise, codePromise;
         if (type === 'verify') {
-            emailPromise = sendverificationEmail(emailData, code);
+            emailPromise = sendVerificationEmail(emailData, code);
             codePromise = { verificationCode: code };
         } else {
             emailPromise = sendForgotPasswordEmail(emailData, code);
@@ -350,14 +362,11 @@ module.exports = (sequelize, DataTypes) => {
                     Token.create({ userId: id, ...codePromise });
                 }
             }),
-            emailPromise
+            emailPromise,
         ]);
 
         return code;
     };
-
-
-
 
     // ======================================= //
     // ============ ASSOCIATIONS ============= //
@@ -368,28 +377,28 @@ module.exports = (sequelize, DataTypes) => {
         User.hasMany(models.Order, {
             foreignKey: 'userId',
             onDelete: 'CASCADE',
-            onUpdate: 'CASCADE'
+            onUpdate: 'CASCADE',
         });
         User.belongsToMany(models.Store, {
             through: models.UserStore,
             foreignKey: 'UserId',
             onDelete: 'CASCADE',
-            onUpdate: 'CASCADE'
+            onUpdate: 'CASCADE',
         });
         User.hasOne(models.Cart, {
             foreignKey: 'userId',
             onDelete: 'CASCADE',
-            onUpdate: 'CASCADE'
+            onUpdate: 'CASCADE',
         });
         User.hasMany(models.DeliveryAddress, {
             foreignKey: 'userId',
             onDelete: 'CASCADE',
-            onUpdate: 'CASCADE'
+            onUpdate: 'CASCADE',
         });
         User.hasOne(models.Wallet, {
             foreignKey: 'userId',
             onDelete: 'CASCADE',
-            onUpdate: 'CASCADE'
+            onUpdate: 'CASCADE',
         });
         User.hasMany(models.PostActivity, {
             foreignKey: 'userId',
@@ -411,7 +420,7 @@ module.exports = (sequelize, DataTypes) => {
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE',
             foreignKey: 'storeId',
-            as: 'products'
+            as: 'products',
         });
         Store.belongsToMany(models.User, {
             // onDelete: 'CASCADE',
@@ -423,45 +432,42 @@ module.exports = (sequelize, DataTypes) => {
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE',
             foreignKey: 'storeId',
-            as: 'deliveryAddress'
+            as: 'deliveryAddress',
         });
         Store.hasMany(models.StoreDiscount, {
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE',
             foreignKey: 'storeId',
-            as: 'storeDiscounts'
+            as: 'storeDiscounts',
         });
         Store.hasOne(models.Wallet, {
             foreignKey: 'storeId',
             as: 'storewallet',
             onDelete: 'CASCADE',
-            onUpdate: 'CASCADE'
+            onUpdate: 'CASCADE',
         });
         Store.hasMany(models.Ksocial, {
             foreignKey: 'storeId',
             onDelete: 'CASCADE',
-            onUpdate: 'CASCADE'
+            onUpdate: 'CASCADE',
         });
         Store.hasMany(models.AccountDetails, {
             foreignKey: 'storeId',
             onDelete: 'CASCADE',
-            onUpdate: 'CASCADE'
+            onUpdate: 'CASCADE',
         });
         Store.hasMany(models.Order, {
             foreignKey: 'storeId',
             onDelete: 'CASCADE',
-            onUpdate: 'CASCADE'
+            onUpdate: 'CASCADE',
         });
-
     };
 
     // ================ USERSTORE ================//
     UserStore.associate = (models) => {
-        UserStore.belongsTo(models.User)
-        UserStore.belongsTo(models.Store)
+        UserStore.belongsTo(models.User);
+        UserStore.belongsTo(models.Store);
     };
 
     return { User, Store, UserStore };
 };
-
-

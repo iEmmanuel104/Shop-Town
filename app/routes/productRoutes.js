@@ -1,7 +1,7 @@
-const express = require('express')
-const router = express.Router()
-const {basicAuth} = require('../middlewares/authWares')
-const uploadFile = require('../middlewares/multerobject')
+const express = require('express');
+const router = express.Router();
+const { basicAuth } = require('../middlewares/authWares');
+const uploadFile = require('../middlewares/multerobject');
 
 const {
     createProduct,
@@ -14,21 +14,19 @@ const {
     searchProduct,
     toggleProduct,
     getStoreProducts,
-    updateProductdiscount
-} = require('../controllers/product.controller')
+    updateProductdiscount,
+} = require('../controllers/product.controller');
 
-router.route('/')
-    .post(basicAuth, uploadFile.array('images'), createProduct)
-    .get(getProducts)
+router.route('/').post(basicAuth, uploadFile.array('images'), createProduct).get(getProducts);
 
-router.route('/bulk')
-    .post(basicAuth, createBulkProducts);
+router.route('/bulk').post(basicAuth, createBulkProducts);
 
-router.route('/:id')
+router
+    .route('/:id')
     .get(getProduct)
     .put(basicAuth, updateProduct)
     .delete(basicAuth, deleteProduct)
-    .patch(basicAuth, uploadFile.array('images'), updateProductdiscount)
+    .patch(basicAuth, uploadFile.array('images'), updateProductdiscount);
 
 router.get('/search', searchProduct);
 
@@ -38,4 +36,4 @@ router.get('/store/product', basicAuth, getStoreProducts);
 
 router.patch('/toggle/:id', basicAuth, toggleProduct);
 
-module.exports = router
+module.exports = router;

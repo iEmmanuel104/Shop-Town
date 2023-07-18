@@ -1,60 +1,60 @@
-const jwt = require("jsonwebtoken");
+const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
-const asyncWrapper = require("../middlewares/async");
-const { User } = require("../../models");
-const { BadRequestError, JsonWebTokenError, TokenExpiredError, UnauthorizedError } = require("../utils/customErrors");
-const { refreshTokenExpiry, accessTokenExpiry, mywebsite, secret1, secret2} = require('../utils/configs');
-const errorHandler = require("../middlewares/error-handler");
+const asyncWrapper = require('../middlewares/async');
+const { User } = require('../../models');
+const { BadRequestError, JsonWebTokenError, TokenExpiredError, UnauthorizedError } = require('../utils/customErrors');
+const { refreshTokenExpiry, accessTokenExpiry, mywebsite, secret1, secret2 } = require('../utils/configs');
+const errorHandler = require('../middlewares/error-handler');
 const redisClient = require('../utils/redis');
 
-const issueToken = async ({userid, storeId, type}) => {
+const issueToken = async ({ userid, storeId, type }) => {
     try {
-        const this_user = await User.findByPk(userid)
-        if (!this_user) throw new BadRequestError('Invalid user')
+        const thisUser = await User.findByPk(userid);
+        if (!thisUser) throw new BadRequestError('Invalid user');
         const payload = {
-            id: this_user.id,
-            fullName: this_user.fullName,
-            email: this_user.email,
-            phone: this_user.phone,
-            role: this_user.role,
-            isActivated: this_user.isActivated,
-            isVerified: this_user.isVerified,
-            vendorMode: this_user.vendorMode,
-        }
+            id: thisUser.id,
+            fullName: thisUser.fullName,
+            email: thisUser.email,
+            phone: thisUser.phone,
+            role: thisUser.role,
+            isActivated: thisUser.isActivated,
+            isVerified: thisUser.isVerified,
+            vendorMode: thisUser.vendorMode,
+        };
         payload.website = mywebsite;
         payload.jti = uuidv4();
-            
-        if (storeId) payload.storeId = storeId
 
-        let returnobj = {
-            access_token : jwt.sign(payload, secret2, { expiresIn: accessTokenExpiry, algorithm: 'HS256' }),
-        }
+        if (storeId) payload.storeId = storeId;
 
-        if (!type) { // if type is not refresh
-            returnobj.refresh_token = jwt.sign(payload, secret1, { expiresIn: refreshTokenExpiry, algorithm: 'HS256' });
+        const returnobj = {
+            accessToken: jwt.sign(payload, secret2, { expiresIn: accessTokenExpiry, algorithm: 'HS256' }),
+        };
+
+        if (!type) {
+            // if type is not refresh
+            returnobj.refreshToken = jwt.sign(payload, secret1, { expiresIn: refreshTokenExpiry, algorithm: 'HS256' });
         }
         // Save token to Redis with key as token and value as active
-        redisClient.set(returnobj.access_token, 'active', { EX: accessTokenExpiry, NX: true }); // 7 days
-        if (returnobj.refresh_token) {
-            redisClient.set(returnobj.refresh_token, 'active', { EX: refreshTokenExpiry, NX: true}); // 18 hours
+        redisClient.set(returnobj.accessToken, 'active', { EX: accessTokenExpiry, NX: true }); // 7 days
+        if (returnobj.refreshToken) {
+            redisClient.set(returnobj.refreshToken, 'active', { EX: refreshTokenExpiry, NX: true }); // 18 hours
         }
 
-        return returnobj;   
-
+        return returnobj;
     } catch (error) {
         throw new Error(error);
     }
 };
 
 const decodeJWT = async (token, type) => {
-    try {     
-        let secret, expiry
+    try {
+        let secret, expiry;
         switch (type) {
             case 'refresh':
-                secret = secret1
-                break
+                secret = secret1;
+                break;
             default:
-                secret = secret2
+                secret = secret2;
         }
 
         // Check if token is blacklisted in Redis cache
@@ -62,10 +62,9 @@ const decodeJWT = async (token, type) => {
         if (redisValue === 'blacklisted') {
             throw new UnauthorizedError('Unauthorized token');
         }
-    
+
         const decoded = jwt.verify(token, secret);
         return decoded;
-            
     } catch (error) {
         if (error instanceof jwt.TokenExpiredError) {
             throw new TokenExpiredError('Token expired');
@@ -73,13 +72,11 @@ const decodeJWT = async (token, type) => {
         if (error instanceof jwt.JsonWebTokenError) {
             throw new JsonWebTokenError('Invalid token');
         }
-        throw error
+        throw error;
     }
-        
-}
-
+};
 
 module.exports = {
     issueToken,
-    decodeJWT
+    decodeJWT,
 };

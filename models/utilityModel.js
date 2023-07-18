@@ -2,39 +2,42 @@ const bcrypt = require('bcryptjs');
 const Op = require('sequelize').Op;
 
 module.exports = (sequelize, DataTypes) => {
-
     //  ======  Password Model  ====== //
-    const Password = sequelize.define("Password", {
-        id: {
-            type: DataTypes.UUID,
-            defaultValue: DataTypes.UUIDV4,
-            primaryKey: true
-        },
-        // userId: {
-        //     type: DataTypes.UUID,
-        //     allowNull: false,
-        //     references: {
-        //         model: "User",
-        //         key: 'id'
-        //     }
-        // },
-        password: {
-            type: DataTypes.STRING,
-            allowNull: false
-        }
-    }, {
-        // paranoid: true,
-        tableName: 'Password',
-        // timestamps: false,
-        hooks: {
-            beforeCreate(password) {
-                password.password = bcrypt.hashSync(password.password, bcrypt.genSaltSync(10));
+    const Password = sequelize.define(
+        'Password',
+        {
+            id: {
+                type: DataTypes.UUID,
+                defaultValue: DataTypes.UUIDV4,
+                primaryKey: true,
             },
-            beforeUpdate(password) {
-                password.password = bcrypt.hashSync(password.password, bcrypt.genSaltSync(10));
-            }
+            // userId: {
+            //     type: DataTypes.UUID,
+            //     allowNull: false,
+            //     references: {
+            //         model: "User",
+            //         key: 'id'
+            //     }
+            // },
+            password: {
+                type: DataTypes.STRING,
+                allowNull: false,
+            },
         },
-    });
+        {
+            // paranoid: true,
+            tableName: 'Password',
+            // timestamps: false,
+            hooks: {
+                beforeCreate(password) {
+                    password.password = bcrypt.hashSync(password.password, bcrypt.genSaltSync(10));
+                },
+                beforeUpdate(password) {
+                    password.password = bcrypt.hashSync(password.password, bcrypt.genSaltSync(10));
+                },
+            },
+        },
+    );
 
     Password.prototype.isValidPassword = function (password) {
         return bcrypt.compareSync(password, this.password);
@@ -46,109 +49,125 @@ module.exports = (sequelize, DataTypes) => {
     };
 
     //  =========== Token Model =========== //
-    const Token = sequelize.define("Token", {
-        id: {
-            type: DataTypes.UUID,
-            defaultValue: DataTypes.UUIDV4,
-            primaryKey: true
+    const Token = sequelize.define(
+        'Token',
+        {
+            id: {
+                type: DataTypes.UUID,
+                defaultValue: DataTypes.UUIDV4,
+                primaryKey: true,
+            },
+            userId: {
+                type: DataTypes.UUID,
+                allowNull: false,
+            },
+            passwordResetToken: { type: DataTypes.STRING },
+            activationCode: { type: DataTypes.STRING }, // for phone verification
+            verificationCode: { type: DataTypes.STRING }, // for email verification
         },
-        userId: {
-            type: DataTypes.UUID,
-            allowNull: false,
+        {
+            tableName: 'Token',
+            // timestamps: false,
         },
-        passwordResetToken: { type: DataTypes.STRING },
-        activationCode: { type: DataTypes.STRING }, // for phone verification 
-        verificationCode: { type: DataTypes.STRING }, // for email verification
-    }, {
-        tableName: 'Token',
-        // timestamps: false,                
-    });
+    );
 
-    const BlacklistedTokens = sequelize.define("BlacklistedTokens", {
-        id: {
-            type: DataTypes.UUID,
-            defaultValue: DataTypes.UUIDV4,
-            primaryKey: true
+    const BlacklistedTokens = sequelize.define(
+        'BlacklistedTokens',
+        {
+            id: {
+                type: DataTypes.UUID,
+                defaultValue: DataTypes.UUIDV4,
+                primaryKey: true,
+            },
+            token: { type: DataTypes.TEXT, allowNull: false },
+            expiry: {
+                type: DataTypes.DATE,
+                defaultValue: Date.now() + 24 * 60 * 60 * 1000, // 24 hours in milliseconds
+            },
         },
-        token: { type: DataTypes.TEXT, allowNull: false },
-        expiry: {
-            type: DataTypes.DATE,
-            defaultValue: Date.now() + (24 * 60 * 60 * 1000) // 24 hours in milliseconds
+        {
+            tableName: 'BlacklistedTokens',
+            timestamps: false,
         },
-    }, {
-        tableName: 'BlacklistedTokens',
-        timestamps: false,
-    });
+    );
 
-    const DeliveryAddress = sequelize.define("DeliveryAddress", {
-        id: {
-            type: DataTypes.UUID,
-            defaultValue: DataTypes.UUIDV4,
-            primaryKey: true
+    const DeliveryAddress = sequelize.define(
+        'DeliveryAddress',
+        {
+            id: {
+                type: DataTypes.UUID,
+                defaultValue: DataTypes.UUIDV4,
+                primaryKey: true,
+            },
+            address: {
+                type: DataTypes.STRING,
+                allowNull: false,
+                set(val) {
+                    this.setDataValue('address', val.trim().toLowerCase());
+                },
+            },
+            city: {
+                type: DataTypes.STRING,
+                allowNull: false,
+                set(val) {
+                    this.setDataValue('city', val.trim().toLowerCase());
+                },
+            },
+            state: {
+                type: DataTypes.STRING,
+                allowNull: false,
+                set(val) {
+                    this.setDataValue('state', val.trim().toLowerCase());
+                },
+            },
+            country: {
+                type: DataTypes.STRING,
+                allowNull: false,
+                set(val) {
+                    this.setDataValue('country', val.trim().toLowerCase());
+                },
+            },
+            postal: { type: DataTypes.INTEGER },
+            phone: { type: DataTypes.BIGINT, allowNull: false },
+            type: {
+                type: DataTypes.ENUM(['home', 'office', 'school', 'other']),
+                defaultValue: 'home',
+                allowNull: false,
+                validate: {
+                    isIn: {
+                        args: [['home', 'office', 'school', 'other']],
+                        msg: 'invalid Type input: Please select correct option',
+                    },
+                },
+            },
+            addressCode: { type: DataTypes.INTEGER },
+            isDefault: {
+                type: DataTypes.BOOLEAN,
+                defaultValue: false,
+                allowNull: false,
+            },
         },
-        address: {
-            type: DataTypes.STRING, allowNull: false,
-            set(val) {
-                this.setDataValue('address', val.trim().toLowerCase());
-            }
+        {
+            tableName: 'DeliveryAddress',
+            timestamps: true,
+            scopes: {
+                Default(value) {
+                    let valuq;
+                    value.type === 'store' ? (valuq = 'storeId') : (valuq = 'userId');
+                    return {
+                        where: {
+                            isDefault: true,
+                            [valuq]: value.id,
+                        },
+                    };
+                },
+            },
+            indexes: [
+                { fields: ['userId'] }, // for user delivery addresses
+                { fields: ['storeId'] }, // for store delivery addresses
+            ],
         },
-        city: {
-            type: DataTypes.STRING, allowNull: false,
-            set(val) {
-                this.setDataValue('city', val.trim().toLowerCase());
-            }
-        },
-        state: {
-            type: DataTypes.STRING, allowNull: false,
-            set(val) {
-                this.setDataValue('state', val.trim().toLowerCase());
-            }
-        },
-        country: {
-            type: DataTypes.STRING, allowNull: false,
-            set(val) {
-                this.setDataValue('country', val.trim().toLowerCase());
-            }
-        },
-        postal: { type: DataTypes.INTEGER },
-        phone: { type: DataTypes.BIGINT, allowNull: false },
-        type: {
-            type: DataTypes.ENUM(["home", "office", "school", "other"]),
-            defaultValue: "home",
-            allowNull: false,
-            validate: {
-                isIn: {
-                    args: [["home", "office", "school", "other"]],
-                    msg: "invalid Type input: Please select correct option"
-                }
-            }
-        },
-        addressCode: { type: DataTypes.INTEGER },
-        isDefault: {
-            type: DataTypes.BOOLEAN,
-            defaultValue: false,
-            allowNull: false
-        },
-    }, {
-        tableName: 'DeliveryAddress',
-        timestamps: true,
-        scopes: {
-            Default(value) {
-                let valuq;
-                value.type === 'store' ? valuq = 'storeId' : valuq = 'userId';
-                return {
-                    where: {
-                        isDefault: true,
-                        [valuq]: value.id
-                    }
-                }
-            }
-        },
-        indexes: [
-            { fields: ['userId'] }, // for user delivery addresses
-            { fields: ['storeId'] }, // for store delivery addresses
-        ]
-    });
+    );
 
     DeliveryAddress.addHook('beforeSave', async (address, options) => {
         if (address.changed('isDefault') && address.isDefault) {
@@ -169,36 +188,41 @@ module.exports = (sequelize, DataTypes) => {
                         id: { [Op.ne]: address.id },
                     },
                     transaction: options.transaction,
-                }
+                },
             );
         }
     });
 
-    const AccountDetails = sequelize.define("AccountDetails", {
-        id: {
-            type: DataTypes.UUID,
-            defaultValue: DataTypes.UUIDV4,
-            primaryKey: true
+    const AccountDetails = sequelize.define(
+        'AccountDetails',
+        {
+            id: {
+                type: DataTypes.UUID,
+                defaultValue: DataTypes.UUIDV4,
+                primaryKey: true,
+            },
+            accountName: {
+                type: DataTypes.STRING,
+                allowNull: false,
+                set(val) {
+                    this.setDataValue('accountName', val.trim().toLowerCase());
+                },
+            },
+            accountNumber: { type: DataTypes.STRING, allowNull: false },
+            bankName: {
+                type: DataTypes.STRING,
+                allowNull: false,
+                set(val) {
+                    this.setDataValue('bankName', val.trim().toLowerCase());
+                },
+            },
+            bankCode: { type: DataTypes.STRING, allowNull: false },
         },
-        accountName: {
-            type: DataTypes.STRING, allowNull: false,
-            set(val) {
-                this.setDataValue('accountName', val.trim().toLowerCase());
-            }
+        {
+            tableName: 'AccountDetails',
+            timestamps: true,
         },
-        accountNumber: { type: DataTypes.STRING, allowNull: false },
-        bankName: {
-            type: DataTypes.STRING, allowNull: false,
-            set(val) {
-                this.setDataValue('bankName', val.trim().toLowerCase());
-            }
-        },
-        bankCode: { type: DataTypes.STRING, allowNull: false },
-    }, {
-        tableName: 'AccountDetails',
-        timestamps: true,
-    });
-
+    );
 
     // ==================================== //
     // ============ ASSOCIATIONS =========== //
@@ -208,12 +232,12 @@ module.exports = (sequelize, DataTypes) => {
         DeliveryAddress.belongsTo(models.User, {
             foreignKey: 'userId',
             onDelete: 'CASCADE',
-            onUpdate: 'CASCADE'
+            onUpdate: 'CASCADE',
         });
         DeliveryAddress.belongsTo(models.Store, {
             foreignKey: 'storeId',
             onDelete: 'CASCADE',
-            onUpdate: 'CASCADE'
+            onUpdate: 'CASCADE',
         });
     };
 
@@ -237,7 +261,7 @@ module.exports = (sequelize, DataTypes) => {
         AccountDetails.belongsTo(models.Store, {
             foreignKey: 'storeId',
             onDelete: 'CASCADE',
-            onUpdate: 'CASCADE'
+            onUpdate: 'CASCADE',
         });
     };
 

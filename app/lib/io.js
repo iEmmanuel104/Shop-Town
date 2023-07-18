@@ -1,15 +1,16 @@
+/* eslint-disable */
 const socketWrapper = require('../middlewares/wsWrapper');
 const authenticate = require('../middlewares/authWares').authenticate;
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 const { addClient, removeClient } = require('../utils/clients');
-const app = require("../../app");
+const app = require('../../app');
 const { randomUUID } = require('crypto');
-require('../utils/redis')
+require('../utils/redis');
 
 const initializeSocketEventHandlers = (socket) => {
     require('../controllers/chat.events.controller')(io, socket);
-}
+};
 
 const initializeSocketListeners = (socket) => {
     try {
@@ -36,7 +37,6 @@ const initializeSocketListeners = (socket) => {
 
         // Initialize socket event handlers
         initializeSocketEventHandlers(socket);
-
     } catch (error) {
         console.log(error);
     }
@@ -46,7 +46,7 @@ let curr_client;
 const onConnection = async (socket) => {
     // Authenticate socket
     const authenticated_socket = await authenticate(socket);
- 
+
     if (authenticated_socket instanceof Error) {
         // Send error to client
         socket.emit('error', 'Authentication failed');
@@ -56,8 +56,9 @@ const onConnection = async (socket) => {
 
         // throw new Error('Authentication failed');
     }
-  
-    socket = authenticated_socket; curr_client = socket;
+
+    socket = authenticated_socket;
+    curr_client = socket;
     console.log(`User connected ${socket.user?.email}`);
 
     // // Add client to clients map
@@ -74,38 +75,46 @@ const httpServer = createServer(app);
 const io = new Server(httpServer, {
     cors: {
         origin: 'http://localhost:3000',
-    }
+    },
 });
 
-io.use(socketWrapper((socket, next) => {
-    // console.log('cors')
-    // next();
-    // return
-    const { origin } = socket.handshake.headers;
+io.use(
+    socketWrapper((socket, next) => {
+        // console.log('cors')
+        // next();
+        // return
+        const { origin } = socket.handshake.headers;
 
-    // console.log(socket)
-    // console.log(socket.handshake)
-    // console.log(origin)
+        // console.log(socket)
+        // console.log(socket.handshake)
+        // console.log(origin)
 
-    const allowed_origins = ['http://localhost:8082', 'http://localhost:3000', 'http://localhost:62699'];
-    if (allowed_origins.includes(origin)) {
-        next();
-    } else {
-        next(new Error('Not allowed by CORS'));
-    }
-}));
+        const allowed_origins = ['http://localhost:8082', 'http://localhost:3000', 'http://localhost:62699'];
+        if (allowed_origins.includes(origin)) {
+            next();
+        } else {
+            next(new Error('Not allowed by CORS'));
+        }
+    }),
+);
 
-    io.on('connection', socketWrapper((socket) => {
+io.on(
+    'connection',
+    socketWrapper((socket) => {
         console.log('socket connected');
         onConnection(socket);
-    }));
+    }),
+);
 
-    io.on('error', socketWrapper((error) => {
+io.on(
+    'error',
+    socketWrapper((error) => {
         // Send error to client
         console.log(error);
 
         // Close connection
         io.close();
-    }));
+    }),
+);
 
-    module.exports = httpServer;
+module.exports = httpServer;
