@@ -1,7 +1,7 @@
 {
-    "name": "ezcart-api",
+    "name": "Shop-Town Api",
     "version": "1.0.0",
-    "description": "backend server for EZCart",
+    "description": "backend server for Shop-Town",
     "main": "server.js",
     "scripts": {
         "start": "node server.js",
@@ -15,16 +15,16 @@
         "renderdev": "cross-env NODE_ENV=render nodemon server.js",
         "gcloud": "gcloud app deploy",
         "migrate": "npx sequelize-cli db:migrate",
-        "migraterender": "npx sequelize-cli db:migrate --url postgres://klick:l7MSZAhsaA6pG1Y1Rebet6CX3UuAn97E@dpg-chmc2lm4dad6k5g80egg-a.oregon-postgres.render.com/klick_db_stav",
+        "migraterender": "npx sequelize-cli db:migrate --url postgres://Shop-Town:l7MSZAhsaA6pG1Y1Rebet6CX3UuAn97E@dpg-chmc2lm4dad6k5g80egg-a.oregon-postgres.render.com/Shop-Town_db_stav",
         "create": "sequelize migration:create --name",
         "seed": "npx sequelize-cli db:seed:all",
         "down": "npx sequelize-cli db:migrate:undo",
         "test": "cross-env NODE_ENV=test mocha --exit --timeout 30000 tests/**/*.js"
     },
     "keywords": [
-        "EZcart"
+        "Shop-Town"
     ],
-    "author": "Emmanuel, Henry",
+    "author": "Emmanuel",
     "license": "ISC",
     "dependencies": {
         "@bull-board/express": "^5.2.0",
