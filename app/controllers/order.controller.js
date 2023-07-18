@@ -18,7 +18,7 @@ const { FlutterwavePay, validateFlutterwavePay } = require('../services/flutterw
 const { SeerbitPay, validateSeerbitPay } = require('../services/seerbit.service');
 const { createshipment } = require('../services/shipbubble.service');
 // const queryString = require('query-string');
-// const validator = require('validator');
+const { KSECURE_FEE } = require('../utils/configs');
 const { BadRequestError, NotFoundError, ForbiddenError } = require('../utils/customErrors');
 const { sendorderpushNotification } = require('../utils/mailTemplates');
 const { getPagination, getPagingData } = require('../utils/pagination');
@@ -52,7 +52,13 @@ const createOrder = asyncWrapper(async (req, res, next) => {
         if (!store) return next(new NotFoundError('Store not found'));
 
         //  ==== create order ==== //
-        const order = await Order.create({ userId, shippingMethod, cartdetails, storeId });
+        const order = await Order.create({
+            userId,
+            shippingMethod,
+            cartdetails,
+            storeId,
+            kSecureFee: shipMethod !== 'seller' ? KSECURE_FEE : 0,
+        });
         if (!order) return next(new BadRequestError('Oops! There was an error creating your order, please try again'));
 
         const { returnobject, paymentamt } = await handleShippingActions({
@@ -137,10 +143,16 @@ const getAllOrders = asyncWrapper(async (req, res) => {
 const getOrder = asyncWrapper(async (req, res) => {
     const decoded = req.decoded;
     const userId = decoded.id;
-    const order = await Order.findOne({ where: { id: req.params.id, userId } });
+    const orderId = req.params.id;
+
+    const order = await Order.scope('withShipbubbleAndPayment').findOne({
+        where: { id: orderId, userId },
+    });
+
     if (!order) {
         throw new NotFoundError('Order not found');
     }
+
     return res.status(200).json({
         success: true,
         data: order,
@@ -173,9 +185,9 @@ const validateOrderPayment = asyncWrapper(async (req, res) => {
     const order = await Order.findOne({ where: { id: req.query.tx_ref.split('_')[1], userId } });
     if (!order) throw new NotFoundError('Order not found');
 
-    // if (order.status === 'completed') {
-    //     throw new BadRequestError('Order already paid for');
-    // }
+    if (order.status === 'completed') {
+        throw new BadRequestError('Order already paid for');
+    }
     const paymentt = await Payment.findOne({ where: { refId: order.id } });
 
     const details = { transactionId: req.query.transaction_id };
