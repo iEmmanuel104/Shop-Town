@@ -180,76 +180,81 @@ const validateOrderPayment = asyncWrapper(async (req, res) => {
     const decoded = req.decoded;
     const userId = decoded.id;
     console.log(userId);
-    // const { tx_ref, transaction_id, status } = req.query;
-    console.log(req.query.tx_ref.split('_')[1]);
-    const order = await Order.findOne({ where: { id: req.query.tx_ref.split('_')[1], userId } });
+
+    // Extract the order ID from the transaction reference (tx_ref)
+    const orderId = req.query.tx_ref.split('_')[1];
+
+    // Find the order with the given order ID and user ID
+    const order = await Order.findOne({ where: { id: orderId, userId } });
     if (!order) throw new NotFoundError('Order not found');
 
     if (order.status === 'completed') {
         throw new BadRequestError('Order already paid for');
     }
-    const paymentt = await Payment.findOne({ where: { refId: order.id } });
+
+    // Get the Payment record associated with the order
+    const paymentt = await Payment.findOne({ where: { refId: orderId } });
 
     const details = { transactionId: req.query.transaction_id };
     let validtrx;
     await sequelize.transaction(async (t) => {
         if (req.query.status === 'successful') {
+            // Validate the Flutterwave payment details
             validtrx = await validateFlutterwavePay(details);
             console.log('validtrx', validtrx);
+
+            // Update the Payment record with the payment status and reference
             await Payment.update(
                 {
                     paymentStatus: 'paid',
                     paymentReference: req.query.transaction_id,
                     amount: validtrx.amount === paymentt.amount ? paymentt.amount : validtrx.amount,
                 },
-                { where: { refId: order.id }, transaction: t },
+                { where: { refId: orderId }, transaction: t },
             );
 
-            await Order.update({ status: 'completed' }, { where: { id: order.id }, transaction: t });
+            // Update the Order status to 'completed'
+            await Order.update({ status: 'completed' }, { where: { id: orderId }, transaction: t });
 
             if (order.shippingMethod === 'kship' || order.shippingMethod === 'ksecure') {
-                await ShipbubbleOrder.update(
-                    { status: 'processing' },
-                    { where: { orderId: order.id }, transaction: t },
-                );
+                // Update the ShipbubbleOrder status to 'processing'
+                await ShipbubbleOrder.update({ status: 'processing' }, { where: { orderId }, transaction: t });
             }
 
+            // Get the ShipbubbleOrder details
             const shipbubbledetails = await ShipbubbleOrder.findOne({
-                where: { orderId: order.id },
-                attributes: ['requestToken', 'status', 'deliveryFee'],
+                where: { orderId },
+                attributes: ['requestToken', 'courierInfo', 'deliveryFee'],
             });
-            console.log(
-                'this is fields ====',
-                shipbubbledetails.requestToken,
-                shipbubbledetails.courierServiceInfo.serviceCode,
-                shipbubbledetails.courierInfo.courierId,
-            );
-            // shipment request to kship
+
+            // Shipment request to kship
             const shipment = await createshipment({
                 request_token: shipbubbledetails.requestToken,
-                service_code: shipbubbledetails.courierServiceInfo.serviceCode,
+                service_code: shipbubbledetails.courierInfo.serviceCode,
                 courier_id: shipbubbledetails.courierInfo.courierId,
             });
 
+            // Update the ShipbubbleOrder with the shipment details
             await ShipbubbleOrder.update(
                 {
                     status: req.query.status,
-                    deliveryFee: (shipment.payment.shipping_fee = shipbubbledetails.deliveryFee
+                    deliveryFee: shipbubbledetails.deliveryFee
                         ? shipbubbledetails.deliveryFee
-                        : shipment.payment.shipping_fee),
+                        : shipment.payment.shipping_fee,
                     shippingReference: shipment.order_id,
                     trackingUrl: shipment.tracking_url,
                 },
-                { where: { orderId: order.id }, transaction: t },
+                { where: { orderId }, transaction: t },
             );
         } else {
+            // If the payment status is not successful, update the Payment record accordingly
             await Payment.update(
                 {
                     paymentStatus: 'failed',
                     paymentReference: req.query.transaction_id,
                     amount: validtrx.amount === paymentt.amount ? paymentt.amount : validtrx.amount,
                 },
-                { where: { refId: order.id }, transaction: t },
+                { where: { refId: orderId }, transaction: t },
             );
         }
 
