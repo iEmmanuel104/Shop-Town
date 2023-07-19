@@ -7,11 +7,9 @@ const request = require('request');
 const { BadRequestError, UnprocessableEntityError } = require('../utils/customErrors');
 
 const FlutterwavePay = async (paydetails) => {
-    const { amount, email, phone, fullName, tx_ref, storeName, storeLogo, isKSecure, kSecureFee, shippingfee } =
-        paydetails;
-    let StoreLogo = paydetails.storeLogo ? paydetails.storeLogo : LOGO;
-    let title,
-        meta = {};
+    const StoreLogo = paydetails.storeLogo ? paydetails.storeLogo : LOGO;
+    let title;
+    let meta = {};
     if (paydetails.storeName) {
         title = `${paydetails.storeName} Order Payment`;
         meta = {
@@ -24,7 +22,7 @@ const FlutterwavePay = async (paydetails) => {
         title = 'Wallet Topup';
     }
 
-    var options = {
+    const options = {
         method: 'POST',
         url: 'https://api.flutterwave.com/v3/payments',
         headers: {
@@ -36,14 +34,14 @@ const FlutterwavePay = async (paydetails) => {
             amount: paydetails.amount,
             currency: 'NGN',
             redirect_url: FLW_REDIRECT_URL,
-            meta: meta,
+            meta,
             customer: {
                 email: paydetails.email,
                 phonenumber: paydetails.phone,
                 name: paydetails.fullName,
             },
             customizations: {
-                title: title,
+                title,
                 logo: StoreLogo,
             },
         }),
@@ -82,7 +80,7 @@ const validateFlutterwavePay = async (details) => {
 };
 
 const getflutterwavepayoutbanks = async () => {
-    var options = {
+    const options = {
         method: 'GET',
         url: 'https://api.flutterwave.com/v3/banks/NG',
         headers: {
@@ -113,7 +111,7 @@ const FlutterwaveTransferfee = async (details) => {
 };
 
 const FlutterwaveTransferStatus = async (details) => {
-    var options = {
+    const options = {
         method: 'GET',
         url: `https://api.flutterwave.com/v3/transfers/${details.transferId} `,
         headers: {
@@ -142,7 +140,7 @@ const FlutterwavePayout = async (details) => {
         reference: details.reference,
         // callback_url: 'https://891e-102-89-22-59.ngrok-free.app/wallet/flutterwave/callback'
     };
-    var options = {
+    const options = {
         method: 'POST',
         url: 'https://api.flutterwave.com/v3/transfers',
         headers: {
