@@ -70,9 +70,14 @@ const getShippingRates = async (details) => {
         };
         return requestobject;
     } catch (error) {
-        console.log(error.response.data);
+        console.log('1');
+        console.log('1', error.response.data);
         throw new BadRequestError(
-            'Error getting shipping rates: ' + error.response.data.message + ' ' + error.response.data.errors,
+            'Error getting shipping rates: ' +
+                error.response.data.message +
+                ' ' +
+                'ERRORS: ' +
+                error.response.data.errors,
         );
     }
 };
