@@ -10,7 +10,7 @@ module.exports = (sequelize, DataTypes) => {
                 primaryKey: true,
                 allowNull: false,
             },
-            cartdetails: {
+            cartDetails: {
                 type: DataTypes.JSONB, // cart item prices with shipping fees
                 allowNull: false,
             },
@@ -195,7 +195,7 @@ module.exports = (sequelize, DataTypes) => {
         // generate payment record
         await Payment.create({
             paymentMethod,
-            paymentService: paymentMethod === 'card' ? serviceType : null,
+            paymentService: serviceType,
             paymentStatus: shippingMethod === 'kcredit' ? 'success' : 'pending',
             paymentType: 'order',
             amount: shipment.payment.shipping_fee,
