@@ -43,7 +43,7 @@ const createOrder = asyncWrapper(async (req, res, next) => {
 
         if (!cart) return next(new NotFoundError('Cart not found'));
         const { items, totalAmount, checkoutData } = cart;
-        const cartdetails = { items, totalAmount };
+        const cartDetails = { items, totalAmount, courier };
 
         const store = await Store.findOne({
             where: { id: storeId },
@@ -55,7 +55,7 @@ const createOrder = asyncWrapper(async (req, res, next) => {
         const order = await Order.create({
             userId,
             shippingMethod,
-            cartdetails,
+            cartDetails,
             storeId,
             kSecureFee: shipMethod !== 'seller' ? KSECURE_FEE : 0,
         });
@@ -107,16 +107,19 @@ const createOrder = asyncWrapper(async (req, res, next) => {
             requestobject.trackingUrl = trackingUrl;
         }
 
-        // clear cart after order is created
-        await cart.update({ items: null, totalAmount: 0, checkoutData: null }, { transaction: t });
+        // clear cart after order is created if payment link is not generated, clear cart
+        if (!requestobject.paymentLink) {
+            await cart.update({ items: null, totalAmount: 0, checkoutData: null }, { transaction: t });
+        }
 
         let message;
+
         if (shipMethod === 'seller') {
-            message = 'Order created successfully, please contact seller for payment';
-        } else if (shipMethod === 'kship') {
-            message = 'Order created successfully, please make payment on delivery';
-        } else if (shipMethod === 'ksecure') {
-            message = 'Order created successfully, please proceed to make payment';
+            message = 'Order created successfully, please contact the seller for payment';
+        } else if ((shipMethod === 'kship' && option === 'cash') || (shipMethod === 'ksecure' && option === 'cash')) {
+            message = `Order created successfully, please make cash payment on delivery (${shipMethod})`;
+        } else if ((shipMethod === 'kship' && option !== 'cash') || (shipMethod === 'ksecure' && option !== 'cash')) {
+            message = `Order created successfully, please proceed to make payment (${shipMethod})`;
         } else {
             message = 'Order created successfully';
         }
@@ -184,6 +187,10 @@ const validateOrderPayment = asyncWrapper(async (req, res) => {
     // Extract the order ID from the transaction reference (tx_ref)
     const orderId = req.query.tx_ref.split('_')[1];
 
+    // get cart checkout data
+    const cart = await Cart.findOne({ where: { userId } });
+    if (!cart) throw new NotFoundError('Cart not found');
+
     // Find the order with the given order ID and user ID
     const order = await Order.findOne({ where: { id: orderId, userId } });
     if (!order) throw new NotFoundError('Order not found');
@@ -193,7 +200,7 @@ const validateOrderPayment = asyncWrapper(async (req, res) => {
     }
 
     // Get the Payment record associated with the order
-    const paymentt = await Payment.findOne({ where: { refId: orderId } });
+    // const paymentt = await Payment.findOne({ where: { refId: orderId } });
 
     const details = { transactionId: req.query.transaction_id };
     let validtrx;
@@ -202,65 +209,21 @@ const validateOrderPayment = asyncWrapper(async (req, res) => {
             // Validate the Flutterwave payment details
             validtrx = await validateFlutterwavePay(details);
             console.log('validtrx', validtrx);
-
-            // Update the Payment record with the payment status and reference
-            await Payment.update(
-                {
-                    paymentStatus: 'paid',
-                    paymentReference: req.query.transaction_id,
-                    amount: validtrx.amount === paymentt.amount ? paymentt.amount : validtrx.amount,
-                },
-                { where: { refId: orderId }, transaction: t },
-            );
-
-            // Update the Order status to 'completed'
-            await Order.update({ status: 'completed' }, { where: { id: orderId }, transaction: t });
-
-            if (order.shippingMethod === 'kship' || order.shippingMethod === 'ksecure') {
-                // Update the ShipbubbleOrder status to 'processing'
-                await ShipbubbleOrder.update({ status: 'processing' }, { where: { orderId }, transaction: t });
-            }
-
-            // Get the ShipbubbleOrder details
-            const shipbubbledetails = await ShipbubbleOrder.findOne({
-                where: { orderId },
-                attributes: ['requestToken', 'courierInfo', 'deliveryFee'],
-            });
-
-            // Shipment request to kship
-            const shipment = await createshipment({
-                request_token: shipbubbledetails.requestToken,
-                service_code: shipbubbledetails.courierInfo.serviceCode,
-                courier_id: shipbubbledetails.courierInfo.courierId,
-            });
-
-            // Update the ShipbubbleOrder with the shipment details
-            await ShipbubbleOrder.update(
-                {
-                    status: req.query.status,
-                    deliveryFee: shipbubbledetails.deliveryFee
-                        ? shipbubbledetails.deliveryFee
-                        : shipment.payment.shipping_fee,
-                    shippingReference: shipment.order_id,
-                    trackingUrl: shipment.tracking_url,
-                },
-                { where: { orderId }, transaction: t },
-            );
         } else {
             // If the payment status is not successful, update the Payment record accordingly
             await Payment.update(
                 {
                     paymentStatus: 'failed',
                     paymentReference: req.query.transaction_id,
-                    amount: validtrx.amount === paymentt.amount ? paymentt.amount : validtrx.amount,
+                    amount: validtrx.amount,
                 },
                 { where: { refId: orderId }, transaction: t },
             );
         }
 
         let message;
-        console.log(validtrx.amount, paymentt.amount);
-        if (paymentt.amount !== validtrx.amount) {
+        console.log(validtrx.amount);
+        if (!validtrx.amount) {
             message = 'Payment amount does not match order amount';
         } else {
             message = 'Order payment validated successfully';
@@ -269,7 +232,7 @@ const validateOrderPayment = asyncWrapper(async (req, res) => {
         // await sendorderpushNotification({
         //     registrationToken: order.store.socials.firebaseToken,
         //     phone: order.store.phone,
-        //     order: order.cartdetails,
+        //     order: order.cartDetails,
         // });
 
         // send order request Email to seller
