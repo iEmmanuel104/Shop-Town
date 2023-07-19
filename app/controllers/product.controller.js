@@ -162,7 +162,8 @@ const createBulkProducts = asyncWrapper(async (req, res, next) => {
 
 const getProducts = asyncWrapper(async (req, res, next) => {
     await sequelize.transaction(async (t) => {
-        const { category, subcategory, store, name, price, quantity, priceDiscount, percentageDiscount } = req.query;
+        const { category, subcategory, store, name, price, quantity, priceDiscount, isKsecure, percentageDiscount } =
+            req.query;
         const queryfields = req.query.q;
         const filters = {};
         const globalfilters = {};
@@ -179,8 +180,16 @@ const getProducts = asyncWrapper(async (req, res, next) => {
             filters.storeId = store;
         }
 
+        if (isKsecure) {
+            filters.isKsecure = isKsecure;
+        }
+
         if (price) {
-            filters.price = { [Op.lte]: parseFloat(price) };
+            // if price is single value, filter for price less than or equal to price
+            //  else if price is an array, filter for price between the two values
+            if (Array.isArray(price)) {
+                filters.price = { [Op.between]: [parseFloat(price[0]), parseFloat(price[1])] };
+            } else filters.price = { [Op.lte]: parseFloat(price) };
         }
 
         if (quantity) {
