@@ -19,7 +19,7 @@ module.exports = (sequelize, DataTypes) => {
                 allowNull: false,
             },
             status: {
-                type: DataTypes.ENUM(['pending', 'active', 'completed', 'cancelled']),
+                type: DataTypes.ENUM(['pending', 'active', 'completed', 'cancelled', 'failed']),
                 defaultValue: 'pending',
                 allowNull: false,
             },
@@ -44,10 +44,6 @@ module.exports = (sequelize, DataTypes) => {
                 type: DataTypes.UUID,
                 defaultValue: DataTypes.UUIDV4,
                 primaryKey: true,
-                allowNull: false,
-            },
-            requestToken: {
-                type: DataTypes.STRING,
                 allowNull: false,
             },
             courierInfo: {
@@ -175,10 +171,6 @@ module.exports = (sequelize, DataTypes) => {
             courier_id: courierInfo.courierId,
         });
 
-        // update the order status to active
-        this.status = 'active';
-        await this.save();
-
         // create a shipbubble order
         if (shippingMethod === 'kship' || shippingMethod === 'ksecure') {
             await ShipbubbleOrder.create({
@@ -202,6 +194,9 @@ module.exports = (sequelize, DataTypes) => {
             paymentReference: shipment.order_id,
             orderId,
         });
+        // update the order status to active
+        this.status = 'active';
+        await this.save();
 
         const deliveryFee = shipment.payment.shipping_fee;
         const trackingUrl = shipment.tracking_url;
