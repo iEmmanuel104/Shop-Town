@@ -64,7 +64,7 @@ const handleShippingActions = async ({ order, store, courier }) => {
         orderId: order.id,
         orderstatus: order.status,
         orderdate: order.createdAt,
-        orderamount: order.cartdetails.totalAmount,
+        orderamount: order.cartDetails.totalAmount,
         userId: order.userId,
         storeId: order.storeId,
         orderNumber: order.orderNumber,
@@ -147,7 +147,7 @@ const handleOrderPayment = async ({ option, service, paydetails, courier, checko
     } else if (option === 'kcredit') {
         console.log('kcredit payment');
 
-        const amount = order.cartdetails.totalAmount;
+        const amount = order.cartDetails.totalAmount;
 
         // pay with wallet
         const wallet = await Wallet.findOne({ where: { userId }, attributes: ['id', 'amount'] });
