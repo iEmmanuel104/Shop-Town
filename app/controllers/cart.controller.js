@@ -231,6 +231,7 @@ const cartcheckout = asyncWrapper(async (req, res, next) => {
                     couriers: allcouriers,
                     checkoutData,
                 },
+                store: cartStore.store,
             },
         });
     } else {
