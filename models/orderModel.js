@@ -248,11 +248,6 @@ module.exports = (sequelize, DataTypes) => {
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE',
         });
-        Order.hasOne(models.Review, {
-            foreignKey: 'orderId',
-            onDelete: 'CASCADE',
-            onUpdate: 'CASCADE',
-        });
     };
 
     Review.associate = (models) => {
