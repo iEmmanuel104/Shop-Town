@@ -108,7 +108,7 @@ const handleOrderPayment = async ({ option, service, paydetails, courier, checko
         requestToken: checkoutData.requestToken,
         serviceType: service, // flutterwave or seerbit
         shippingMethod: order.shippingMethod, // kship or ksecure or seller
-        paymentMethod: option,
+        paymentMethod: option, // card or cash or kcredit
     };
 
     const { userId } = paydetails;
@@ -116,7 +116,7 @@ const handleOrderPayment = async ({ option, service, paydetails, courier, checko
     let paymentLink, trackingUrl, deliveryFee;
 
     if (option === 'card') {
-        console.log('card payment');
+        console.log('========= card payment =========');
         let link;
         if (service === 'flutterwave') {
             console.log('flutterwave payment');
@@ -135,7 +135,7 @@ const handleOrderPayment = async ({ option, service, paydetails, courier, checko
         // returns payment link, paystatus
         paymentLink = link;
     } else if (option === 'cash') {
-        console.log('cash payment');
+        console.log('========= cash payment =========');
 
         // cash on delivery service
         if (!courier.cod) throw new BadRequestError('Select a courier that accepts cash on delivery');
@@ -145,7 +145,7 @@ const handleOrderPayment = async ({ option, service, paydetails, courier, checko
         trackingUrl = shipment.trackingUrl;
         deliveryFee = shipment.deliveryFee;
     } else if (option === 'kcredit') {
-        console.log('kcredit payment');
+        console.log('========= kcredit payment =========');
 
         const amount = order.cartDetails.totalAmount;
 
