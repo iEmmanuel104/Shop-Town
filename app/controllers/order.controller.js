@@ -43,7 +43,13 @@ const createOrder = asyncWrapper(async (req, res, next) => {
 
         if (!cart) return next(new NotFoundError('Cart not found'));
         const { items, totalAmount, checkoutData } = cart;
-        const cartDetails = { items, totalAmount, courier };
+        const cartDetails = { items, totalAmount };
+
+        // add courier and requestToken to cartDetails if it is a card payment option
+        if ((shippingMethod === 'ksecure' && option === 'card') || (shippingMethod === 'kship' && option === 'card')) {
+            cartDetails.courier = courier;
+            cartDetails.requestToken = checkoutData.requestToken;
+        }
 
         const store = await Store.findOne({
             where: { id: storeId },
@@ -83,13 +89,9 @@ const createOrder = asyncWrapper(async (req, res, next) => {
                 srb_trx_ref: `Klickorder_${generateCode(10)}${order.id}`,
                 storeName: store.name,
                 storeLogo: store.logo,
-                // kshipId: newShipOrder.id,
                 userId,
                 orderId: order.id,
-                // kSecureFee: newShipOrder.kSecureFee,
                 shippingFee: courier.shippingFee,
-                // requestToken: newShipOrder.requestToken,
-                // serviceCode: newShipOrder.courierInfo.serviceCode
             };
 
             const { paymentLink, trackingUrl } = await handleOrderPayment({
@@ -110,6 +112,9 @@ const createOrder = asyncWrapper(async (req, res, next) => {
         // clear cart after order is created if payment link is not generated, clear cart
         if (!requestobject.paymentLink) {
             await cart.update({ items: null, totalAmount: 0, checkoutData: null }, { transaction: t });
+        } else if (requestobject.paymentLink && service) {
+            // add the courier to the checkout data
+            await cart.update({ checkoutData: { ...checkoutData, courier } }, { transaction: t });
         }
 
         let message;
@@ -187,10 +192,6 @@ const validateOrderPayment = asyncWrapper(async (req, res) => {
     // Extract the order ID from the transaction reference (tx_ref)
     const orderId = req.query.tx_ref.split('_')[1];
 
-    // get cart checkout data
-    const cart = await Cart.findOne({ where: { userId } });
-    if (!cart) throw new NotFoundError('Cart not found');
-
     // Find the order with the given order ID and user ID
     const order = await Order.findOne({ where: { id: orderId, userId } });
     if (!order) throw new NotFoundError('Order not found');
@@ -203,22 +204,28 @@ const validateOrderPayment = asyncWrapper(async (req, res) => {
     // const paymentt = await Payment.findOne({ where: { refId: orderId } });
 
     const details = { transactionId: req.query.transaction_id };
-    let validtrx;
+    let validtrx, trackingUrl, deliveryFee;
     await sequelize.transaction(async (t) => {
         if (req.query.status === 'successful') {
             // Validate the Flutterwave payment details
             validtrx = await validateFlutterwavePay(details);
             console.log('validtrx', validtrx);
+            if (!validtrx) {
+                throw new BadRequestError('Payment validation failed');
+            }
+
+            const shipment = order.createshipment({
+                orderId: order.id,
+                courierInfo: order.cartDetails.courier,
+                requestToken: order.cartDetails.requestToken,
+                serviceType: 'flutterwave',
+                shippingMethod: order.shippingMethod,
+                paymentMethod: 'card',
+            });
+            trackingUrl = shipment.trackingUrl;
+            deliveryFee = shipment.deliveryFee;
         } else {
-            // If the payment status is not successful, update the Payment record accordingly
-            await Payment.update(
-                {
-                    paymentStatus: 'failed',
-                    paymentReference: req.query.transaction_id,
-                    amount: validtrx.amount,
-                },
-                { where: { refId: orderId }, transaction: t },
-            );
+            await order.update({ status: 'failed' }, { transaction: t });
         }
 
         let message;
