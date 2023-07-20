@@ -213,7 +213,7 @@ const validateOrderPayment = asyncWrapper(async (req, res) => {
                 shipbubbledetails.courierInfo.courierId,
             );
             // shipment request to kship
-            const shipment = await createshipment({
+            const shipment = await createShipment({
                 request_token: shipbubbledetails.requestToken,
                 service_code: shipbubbledetails.courierServiceInfo.serviceCode,
                 courier_id: shipbubbledetails.courierInfo.courierId,
