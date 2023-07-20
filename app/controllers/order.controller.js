@@ -214,7 +214,7 @@ const validateOrderPayment = asyncWrapper(async (req, res) => {
                 throw new BadRequestError('Payment validation failed');
             }
 
-            const shipment = order.createshipment({
+            const shipment = order.createShipment({
                 orderId: order.id,
                 courierInfo: order.cartDetails.courier,
                 requestToken: order.cartDetails.requestToken,
