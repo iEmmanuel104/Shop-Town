@@ -188,7 +188,7 @@ module.exports = (sequelize, DataTypes) => {
         await Payment.create({
             paymentMethod,
             paymentService: serviceType,
-            paymentStatus: shippingMethod === 'kcredit' ? 'success' : 'pending',
+            paymentStatus: shippingMethod === 'cash' ? 'pending' : 'success',
             paymentType: 'order',
             amount: shipment.payment.shipping_fee,
             paymentReference: shipment.order_id,
