@@ -235,6 +235,7 @@ const validateOrderPayment = asyncWrapper(async (req, res) => {
         } else {
             message = 'Order payment validated successfully';
         }
+        console.log(trackingurl)
         // send order request notification to seller
         // await sendorderpushNotification({
         //     registrationToken: order.store.socials.firebaseToken,
