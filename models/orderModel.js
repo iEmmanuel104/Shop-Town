@@ -10,7 +10,7 @@ module.exports = (sequelize, DataTypes) => {
                 primaryKey: true,
                 allowNull: false,
             },
-            cartdetails: {
+            cartDetails: {
                 type: DataTypes.JSONB, // cart item prices with shipping fees
                 allowNull: false,
             },
@@ -19,7 +19,7 @@ module.exports = (sequelize, DataTypes) => {
                 allowNull: false,
             },
             status: {
-                type: DataTypes.ENUM(['pending', 'active', 'completed', 'cancelled']),
+                type: DataTypes.ENUM(['pending', 'active', 'completed', 'cancelled', 'failed']),
                 defaultValue: 'pending',
                 allowNull: false,
             },
@@ -44,10 +44,6 @@ module.exports = (sequelize, DataTypes) => {
                 type: DataTypes.UUID,
                 defaultValue: DataTypes.UUIDV4,
                 primaryKey: true,
-                allowNull: false,
-            },
-            requestToken: {
-                type: DataTypes.STRING,
                 allowNull: false,
             },
             courierInfo: {
@@ -175,10 +171,6 @@ module.exports = (sequelize, DataTypes) => {
             courier_id: courierInfo.courierId,
         });
 
-        // update the order status to active
-        this.status = 'active';
-        await this.save();
-
         // create a shipbubble order
         if (shippingMethod === 'kship' || shippingMethod === 'ksecure') {
             await ShipbubbleOrder.create({
@@ -186,25 +178,53 @@ module.exports = (sequelize, DataTypes) => {
                 status: shipment.status,
                 shippingReference: shipment.order_id,
                 trackingUrl: shipment.tracking_url,
+                checkoutDetails: shipment.checkout_details,
             });
         }
+
+        console.log(serviceType, paymentMethod, shippingMethod);
 
         // generate payment record
         await Payment.create({
             paymentMethod,
-            paymentService: serviceType && paymentMethod === 'card' ? serviceType : null,
-            paymentStatus: shippingMethod === 'kcredit' ? 'success' : 'pending',
+            paymentService: serviceType,
+            paymentStatus: shippingMethod === 'cash' ? 'pending' : 'success',
             paymentType: 'order',
             amount: shipment.payment.shipping_fee,
             paymentReference: shipment.order_id,
             orderId,
         });
+        // update the order status to active
+        this.status = 'active';
+        await this.save();
 
         const deliveryFee = shipment.payment.shipping_fee;
         const trackingUrl = shipment.tracking_url;
 
         return { deliveryFee, trackingUrl };
     };
+
+    // Inside the model definition for Order
+    Order.addScope('withShipbubbleAndPayment', {
+        include: [
+            {
+                model: ShipbubbleOrder,
+                attributes: ['id', 'status', 'shippingReference', 'trackingUrl', 'checkoutDetails', 'deliveryFee'],
+            },
+            {
+                model: Payment,
+                attributes: [
+                    'id',
+                    'paymentMethod',
+                    'paymentService',
+                    'paymentStatus',
+                    'paymentType',
+                    'amount',
+                    'paymentReference',
+                ],
+            },
+        ],
+    });
 
     // ================== ASSOCIATIONS ================== //
 
@@ -224,11 +244,6 @@ module.exports = (sequelize, DataTypes) => {
             onUpdate: 'CASCADE',
         });
         Order.hasOne(models.Payment, {
-            foreignKey: 'orderId',
-            onDelete: 'CASCADE',
-            onUpdate: 'CASCADE',
-        });
-        Order.hasOne(models.Review, {
             foreignKey: 'orderId',
             onDelete: 'CASCADE',
             onUpdate: 'CASCADE',

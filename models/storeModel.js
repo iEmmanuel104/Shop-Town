@@ -25,6 +25,10 @@ module.exports = (sequelize, DataTypes) => {
                     if (value) this.setDataValue('subcategory', value.trim().toLowerCase());
                 },
             },
+            shippingId: {
+                type: DataTypes.STRING,
+                allowNull: false,
+            },
             price: {
                 type: DataTypes.DECIMAL(10, 2),
                 allowNull: false,

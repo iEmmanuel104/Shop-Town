@@ -19,7 +19,7 @@ async function checkoutWithShipbubble({ cart, converted, senderAddress, receiver
     const receiverAddressCode = receiverAddress?.addressCode;
     if (!receiverAddressCode) throw new NotFoundError('Please add a delivery address');
 
-    const pickupDate = new Date(new Date().getTime() + 60 * 60 * 1000).toISOString().split('T')[0]; // set pickup date to UTC + 1 hour
+    const pickupDate = await new Date(new Date().getTime() + 60 * 60 * 1000).toISOString().split('T')[0]; // set pickup date to UTC + 1 hour
 
     const packageItems = converted.items.map((item) => {
         const weightsum = item.count * item.info.weight;
