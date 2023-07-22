@@ -63,7 +63,7 @@ const convertcart = async (cart, type) => {
 
                     newItem.info.weight = specifications.weight;
                     newItem.info.description = description;
-                    newItem.info.category = specifications.shippingcategory_id;
+                    newItem.info.category = product.shippingId;
                 }
 
                 sortedCart.push({

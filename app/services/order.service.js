@@ -19,7 +19,11 @@ const validateShippingMethod = ({ shipMethod, option, service, shippingCourier }
 
     // Case 1: Seller
     if (shipMethod === 'seller') {
-        if (option || service || shippingCourier) {
+        if (
+            (option !== null && option !== '') ||
+            (service !== null && service !== '') ||
+            Object.keys(shippingCourier).length !== 0
+        ) {
             throw new BadRequestError('Invalid inputs for seller shipping method');
         }
     }
@@ -60,7 +64,7 @@ const handleShippingActions = async ({ order, store, courier }) => {
         orderId: order.id,
         orderstatus: order.status,
         orderdate: order.createdAt,
-        orderamount: order.cartdetails.totalAmount,
+        orderamount: order.cartDetails.totalAmount,
         userId: order.userId,
         storeId: order.storeId,
         orderNumber: order.orderNumber,
@@ -104,7 +108,7 @@ const handleOrderPayment = async ({ option, service, paydetails, courier, checko
         requestToken: checkoutData.requestToken,
         serviceType: service, // flutterwave or seerbit
         shippingMethod: order.shippingMethod, // kship or ksecure or seller
-        paymentMethod: option,
+        paymentMethod: option, // card or cash or kcredit
     };
 
     const { userId } = paydetails;
@@ -112,7 +116,7 @@ const handleOrderPayment = async ({ option, service, paydetails, courier, checko
     let paymentLink, trackingUrl, deliveryFee;
 
     if (option === 'card') {
-        console.log('card payment');
+        console.log('========= card payment =========');
         let link;
         if (service === 'flutterwave') {
             console.log('flutterwave payment');
@@ -131,7 +135,7 @@ const handleOrderPayment = async ({ option, service, paydetails, courier, checko
         // returns payment link, paystatus
         paymentLink = link;
     } else if (option === 'cash') {
-        console.log('cash payment');
+        console.log('========= cash payment =========');
 
         // cash on delivery service
         if (!courier.cod) throw new BadRequestError('Select a courier that accepts cash on delivery');
@@ -141,9 +145,9 @@ const handleOrderPayment = async ({ option, service, paydetails, courier, checko
         trackingUrl = shipment.trackingUrl;
         deliveryFee = shipment.deliveryFee;
     } else if (option === 'kcredit') {
-        console.log('kcredit payment');
+        console.log('========= kcredit payment =========');
 
-        const amount = order.cartdetails.totalAmount;
+        const amount = order.cartDetails.totalAmount;
 
         // pay with wallet
         const wallet = await Wallet.findOne({ where: { userId }, attributes: ['id', 'amount'] });

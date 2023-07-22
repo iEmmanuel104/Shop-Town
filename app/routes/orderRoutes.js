@@ -14,6 +14,6 @@ router.route('/').post(basicAuth, createOrder).get(basicAuth, getAllOrders);
 
 router.route('/:id').get(basicAuth, getOrder).delete(basicAuth, deleteOrder);
 
-router.route('/validate').post(basicAuth, validateOrderPayment);
+router.route('/validate/order').get(basicAuth, validateOrderPayment);
 
 module.exports = router;
