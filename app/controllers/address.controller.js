@@ -175,7 +175,7 @@ const RevalidateDeliveryAddress = asyncWrapper(async (req, res) => {
             // Store reference
             const store = await Store.findOne({ where: { id: deliveryAddress.storeId } });
             const storeName = store.name;
-            const checkstoreName = storeName.trim().toLowerCase() + ' ' + 'Klick';
+            const checkstoreName = storeName.trim().toLowerCase() + ' ' + 'ShopTown';
             details = {
                 name: checkstoreName,
                 email: store.businessEmail,
