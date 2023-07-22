@@ -46,12 +46,11 @@ const EMAIL_HOST_ADDRESS = process.env.EMAIL_HOST_ADDRESS,
     REDIS_CONNECTION_URL = process.env.REDIS_CONNECTION_URL,
     // Shipbubble credentials
     SHIPBUBBLE_API_KEY = process.env.SHIPBUBBLE_API_KEY,
-
     //SEERBIT CONFIGS
     SEERBIT_PUBLIC_KEY = process.env.SEERBIT_PUBLIC_KEY,
     SEERBIT_SECRET_KEY = process.env.SEERBIT_SECRET_KEY,
     SEERBIT_REDIRECT_URL = process.env.SEERBIT_REDIRECT_URL;
-    SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL;
+SUPER_ADMIN_EMAIL = process.env.SUPER_ADMIN_EMAIL;
 
 module.exports = {
     refreshTokenExpiry,
@@ -87,5 +86,5 @@ module.exports = {
     SEERBIT_PUBLIC_KEY,
     SEERBIT_SECRET_KEY,
     SEERBIT_REDIRECT_URL,
-    SUPER_ADMIN_EMAIL
+    SUPER_ADMIN_EMAIL,
 };
