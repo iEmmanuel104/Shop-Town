@@ -150,6 +150,12 @@ const DeleteDeliveryAddress = asyncWrapper(async (req, res) => {
 const RevalidateDeliveryAddress = asyncWrapper(async (req, res) => {
     const deliveryAddresses = await DeliveryAddress.findAll();
 
+    const errors = []; // Array to store encountered errors
+    let revalidatedCount = 0; // Counter for revalidated addresses
+    let errorCount = 0; // Counter for addresses that faced errors
+    let userAddressCount = 0; // Counter for addresses associated with users
+    let storeAddressCount = 0; // Counter for addresses associated with stores
+
     for (let i = 0; i < deliveryAddresses.length; i++) {
         const deliveryAddress = deliveryAddresses[i];
         let details;
@@ -164,28 +170,47 @@ const RevalidateDeliveryAddress = asyncWrapper(async (req, res) => {
                 phone: deliveryAddress.phone,
                 address: `${deliveryAddress.address}, ${deliveryAddress.city}, ${deliveryAddress.state}, ${deliveryAddress.country}`,
             };
+            userAddressCount++; // Increment user address count
         } else if (deliveryAddress.storeId) {
             // Store reference
             const store = await Store.findOne({ where: { id: deliveryAddress.storeId } });
+            const storeName = store.name;
+            const checkstoreName = storeName.trim().toLowerCase() + ' ' + 'Klick';
             details = {
-                name: store.name,
+                name: checkstoreName,
                 email: store.businessEmail,
                 phone: store.businessPhone,
                 address: `${deliveryAddress.address}, ${deliveryAddress.city}, ${deliveryAddress.state}, ${deliveryAddress.country}`,
             };
+            storeAddressCount++; // Increment store address count
         } else {
             continue; // Skip if no valid reference found
         }
 
-        const addressCode = await validateAddress(details);
+        try {
+            const addressCode = await validateAddress(details);
 
-        // Update the addressCode column in the deliveryAddress table
-        await deliveryAddress.update({ addressCode });
+            // Update the addressCode column in the deliveryAddress table
+            await deliveryAddress.update({ addressCode });
+
+            revalidatedCount++; // Increment revalidated address count
+        } catch (error) {
+            // Handle errors by adding them to the errors array
+            errors.push({ addressId: deliveryAddress.id, error: error.message });
+            errorCount++; // Increment error count
+        }
     }
 
     return res.status(200).json({
         success: true,
         message: 'Delivery addresses revalidated successfully.',
+        analytics: {
+            revalidatedCount,
+            errorCount,
+            userAddressCount,
+            storeAddressCount,
+        },
+        errors,
     });
 });
 
